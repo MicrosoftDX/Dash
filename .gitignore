@@ -1,0 +1,12 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/DataAtScaleHub/.ntvs_analysis.dat
+*.suo
+packages/
+.nuget/NuGet.exe
+*.js
+*.js.map
+/DataAtScaleHub/Scripts/typings/
+/DataAtScaleHub/node_modules/
