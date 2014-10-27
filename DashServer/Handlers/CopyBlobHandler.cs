@@ -4,7 +4,6 @@ using System.Net.Http.Headers;
 using System.Text;
 using Microsoft.WindowsAzure.Storage.Auth;
 using Microsoft.WindowsAzure.Storage.Blob;
-using Microsoft.WindowsAzure.ServiceRuntime;
 using System.Web;
 using System.Xml;
 using System.Xml.Linq;
@@ -46,12 +45,8 @@ namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer.Handlers
             string sourceBlobName = copySourceUri.AbsolutePath.Substring(copySourceUri.AbsolutePath.IndexOf('/', 2) + 1);
             string newBlobName = request.RequestUri.AbsolutePath.Substring(request.RequestUri.AbsolutePath.IndexOf('/', 2) + 1);
 
-
-            //CreateNamespaceBlobForCopy(request, masterAccount);
-
             //reading metadata from source blob
             ReadMetaDataFromSource(copySourceUri, masterAccount, out accountName, out accountKey);
-
 
             //if we copy blob to different storage account we will have to have two calls to read meta data to get two different credentials
 
@@ -80,13 +75,12 @@ namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer.Handlers
             CloudBlobContainer sourceNamespaceBlobContainer = sourceNamespaceBlobClient.GetContainerReference(sourceContainerName);
             CloudBlockBlob sourceNamespaceBlockBlob = sourceNamespaceBlobContainer.GetBlockBlobReference(sourceBlobName);
 
-
-            //creating sas string for namespace container because authorization doesn't work anymore because we changed request headers explicitely in proxyhandler
+            //creating sas string for namespace container because authorization doesn't work anymore because we changed request headers explicitly in proxyhandler
             string sas = base.calculateSASStringForContainer(sourceNamespaceBlobContainer);
             request.RequestUri = new Uri(newLink + sas + "&" + request.RequestUri.Query.Substring(1));
             request.Headers.Authorization = null;
 
-            //changinh copy sorurce Header
+            //changing copy sorurce Header
             copySource = request.Headers.GetValues("x-ms-copy-source").First().Substring(0, request.Headers.GetValues("x-ms-copy-source").First().IndexOf("?"))+sas;
 
             request.Headers.Remove("x-ms-copy-source");

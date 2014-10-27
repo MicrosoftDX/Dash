@@ -4,7 +4,6 @@ using System.Net.Http.Headers;
 using System.Text;
 using Microsoft.WindowsAzure.Storage.Auth;
 using Microsoft.WindowsAzure.Storage.Blob;
-using Microsoft.WindowsAzure.ServiceRuntime;
 using System.Web;
 using System.Xml;
 using System.Xml.Linq;
