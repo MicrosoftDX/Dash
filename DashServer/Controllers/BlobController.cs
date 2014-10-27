@@ -23,7 +23,7 @@ namespace Microsoft.Dash.Server.Controllers
 
         /// Put Blob - http://msdn.microsoft.com/en-us/library/azure/dd179451.aspx
         [HttpPut]
-        public async Task<IHttpActionResult> GetBlob(string container, string blob)
+        public async Task<IHttpActionResult> PutBlob(string container, string blob)
         {
             await Task.Delay(10);
             return Ok();
