@@ -21,6 +21,10 @@ namespace Microsoft.Dash.Server
                 routeTemplate: "{controller}/{id}",
                 defaults: new { id = RouteParameter.Optional }
             );
+            config.Routes.MapHttpRoute(
+                name: "Blobs",
+                routeTemplate: "{controller}/{container}/{*blob}");
+
         }
     }
 }
