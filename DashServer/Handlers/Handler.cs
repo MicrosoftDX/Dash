@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
+using System.IO;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -11,13 +13,14 @@ using System.Linq;
 using System.Data;
 using System.Text.RegularExpressions;
 
-namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer
+namespace Microsoft.Dash.Server.Handlers
 {
     using System;
     using System.Net.Http;
     using System.Threading;
     using System.Threading.Tasks;
     using System.Configuration;
+    using Microsoft.WindowsAzure.Storage;
 
     enum Operation { PutBlob, GetBlob, ListBlobs, HeadBlob, PutBlock, PutBlockList, DeleteBlob, PutContainer, CopyBlob, ListContainers, DeleteContainer, HeadContainer, OptionsMethod, GetBlobPropertiesHandler, Unknown };
 
