@@ -12,7 +12,7 @@ using System.Linq;
 using System.Data;
 using System.Text.RegularExpressions;
 
-namespace Microsoft.WindowsAzure.Storage.TreeCopyProxy.ProxyServer
+namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer
 {
     using System;
     using System.Net.Http;
@@ -36,65 +36,57 @@ namespace Microsoft.WindowsAzure.Storage.TreeCopyProxy.ProxyServer
 
             HttpClient client = new HttpClient();
 
-            try
+            HttpResponseMessage finalResponse = new HttpResponseMessage();
+            HttpResponseMessage currentResponse = new HttpResponseMessage();
+
+            request = getRequestForMasterStorageAccount(request, masterAccount);
+
+            //we initialize finalResponse with namespace blobs and later replace each namespace blob with respective content blob info
+            finalResponse = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            string finalResponseXML = await finalResponse.Content.ReadAsStringAsync();
+
+            //keep namespace blobs for later comparing and eventually deleting unnecessery namespace blobs
+            string namespaceBlobsKeeper = finalResponseXML;
+
+            //removes all blobs from response, to be replaced with content blobs
+            finalResponseXML = removeAllBlobs(finalResponseXML);
+
+            //reading path to the container
+            XmlDocument doc = new XmlDocument();
+            doc.LoadXml(finalResponseXML);
+            XmlNodeList elemList = doc.GetElementsByTagName("EnumerationResults");
+            string containerPath = elemList[0].Attributes["ContainerName"].Value;
+
+            Int32 numOfAccounts = Convert.ToInt32(ConfigurationManager.AppSettings["ScaleoutNumberOfAccounts"]);
+
+            //going through all storage accounts to include all blobs in requested container
+            for (int currAccount = 0; currAccount < numOfAccounts; currAccount++)
             {
-                HttpResponseMessage finalResponse = new HttpResponseMessage();
-                HttpResponseMessage currentResponse = new HttpResponseMessage();
+                request = new HttpRequestMessage(requestKeeper.Method, requestKeeper.RequestUri);
+                request = getRequestForStorageAccount(request, currAccount, masterAccount);
+                currentResponse = await client.SendAsync(request, HttpCompletionOption.ResponseContentRead);
 
-                request = getRequestForMasterStorageAccount(request, masterAccount);
-
-                //we initialize finalResponse with namespace blobs and later replace each namespace blob with respective content blob info
-                finalResponse = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-                string finalResponseXML = await finalResponse.Content.ReadAsStringAsync();
-
-                //keep namespace blobs for later comparing and eventually deleting unnecessery namespace blobs
-                string namespaceBlobsKeeper = finalResponseXML;
-
-                //removes all blobs from response, to be replaced with content blobs
-                finalResponseXML = removeAllBlobs(finalResponseXML);
-
-                //reading path to the container
-                XmlDocument doc = new XmlDocument();
-                doc.LoadXml(finalResponseXML);
-                XmlNodeList elemList = doc.GetElementsByTagName("EnumerationResults");
-                string containerPath = elemList[0].Attributes["ContainerName"].Value;
-
-                Int32 numOfAccounts = Convert.ToInt32(ConfigurationManager.AppSettings["ScaleoutNumberOfAccounts"]);
-
-                //going through all storage accounts to include all blobs in requested container
-                for (int currAccount = 0; currAccount < numOfAccounts; currAccount++)
-                {
-                    request = new HttpRequestMessage(requestKeeper.Method, requestKeeper.RequestUri);
-                    request = getRequestForStorageAccount(request, currAccount, masterAccount);
-                    currentResponse = await client.SendAsync(request, HttpCompletionOption.ResponseContentRead);
-
-                    string currentResponseXML = await 
-                       currentResponse.Content.ReadAsStringAsync();
-                    finalResponseXML = updateResponseContent(finalResponseXML, currentResponseXML, containerPath, masterAccountHost);
-                }
-
-                finalResponseXML = sortBlobsInXML(finalResponseXML, requestKeeper);
-
-                //compares two responses: one is responce from virtual container, the other one is response from content blob containers
-                compareTwoResponses(namespaceBlobsKeeper, finalResponseXML, requestKeeper, masterAccount);
-
-
-                MemoryStream stream = new MemoryStream();
-                StreamWriter writer = new StreamWriter(stream);
-                writer.Write(finalResponseXML);
-                writer.Flush();
-                stream.Position = 0;
-
-                finalResponse.Content = new StreamContent(stream);
-                finalResponse.Content.Headers.ContentType = new MediaTypeHeaderValue("application/xml");
-
-                return finalResponse;
+                string currentResponseXML = await 
+                    currentResponse.Content.ReadAsStringAsync();
+                finalResponseXML = updateResponseContent(finalResponseXML, currentResponseXML, containerPath, masterAccountHost);
             }
-            catch (Exception e)
-            {
-                TreeCopyProxyTrace.TraceWarning("[ProxyHandler] Exception ocurred while relaying request {0}: {1}", request.RequestUri, e);
-                throw;
-            }
+
+            finalResponseXML = sortBlobsInXML(finalResponseXML, requestKeeper);
+
+            //compares two responses: one is responce from virtual container, the other one is response from content blob containers
+            compareTwoResponses(namespaceBlobsKeeper, finalResponseXML, requestKeeper, masterAccount);
+
+
+            MemoryStream stream = new MemoryStream();
+            StreamWriter writer = new StreamWriter(stream);
+            writer.Write(finalResponseXML);
+            writer.Flush();
+            stream.Position = 0;
+
+            finalResponse.Content = new StreamContent(stream);
+            finalResponse.Content.Headers.ContentType = new MediaTypeHeaderValue("application/xml");
+
+            return finalResponse;
         }
 /*
         //reads account data and returns accountName and accountKey for currAccount (account index)
@@ -126,23 +118,6 @@ namespace Microsoft.WindowsAzure.Storage.TreeCopyProxy.ProxyServer
                 sr.Close();
             }
 
-        }
-
-        //calculates SAS string to have access to a container
-        private string calculateSASStringForContainer(CloudBlobContainer container)
-        {
-            string sas = "";
-
-            SharedAccessBlobPolicy sasConstraints = new SharedAccessBlobPolicy();
-            sasConstraints.SharedAccessExpiryTime = DateTime.UtcNow.AddHours(4);
-
-            //we do not need all of those permisions
-            sasConstraints.Permissions = SharedAccessBlobPermissions.Write | SharedAccessBlobPermissions.List | SharedAccessBlobPermissions.Read;
-
-            //Generate the shared access signature on the container, setting the constraints directly on the signature.
-            sas = container.GetSharedAccessSignature(sasConstraints);
-
-            return sas;
         }
 */
 
@@ -246,10 +221,6 @@ namespace Microsoft.WindowsAzure.Storage.TreeCopyProxy.ProxyServer
                 XmlNode newNode = doc.DocumentElement;
                 xmlFileFinalRes.GetElementsByTagName("Blobs")[0].AppendChild(xmlFileFinalRes.ImportNode(newNode, true));
             }
-/*
-            XmlAttribute attrib = xmlFileFinalRes.SelectSingleNode("EnumerationResults").Attributes["ServiceEndpoint"];
-            attrib.Value = request.RequestUri.Scheme + "://" + request.RequestUri.Host;
-            */
 
             StringWriter stringWriter = new StringWriter();
             XmlTextWriter xmlTextWriter = new XmlTextWriter(stringWriter);

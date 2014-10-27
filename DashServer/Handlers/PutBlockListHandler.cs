@@ -11,7 +11,7 @@ using System.Xml.Linq;
 using System.Linq;
 using System.Data;
 
-namespace Microsoft.WindowsAzure.Storage.TreeCopyProxy.ProxyServer
+namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer
 {
     using System;
     using System.Net.Http;
@@ -50,18 +50,9 @@ namespace Microsoft.WindowsAzure.Storage.TreeCopyProxy.ProxyServer
             base.FormForwardingRequest(blobUri, accountName, accountKey, ref request);
 
             HttpClient client = new HttpClient();
-            try
-            {
-                HttpResponseMessage response = new HttpResponseMessage();
-                response = await client.SendAsync(request, HttpCompletionOption.ResponseContentRead);
-                TreeCopyProxyTrace.TraceInformation("[ProxyHandler] Outgoing response: {0}.", response);
-                return response;
-            }
-            catch (Exception e)
-            {
-                TreeCopyProxyTrace.TraceWarning("[ProxyHandler] Exception ocurred while relaying request {0}: {1}", request.RequestUri, e);
-                throw;
-            }
+            HttpResponseMessage response = new HttpResponseMessage();
+            response = await client.SendAsync(request, HttpCompletionOption.ResponseContentRead);
+            return response;
         }
 
     }

@@ -11,7 +11,7 @@ using System.Xml.Linq;
 using System.Linq;
 using System.Data;
 
-namespace Microsoft.WindowsAzure.Storage.TreeCopyProxy.ProxyServer
+namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer
 {
     using System;
     using System.Net.Http;
@@ -31,42 +31,28 @@ namespace Microsoft.WindowsAzure.Storage.TreeCopyProxy.ProxyServer
             CreateMasterContainer(request, masterAccount);
 
             HttpClient client = new HttpClient();
+            HttpResponseMessage response = new HttpResponseMessage();
 
-            try
-            {
-                HttpResponseMessage response = new HttpResponseMessage();
+            response.StatusCode = HttpStatusCode.Created;//FIXME
 
-                response.StatusCode = HttpStatusCode.Created;//FIXME
+            request.Content = null;
+            //response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
 
-                request.Content = null;
-                //response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            //if the creation of a namespace container is successfull we create all containers in other partition storage accounts
 
-                //if the creation of a namespace container is successfull we create all containers in other partition storage accounts
+            Int32 numOfAccounts = Convert.ToInt32(ConfigurationManager.AppSettings["ScaleoutNumberOfAccounts"]);
 
-                Int32 numOfAccounts = Convert.ToInt32(ConfigurationManager.AppSettings["ScaleoutNumberOfAccounts"]);
+                //going through all storage accounts to create same container in all of them
+                for (int currAccount = 0; currAccount < numOfAccounts; currAccount++)
+                {
+                    CreateContainer(request, currAccount, masterAccount);
+                }
 
-                    //going through all storage accounts to create same container in all of them
-                    for (int currAccount = 0; currAccount < numOfAccounts; currAccount++)
-                    {
-                        CreateContainer(request, currAccount, masterAccount);
-                    }
-
-                TreeCopyProxyTrace.TraceInformation("[ProxyHandler] Outgoing response: {0}.", response);
-
-                return response;
-            }
-            catch (Exception e)
-            {
-                TreeCopyProxyTrace.TraceWarning("[ProxyHandler] Exception ocurred while relaying request {0}: {1}", request.RequestUri, e);
-                throw;
-            }
+            return response;
         }
 
         private void CreateMasterContainer(HttpRequestMessage request, CloudStorageAccount masterAccount)
         {
-            string accountName = "";
-            string accountKey = "";
-
             //get master container reference
             StorageCredentials credentials = new StorageCredentials(masterAccount.Credentials.AccountName, masterAccount.Credentials.ExportBase64EncodedKey());
             CloudStorageAccount account = new CloudStorageAccount(credentials, false);

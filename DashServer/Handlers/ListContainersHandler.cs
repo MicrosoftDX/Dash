@@ -11,7 +11,7 @@ using System.Xml.Linq;
 using System.Linq;
 using System.Data;
 
-namespace Microsoft.WindowsAzure.Storage.TreeCopyProxy.ProxyServer.Handlers
+namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer.Handlers
 {
     using System;
     using System.Net.Http;
@@ -30,23 +30,9 @@ namespace Microsoft.WindowsAzure.Storage.TreeCopyProxy.ProxyServer.Handlers
                 ConfigurationManager.AppSettings["StorageConnectionStringMaster"]);
 
             HttpClient client = new HttpClient();
-
-            try
-            {
-                HttpResponseMessage response = new HttpResponseMessage();
-                request.Content = null;
-                response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-
-                TreeCopyProxyTrace.TraceInformation("[ProxyHandler] Outgoing response: {0}.", response);
-
-                return response;
-            }
-            catch (Exception e)
-            {
-                TreeCopyProxyTrace.TraceWarning("[ProxyHandler] Exception ocurred while relaying request {0}: {1}", request.RequestUri, e);
-                throw;
-            }
-
+            HttpResponseMessage response = new HttpResponseMessage();
+            request.Content = null;
+            return await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
         }
 
      

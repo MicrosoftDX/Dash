@@ -11,7 +11,7 @@ using System.Xml.Linq;
 using System.Linq;
 using System.Data;
 
-namespace Microsoft.WindowsAzure.Storage.TreeCopyProxy.ProxyServer.Handlers
+namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer.Handlers
 {
     using System;
     using System.Net.Http;
@@ -25,24 +25,17 @@ namespace Microsoft.WindowsAzure.Storage.TreeCopyProxy.ProxyServer.Handlers
         public override async Task<HttpResponseMessage> ProcessRequest(HttpRequestMessage request)
         {
             HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.OK);
-            try
+            if (response.Content == null)
             {
-                if (response.Content == null)
-                {
-                    response.Content = new StringContent("");
-                }
-                response.Content.Headers.Allow.Add("HEAD");
-                response.Content.Headers.Allow.Add("PUT");
-                response.Content.Headers.Allow.Add("GET");
-                response.Content.Headers.Allow.Add("OPTIONS");
-                response.Content.Headers.Allow.Add("LIST");
-                response.Content.Headers.Allow.Add("DELETE");
-                response.Headers.Add("x-ms-redirect", "true");
+                response.Content = new StringContent("");
             }
-            catch (Exception ex)
-            {
-                throw;
-            }
+            response.Content.Headers.Allow.Add("HEAD");
+            response.Content.Headers.Allow.Add("PUT");
+            response.Content.Headers.Allow.Add("GET");
+            response.Content.Headers.Allow.Add("OPTIONS");
+            response.Content.Headers.Allow.Add("LIST");
+            response.Content.Headers.Allow.Add("DELETE");
+            response.Headers.Add("x-ms-redirect", "true");
 
             return response;
         }

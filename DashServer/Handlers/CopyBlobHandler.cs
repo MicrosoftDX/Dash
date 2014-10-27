@@ -69,51 +69,39 @@ namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer.Handlers
 
             HttpClient client = new HttpClient();
 
-            try
-            {
-                HttpResponseMessage response = new HttpResponseMessage();
+            HttpResponseMessage response = new HttpResponseMessage();
 
-                string newLink = request.RequestUri.Scheme + "://" + masterAccountHost + "/" + newContainerName + "/" + newBlobName;
+            string newLink = request.RequestUri.Scheme + "://" + masterAccountHost + "/" + newContainerName + "/" + newBlobName;
 
-                CloudBlockBlob newNamespaceBlockBlob = GetBlobByName(masterAccount, newContainerName, newBlobName);
+            CloudBlockBlob newNamespaceBlockBlob = GetBlobByName(masterAccount, newContainerName, newBlobName);
 
-                // Manually getting the container and blob because we need a reference to the container below.
-                CloudBlobClient sourceNamespaceBlobClient = masterAccount.CreateCloudBlobClient();
-                CloudBlobContainer sourceNamespaceBlobContainer = sourceNamespaceBlobClient.GetContainerReference(sourceContainerName);
-                CloudBlockBlob sourceNamespaceBlockBlob = sourceNamespaceBlobContainer.GetBlockBlobReference(sourceBlobName);
+            // Manually getting the container and blob because we need a reference to the container below.
+            CloudBlobClient sourceNamespaceBlobClient = masterAccount.CreateCloudBlobClient();
+            CloudBlobContainer sourceNamespaceBlobContainer = sourceNamespaceBlobClient.GetContainerReference(sourceContainerName);
+            CloudBlockBlob sourceNamespaceBlockBlob = sourceNamespaceBlobContainer.GetBlockBlobReference(sourceBlobName);
 
 
-                //creating sas string for namespace container because authorization doesn't work anymore because we changed request headers explicitely in proxyhandler
-                string sas = base.calculateSASStringForContainer(sourceNamespaceBlobContainer);
-                request.RequestUri = new Uri(newLink + sas + "&" + request.RequestUri.Query.Substring(1));
-                request.Headers.Authorization = null;
+            //creating sas string for namespace container because authorization doesn't work anymore because we changed request headers explicitely in proxyhandler
+            string sas = base.calculateSASStringForContainer(sourceNamespaceBlobContainer);
+            request.RequestUri = new Uri(newLink + sas + "&" + request.RequestUri.Query.Substring(1));
+            request.Headers.Authorization = null;
 
-                //changinh copy sorurce Header
-                copySource = request.Headers.GetValues("x-ms-copy-source").First().Substring(0, request.Headers.GetValues("x-ms-copy-source").First().IndexOf("?"))+sas;
+            //changinh copy sorurce Header
+            copySource = request.Headers.GetValues("x-ms-copy-source").First().Substring(0, request.Headers.GetValues("x-ms-copy-source").First().IndexOf("?"))+sas;
 
-                request.Headers.Remove("x-ms-copy-source");
-                request.Headers.Add("x-ms-copy-source", copySource);
+            request.Headers.Remove("x-ms-copy-source");
+            request.Headers.Add("x-ms-copy-source", copySource);
 
-                response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
 
+            //updating metadata of new Namespace blob
+            newNamespaceBlockBlob.FetchAttributes();
+            newNamespaceBlockBlob.Metadata["link"] = newLink.Replace(masterAccountHost, accountName);
+            newNamespaceBlockBlob.Metadata["container"] = newContainerName;
+            newNamespaceBlockBlob.Metadata["blobname"] = newBlobName;
+            newNamespaceBlockBlob.SetMetadata();
 
-                //updating metadata of new Namespace blob
-                newNamespaceBlockBlob.FetchAttributes();
-                newNamespaceBlockBlob.Metadata["link"] = newLink.Replace(masterAccountHost, accountName);
-                newNamespaceBlockBlob.Metadata["container"] = newContainerName;
-                newNamespaceBlockBlob.Metadata["blobname"] = newBlobName;
-                newNamespaceBlockBlob.SetMetadata();
-
-                TreeCopyProxyTrace.TraceInformation("[ProxyHandler] Outgoing response: {0}.", response);
-
-                return response;
-            }
-            catch (Exception e)
-            {
-                TreeCopyProxyTrace.TraceWarning("[ProxyHandler] Exception ocurred while relaying request {0}: {1}", request.RequestUri, e);
-                throw;
-            }
-
+            return response;
         }
 
 

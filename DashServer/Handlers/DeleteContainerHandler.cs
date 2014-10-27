@@ -11,7 +11,7 @@ using System.Xml.Linq;
 using System.Linq;
 using System.Data;
 
-namespace Microsoft.WindowsAzure.Storage.TreeCopyProxy.ProxyServer.Handlers
+namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer.Handlers
 {
     using System;
     using System.Net.Http;
@@ -31,39 +31,28 @@ namespace Microsoft.WindowsAzure.Storage.TreeCopyProxy.ProxyServer.Handlers
 
             HttpClient client = new HttpClient();
 
-            try
+            HttpResponseMessage response = new HttpResponseMessage();
+
+            DeleteMasterContainer(request, masterAccount);
+
+            response = await client.SendAsync(request, HttpCompletionOption.ResponseContentRead);
+
+            response.StatusCode = HttpStatusCode.Accepted;
+
+            //if the deletion of a namespace container is successfull we delete all containers in other partition storage accounts
+            if (response.IsSuccessStatusCode)
             {
-                HttpResponseMessage response = new HttpResponseMessage();
+                int numOfAccounts = Convert.ToInt32(ConfigurationManager.AppSettings["ScaleoutNumberOfAccounts"]);
 
-                //FormRedirectRequest2(masterAccount, ref request);
-
-                DeleteMasterContainer(request, masterAccount);
-
-                response = await client.SendAsync(request, HttpCompletionOption.ResponseContentRead);
-
-                response.StatusCode = HttpStatusCode.Accepted;
-
-                //if the deletion of a namespace container is successfull we delete all containers in other partition storage accounts
-                if (response.IsSuccessStatusCode)
+                //going through all storage accounts to create same container in all of them
+                for (int currAccount = 0; currAccount < numOfAccounts; currAccount++)
                 {
-                    int numOfAccounts = Convert.ToInt32(ConfigurationManager.AppSettings["ScaleoutNumberOfAccounts"]);
-
-                    //going through all storage accounts to create same container in all of them
-                    for (int currAccount = 0; currAccount < numOfAccounts; currAccount++)
-                    {
-                        DeleteContainer(request, currAccount, masterAccount);
-                    }
+                    DeleteContainer(request, currAccount, masterAccount);
                 }
-
-                TreeCopyProxyTrace.TraceInformation("[ProxyHandler] Outgoing response: {0}.", response);
-
-                return response;
             }
-            catch (Exception e)
-            {
-                TreeCopyProxyTrace.TraceWarning("[ProxyHandler] Exception ocurred while relaying request {0}: {1}", request.RequestUri, e);
-                throw;
-            }
+
+            return response;
+
         }
 
         private void DeleteMasterContainer(HttpRequestMessage request, CloudStorageAccount masterAccount)

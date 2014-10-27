@@ -11,7 +11,7 @@ using System.Xml.Linq;
 using System.Linq;
 using System.Data;
 
-namespace Microsoft.WindowsAzure.Storage.TreeCopyProxy.ProxyServer
+namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer
 {
     using System;
     using System.Net.Http;
