@@ -10,3 +10,6 @@ packages/
 *.js.map
 /DataAtScaleHub/Scripts/typings/
 /DataAtScaleHub/node_modules/
+bin/
+obj/
+*.user

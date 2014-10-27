@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
 VisualStudioVersion = 12.0.30723.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9092AA53-FB77-4645-B42D-1CCCA6BD08BD}") = "DataAtScaleHub", "DataAtScaleHub\DataAtScaleHub.njsproj", "{6B814D4B-8998-405F-BC08-E813B579296E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DashServer", "DashServer\DashServer.csproj", "{7E4CA414-B46A-49CA-922F-FE00D69C23CA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DashServer.Tests", "DashServer.Tests\DashServer.Tests.csproj", "{98DFBF47-6F1E-4BB1-910B-88DFF5ABABED}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,10 +13,14 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{6B814D4B-8998-405F-BC08-E813B579296E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{6B814D4B-8998-405F-BC08-E813B579296E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{6B814D4B-8998-405F-BC08-E813B579296E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{6B814D4B-8998-405F-BC08-E813B579296E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7E4CA414-B46A-49CA-922F-FE00D69C23CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7E4CA414-B46A-49CA-922F-FE00D69C23CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7E4CA414-B46A-49CA-922F-FE00D69C23CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7E4CA414-B46A-49CA-922F-FE00D69C23CA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{98DFBF47-6F1E-4BB1-910B-88DFF5ABABED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{98DFBF47-6F1E-4BB1-910B-88DFF5ABABED}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{98DFBF47-6F1E-4BB1-910B-88DFF5ABABED}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98DFBF47-6F1E-4BB1-910B-88DFF5ABABED}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
