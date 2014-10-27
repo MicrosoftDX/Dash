@@ -26,12 +26,9 @@ namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer.Handlers
 
             request.Content = null;
 
-            //checking if container exists
-            bool exists = containerExists(request, masterAccount);
-
             HttpResponseMessage response = new HttpResponseMessage();
 
-            if (exists)
+            if (containerExists(request, masterAccount))
                 response.StatusCode = HttpStatusCode.OK;
             else
                 response.StatusCode = HttpStatusCode.NotFound;
