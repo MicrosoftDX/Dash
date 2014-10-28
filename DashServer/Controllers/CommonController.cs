@@ -158,7 +158,7 @@ namespace Microsoft.Dash.Server.Controllers
             return sas;
         }
 
-        protected void CreateNamespaceBlob(HttpRequestMessage request, CloudStorageAccount masterAccount)
+        protected void CreateNamespaceBlob(HttpRequestMessage request, CloudStorageAccount masterAccount, string container, string blob)
         {
             String accountName = "";
             String accountKey = "";
@@ -166,19 +166,19 @@ namespace Microsoft.Dash.Server.Controllers
             //create an namespace blob with hardcoded metadata
             var namespaceBlobClient = masterAccount.CreateCloudBlobClient();
 
-            string masterContainerString = request.RequestUri.AbsolutePath.Substring(1,
-                                                                                     request.RequestUri.AbsolutePath
-                                                                                            .IndexOf('/', 2) - 1);
+            //string masterContainerString = request.RequestUri.AbsolutePath.Substring(1,
+            //                                                                         request.RequestUri.AbsolutePath
+            //                                                                                .IndexOf('/', 2) - 1);
 
-            CloudBlobContainer masterContainer = namespaceBlobClient.GetContainerReference(masterContainerString);
+            CloudBlobContainer masterContainer = namespaceBlobClient.GetContainerReference(container);
 
-            string masterBlobString = request.RequestUri.LocalPath.Substring(masterContainerString.Length + 2);
+            //string masterBlobString = request.RequestUri.LocalPath.Substring(masterContainerString.Length + 2);
 
-            CloudBlockBlob blobMaster = masterContainer.GetBlockBlobReference(masterBlobString);
+            CloudBlockBlob blobMaster = masterContainer.GetBlockBlobReference(blob);
 
 
             //getting storage account name and account key from file account, by using simple hashing algorithm to choose account storage
-            getStorageAccount(masterAccount, masterBlobString, out accountName, out accountKey);
+            getStorageAccount(masterAccount, blob, out accountName, out accountKey);
 
 
             if (blobMaster.Exists())
@@ -195,45 +195,17 @@ namespace Microsoft.Dash.Server.Controllers
             //var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(masterBlobString.GetHashCode().ToString());
             //String clientBlobName = System.Convert.ToBase64String(plainTextBytes);
 
-            blobMaster.Metadata["link"] = request.RequestUri.Scheme + "://" + accountName + ".blob.core.windows.net/" + masterContainerString + "/" + masterBlobString;
+            blobMaster.Metadata["link"] = request.RequestUri.Scheme + "://" + accountName + ".blob.core.windows.net/" + container + "/" + blob;
             blobMaster.Metadata["accountname"] = accountName;
             blobMaster.Metadata["accountkey"] = accountKey;
-            blobMaster.Metadata["container"] = masterContainerString;
-            blobMaster.Metadata["blobname"] = masterBlobString;
+            blobMaster.Metadata["container"] = container;
+            blobMaster.Metadata["blobname"] = blob;
             blobMaster.SetMetadata();
         }
 
         //getting storage account name and account key from file account, by using simple hashing algorithm to choose account storage
         protected void getStorageAccount(CloudStorageAccount masterAccount, string masterBlobString, out string accountName, out string accountKey)
         {
-            //var blobClientMaster = masterAccount.CreateCloudBlobClient();
-            //accountName = "";
-            //accountKey = "";
-
-            //CloudBlobContainer masterContainer = blobClientMaster.GetContainerReference("accounts");
-
-            //CloudBlockBlob blobMaster = masterContainer.GetBlockBlobReference("accounts.txt");
-
-            //string content = blobMaster.DownloadText();
-
-            //using (StringReader sr = new StringReader(content))
-            //{
-            //    //reading number of accounts
-            //    Int32 numAcc = Convert.ToInt32(sr.ReadLine());
-
-            //    //chosing number of storage account to put blob into
-            //    Int64 chosenAccount = GetInt64HashCode(masterBlobString, numAcc);
-
-            //    //reading last account used for storing, we use hashing algorithm for now so we don't actually use this number
-            //    Int32 curAcc = Convert.ToInt32(sr.ReadLine());
-
-            //    for (int i = 0; i <= chosenAccount; i++)
-            //    {
-            //        accountName = sr.ReadLine();
-            //        accountKey = sr.ReadLine();
-            //    }
-            //    sr.Close();
-            //}
             string ScaleoutNumberOfAccountsString = ConfigurationManager.AppSettings["ScaleoutNumberOfAccounts"];
             Int32 numAcc = Convert.ToInt32(ScaleoutNumberOfAccountsString);
             Int64 chosenAccount = GetInt64HashCode(masterBlobString, numAcc);

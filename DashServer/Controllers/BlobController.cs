@@ -47,7 +47,7 @@ namespace Microsoft.Dash.Server.Controllers
             Uri blobUri;
             String containerName = "";
 
-            CreateNamespaceBlob(Request, masterAccount);
+            CreateNamespaceBlob(Request, masterAccount, container, blob);
 
             ReadMetaData(masterAccount, container, blob, out blobUri, out accountName, out accountKey, out containerName);
 
@@ -81,11 +81,12 @@ namespace Microsoft.Dash.Server.Controllers
             namespaceBlob.SetMetadata();
 
             ReadMetaData(masterAccount, container, blob, out blobUri, out accountName, out accountKey, out containerName);
+            Uri redirect = GetRedirectUri(blobUri, accountName, accountKey, containerName, Request);
 
             CloudBlockBlob blobObj = GetBlobByName(masterAccount, container, blob);
             blobObj.Delete();
 
-            return Redirect(GetRedirectUri(blobUri, accountName, accountKey, containerName, Request));
+            return Redirect(redirect);
         }
 
         /// Get Blob Properties - http://msdn.microsoft.com/en-us/library/azure/dd179394.aspx
@@ -221,7 +222,7 @@ namespace Microsoft.Dash.Server.Controllers
             Uri blobUri;
             String containerName = "";
 
-            CreateNamespaceBlob(Request, masterAccount);
+            CreateNamespaceBlob(Request, masterAccount, container, blob);
 
             //reading metadata from namespace blob
             ReadMetaData(masterAccount, container, blob, out blobUri, out accountName, out accountKey, out containerName);
