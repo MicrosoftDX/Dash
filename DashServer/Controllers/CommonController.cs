@@ -1,19 +1,16 @@
-﻿using Microsoft.Dash.Server.Handlers;
-using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Auth;
-using Microsoft.WindowsAzure.Storage.Blob;
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
 using System;
-using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using System.Web;
 using System.Web.Http;
+using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Auth;
+using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace Microsoft.Dash.Server.Controllers
 {
@@ -35,6 +32,27 @@ namespace Microsoft.Dash.Server.Controllers
             accountName = namespaceBlob.Metadata["accountname"];
             accountKey = namespaceBlob.Metadata["accountkey"];
             containerName = namespaceBlob.Metadata["container"];
+        }
+
+        protected Uri GetForwardingUri(Uri blobUri, String accountName, String accountKey, HttpRequestMessage request)
+        {
+            StorageCredentials credentials = new StorageCredentials(accountName, accountKey);
+
+            CloudStorageAccount account = new CloudStorageAccount(credentials, false);
+
+            var blobClient = account.CreateCloudBlobClient();
+            string containerString = blobUri.AbsolutePath.Substring(1, blobUri.AbsolutePath.IndexOf('/', 2) - 1);
+            CloudBlobContainer container = blobClient.GetContainerReference(containerString);
+            string blobString = blobUri.AbsolutePath.Substring(blobUri.AbsolutePath.IndexOf('/', 2) + 1).Replace("%20", " ");
+            var blob = container.GetBlockBlobReference(blobString);
+            string sas = calculateSASStringForContainer(container);
+
+            request.Headers.Host = accountName + ".blob.core.windows.net";
+
+            //creating redirection Uri
+            UriBuilder forwardUri = new UriBuilder(blob.Uri.ToString() + sas + "&" + request.RequestUri.Query.Substring(1));
+
+           return forwardUri.Uri;
         }
 
         protected void FormForwardingRequest(Uri blobUri, String accountName, String accountKey, ref HttpRequestMessage request)
@@ -89,45 +107,15 @@ namespace Microsoft.Dash.Server.Controllers
 
             //creating redirection Uri
             if (request.RequestUri.Query != "")
+            {
                 forwardUri = new UriBuilder(blobUri.ToString() + sas + "&" + request.RequestUri.Query.Substring(1).Replace("timeout=90", "timeout=90000"));
+            }
             else
+            {
                 forwardUri = new UriBuilder(blobUri.ToString() + sas);
+            }
 
             return forwardUri.Uri;
-        }
-
-        protected void FormRedirectResponse(Uri blobUri, String accountName, String accountKey, string containerName, string blobName, HttpRequestMessage request, ref HttpResponseMessage response)
-        {
-            StorageCredentials credentials = new StorageCredentials(accountName, accountKey);
-            CloudStorageAccount account = new CloudStorageAccount(credentials, false);
-
-            var blobClient = account.CreateCloudBlobClient();
-            CloudBlobContainer container = blobClient.GetContainerReference(containerName);
-
-            string sas = calculateSASStringForContainer(container);
-
-            ////creating redirection Uri
-            //UriBuilder forwardUri = new UriBuilder(blobUri.ToString() + sas + "&" + request.RequestUri.Query.Substring(1));
-
-            UriBuilder forwardUri;
-
-            //creating redirection Uri
-            if (request.RequestUri.Query != "")
-                forwardUri = new UriBuilder(blobUri.ToString() + sas + "&" + request.RequestUri.Query.Substring(1).Replace("timeout=90", "timeout=90000"));
-            else
-                forwardUri = new UriBuilder(blobUri.ToString() + sas);
-
-            //strip off the proxy port and replace with an Http port
-            forwardUri.Port = 80;
-
-            if (request.Method == HttpMethod.Get || request.Method == HttpMethod.Head)
-                response.Content = null;
-            else
-                response.Content = request.Content;
-
-            response.StatusCode = HttpStatusCode.Moved;
-            response.Headers.Location = forwardUri.Uri;
-            System.Net.ServicePointManager.Expect100Continue = false;
         }
 
         //calculates Shared Access Signature (SAS) string based on type of request (GET, HEAD, DELETE, PUT)
@@ -194,9 +182,13 @@ namespace Microsoft.Dash.Server.Controllers
 
 
             if (blobMaster.Exists())
+            {
                 blobMaster.FetchAttributes();
+            }
             else
+            {
                 blobMaster.UploadText("");
+            }
 
 
             ////calculating client blob name as a hash value of it's real name
@@ -252,7 +244,9 @@ namespace Microsoft.Dash.Server.Controllers
             Match match1 = Regex.Match(ScaleoutAccountInfo, @"AccountName=([A-Za-z0-9\-]+);", RegexOptions.IgnoreCase);
             accountName = "";
             if (match1.Success)
+            {
                 accountName = match1.Groups[1].Value;
+            }
 
             //getting account key
             accountKey = ScaleoutAccountInfo.Substring(ScaleoutAccountInfo.IndexOf("AccountKey=") + 11);
@@ -310,7 +304,9 @@ namespace Microsoft.Dash.Server.Controllers
                 //calculating next storage account for storing
                 curAcc = curAcc + 1;
                 if (curAcc > numAcc)
+                {
                     curAcc = 1;
+                }
 
                 sw.WriteLine(numAcc.ToString() + "\r\n" + curAcc.ToString());
                 string temp;
@@ -320,13 +316,17 @@ namespace Microsoft.Dash.Server.Controllers
                     sw.WriteLine(temp);
 
                     if (i == curAcc)
+                    {
                         accountName = temp;
+                    }
 
                     temp = sr.ReadLine();
                     sw.WriteLine(temp);
 
                     if (i == curAcc)
+                    {
                         accountKey = temp;
+                    }
                 }
 
                 sw.Close();
@@ -346,7 +346,9 @@ namespace Microsoft.Dash.Server.Controllers
             Match match1 = Regex.Match(ScaleoutAccountInfo, @"AccountName=([A-Za-z0-9\-]+);", RegexOptions.IgnoreCase);
             accountName = "";
             if (match1.Success)
+            {
                 accountName = match1.Groups[1].Value;
+            }
 
             //getting account key
             accountKey = ScaleoutAccountInfo.Substring(ScaleoutAccountInfo.IndexOf("AccountKey=") + 11);
