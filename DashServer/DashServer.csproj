@@ -121,6 +121,8 @@
     <Compile Include="Handlers\PutBlockHandler.cs" />
     <Compile Include="Handlers\PutBlockListHandler.cs" />
     <Compile Include="Handlers\PutContainerHandler.cs" />
+    <Compile Include="Handlers\RequestAuthorization.cs" />
+    <Compile Include="Handlers\StorageOperations.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
