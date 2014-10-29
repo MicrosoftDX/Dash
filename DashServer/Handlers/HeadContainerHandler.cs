@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
+using System.IO;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -10,13 +12,14 @@ using System.Xml.Linq;
 using System.Linq;
 using System.Data;
 
-namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer.Handlers
+namespace Microsoft.Dash.Server.Handlers
 {
     using System;
     using System.Net.Http;
     using System.Threading;
     using System.Threading.Tasks;
     using System.Configuration;
+    using Microsoft.WindowsAzure.Storage;
     class HeadContainerHandler : Handler
     {
         public override async Task<HttpResponseMessage> ProcessRequest(HttpRequestMessage request)
@@ -26,12 +29,9 @@ namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer.Handlers
 
             request.Content = null;
 
-            //checking if container exists
-            bool exists = containerExists(request, masterAccount);
-
             HttpResponseMessage response = new HttpResponseMessage();
 
-            if (exists)
+            if (containerExists(request, masterAccount))
                 response.StatusCode = HttpStatusCode.OK;
             else
                 response.StatusCode = HttpStatusCode.NotFound;

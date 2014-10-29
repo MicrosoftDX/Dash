@@ -1,43 +1,29 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
+using System;
+using System.Configuration;
 using System.IO;
 using System.Net;
-using System.Net.Http.Headers;
+using System.Net.Http;
 using System.Text;
+using System.Text.RegularExpressions;
+using System.Web.Http;
+using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Auth;
 using Microsoft.WindowsAzure.Storage.Blob;
-using System.Web;
-using System.Xml;
-using System.Xml.Linq;
-using System.Linq;
-using System.Data;
-using System.Text.RegularExpressions;
 
-namespace Microsoft.Dash.Server.Handlers
+namespace Microsoft.Dash.Server.Controllers
 {
-    using System;
-    using System.Net.Http;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using System.Configuration;
-    using Microsoft.WindowsAzure.Storage;
-
-    enum Operation { PutBlob, GetBlob, ListBlobs, HeadBlob, PutBlock, PutBlockList, DeleteBlob, PutContainer, CopyBlob, ListContainers, DeleteContainer, HeadContainer, OptionsMethod, GetBlobPropertiesHandler, Unknown };
-
-
-    abstract class Handler
+    public class CommonController : ApiController
     {
-        public abstract Task<HttpResponseMessage> ProcessRequest(HttpRequestMessage request);
-
-        protected void ReadMetaData(HttpRequestMessage request, CloudStorageAccount masterAccount, out Uri blobUri, out String accountName, out String accountKey, out String containerName, out String blobName )
+        protected CloudStorageAccount GetMasterAccount()
         {
-            containerName = request.RequestUri.AbsolutePath.Substring(1, request.RequestUri.AbsolutePath.IndexOf('/', 2) - 1);
-            blobName = request.RequestUri.LocalPath.Substring(containerName.Length + 2);
-            
+            return CloudStorageAccount.Parse(ConfigurationManager.AppSettings["StorageConnectionStringMaster"]);
+        }
 
-            var blobClient = masterAccount.CreateCloudBlobClient();
-            CloudBlobContainer container = blobClient.GetContainerReference(containerName);
-            CloudBlockBlob namespaceBlob = container.GetBlockBlobReference(blobName);
+        protected void ReadMetaData(CloudStorageAccount masterAccount, string origContainerName, string blobName, out Uri blobUri, out String accountName, out String accountKey, out String containerName)
+        {
+            CloudBlockBlob namespaceBlob = GetBlobByName(masterAccount, origContainerName, blobName);
 
             //Get blob metadata
             namespaceBlob.FetchAttributes();
@@ -46,8 +32,27 @@ namespace Microsoft.Dash.Server.Handlers
             accountName = namespaceBlob.Metadata["accountname"];
             accountKey = namespaceBlob.Metadata["accountkey"];
             containerName = namespaceBlob.Metadata["container"];
-            blobName = namespaceBlob.Metadata["blobname"];
-            
+        }
+
+        protected Uri GetForwardingUri(Uri blobUri, String accountName, String accountKey, HttpRequestMessage request)
+        {
+            StorageCredentials credentials = new StorageCredentials(accountName, accountKey);
+
+            CloudStorageAccount account = new CloudStorageAccount(credentials, false);
+
+            var blobClient = account.CreateCloudBlobClient();
+            string containerString = blobUri.AbsolutePath.Substring(1, blobUri.AbsolutePath.IndexOf('/', 2) - 1);
+            CloudBlobContainer container = blobClient.GetContainerReference(containerString);
+            string blobString = blobUri.AbsolutePath.Substring(blobUri.AbsolutePath.IndexOf('/', 2) + 1).Replace("%20", " ");
+            var blob = container.GetBlockBlobReference(blobString);
+            string sas = calculateSASStringForContainer(container);
+
+            request.Headers.Host = accountName + ".blob.core.windows.net";
+
+            //creating redirection Uri
+            UriBuilder forwardUri = new UriBuilder(blob.Uri.ToString() + sas + "&" + request.RequestUri.Query.Substring(1));
+
+           return forwardUri.Uri;
         }
 
         protected void FormForwardingRequest(Uri blobUri, String accountName, String accountKey, ref HttpRequestMessage request)
@@ -62,7 +67,7 @@ namespace Microsoft.Dash.Server.Handlers
 
             CloudBlobContainer container = blobClient.GetContainerReference(containerString);
 
-            string blobString = blobUri.AbsolutePath.Substring(blobUri.AbsolutePath.IndexOf('/', 2) + 1).Replace("%20"," ");
+            string blobString = blobUri.AbsolutePath.Substring(blobUri.AbsolutePath.IndexOf('/', 2) + 1).Replace("%20", " ");
 
             var blob = container.GetBlockBlobReference(blobString);
 
@@ -88,7 +93,7 @@ namespace Microsoft.Dash.Server.Handlers
             }
         }
 
-        protected void FormRedirectResponse(Uri blobUri, String accountName, String accountKey, string containerName, string blobName, HttpRequestMessage request, ref HttpResponseMessage response)
+        protected Uri GetRedirectUri(Uri blobUri, String accountName, String accountKey, string containerName, HttpRequestMessage request)
         {
             StorageCredentials credentials = new StorageCredentials(accountName, accountKey);
             CloudStorageAccount account = new CloudStorageAccount(credentials, false);
@@ -98,28 +103,19 @@ namespace Microsoft.Dash.Server.Handlers
 
             string sas = calculateSASStringForContainer(container);
 
-            ////creating redirection Uri
-            //UriBuilder forwardUri = new UriBuilder(blobUri.ToString() + sas + "&" + request.RequestUri.Query.Substring(1));
-
             UriBuilder forwardUri;
 
             //creating redirection Uri
             if (request.RequestUri.Query != "")
+            {
                 forwardUri = new UriBuilder(blobUri.ToString() + sas + "&" + request.RequestUri.Query.Substring(1).Replace("timeout=90", "timeout=90000"));
+            }
             else
+            {
                 forwardUri = new UriBuilder(blobUri.ToString() + sas);
+            }
 
-            //strip off the proxy port and replace with an Http port
-            forwardUri.Port = 80;
-            
-            if (request.Method == HttpMethod.Get || request.Method == HttpMethod.Head)
-                response.Content = null;
-            else
-                response.Content = request.Content;
-
-            response.StatusCode = HttpStatusCode.Moved;
-            response.Headers.Location = forwardUri.Uri;
-            System.Net.ServicePointManager.Expect100Continue = false;
+            return forwardUri.Uri;
         }
 
         //calculates Shared Access Signature (SAS) string based on type of request (GET, HEAD, DELETE, PUT)
@@ -162,7 +158,7 @@ namespace Microsoft.Dash.Server.Handlers
             return sas;
         }
 
-        protected void CreateNamespaceBlob(HttpRequestMessage request, CloudStorageAccount masterAccount)
+        protected void CreateNamespaceBlob(HttpRequestMessage request, CloudStorageAccount masterAccount, string container, string blob)
         {
             String accountName = "";
             String accountKey = "";
@@ -170,70 +166,46 @@ namespace Microsoft.Dash.Server.Handlers
             //create an namespace blob with hardcoded metadata
             var namespaceBlobClient = masterAccount.CreateCloudBlobClient();
 
-            string masterContainerString = request.RequestUri.AbsolutePath.Substring(1,
-                                                                                     request.RequestUri.AbsolutePath
-                                                                                            .IndexOf('/', 2) - 1);
+            //string masterContainerString = request.RequestUri.AbsolutePath.Substring(1,
+            //                                                                         request.RequestUri.AbsolutePath
+            //                                                                                .IndexOf('/', 2) - 1);
 
-            CloudBlobContainer masterContainer = namespaceBlobClient.GetContainerReference(masterContainerString);
+            CloudBlobContainer masterContainer = namespaceBlobClient.GetContainerReference(container);
 
-            string masterBlobString = request.RequestUri.LocalPath.Substring(masterContainerString.Length + 2);
+            //string masterBlobString = request.RequestUri.LocalPath.Substring(masterContainerString.Length + 2);
 
-            CloudBlockBlob blobMaster = masterContainer.GetBlockBlobReference(masterBlobString);
+            CloudBlockBlob blobMaster = masterContainer.GetBlockBlobReference(blob);
 
 
             //getting storage account name and account key from file account, by using simple hashing algorithm to choose account storage
-            getStorageAccount(masterAccount, masterBlobString, out accountName, out accountKey);
+            getStorageAccount(masterAccount, blob, out accountName, out accountKey);
 
 
             if (blobMaster.Exists())
+            {
                 blobMaster.FetchAttributes();
+            }
             else
+            {
                 blobMaster.UploadText("");
+            }
 
 
             ////calculating client blob name as a hash value of it's real name
             //var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(masterBlobString.GetHashCode().ToString());
             //String clientBlobName = System.Convert.ToBase64String(plainTextBytes);
 
-            blobMaster.Metadata["link"] = request.RequestUri.Scheme + "://" + accountName + ".blob.core.windows.net/" + masterContainerString + "/" + masterBlobString;
+            blobMaster.Metadata["link"] = request.RequestUri.Scheme + "://" + accountName + ".blob.core.windows.net/" + container + "/" + blob;
             blobMaster.Metadata["accountname"] = accountName;
             blobMaster.Metadata["accountkey"] = accountKey;
-            blobMaster.Metadata["container"] = masterContainerString;
-            blobMaster.Metadata["blobname"] = masterBlobString;
+            blobMaster.Metadata["container"] = container;
+            blobMaster.Metadata["blobname"] = blob;
             blobMaster.SetMetadata();
         }
 
         //getting storage account name and account key from file account, by using simple hashing algorithm to choose account storage
         protected void getStorageAccount(CloudStorageAccount masterAccount, string masterBlobString, out string accountName, out string accountKey)
         {
-            //var blobClientMaster = masterAccount.CreateCloudBlobClient();
-            //accountName = "";
-            //accountKey = "";
-
-            //CloudBlobContainer masterContainer = blobClientMaster.GetContainerReference("accounts");
-
-            //CloudBlockBlob blobMaster = masterContainer.GetBlockBlobReference("accounts.txt");
-
-            //string content = blobMaster.DownloadText();
-
-            //using (StringReader sr = new StringReader(content))
-            //{
-            //    //reading number of accounts
-            //    Int32 numAcc = Convert.ToInt32(sr.ReadLine());
-
-            //    //chosing number of storage account to put blob into
-            //    Int64 chosenAccount = GetInt64HashCode(masterBlobString, numAcc);
-
-            //    //reading last account used for storing, we use hashing algorithm for now so we don't actually use this number
-            //    Int32 curAcc = Convert.ToInt32(sr.ReadLine());
-
-            //    for (int i = 0; i <= chosenAccount; i++)
-            //    {
-            //        accountName = sr.ReadLine();
-            //        accountKey = sr.ReadLine();
-            //    }
-            //    sr.Close();
-            //}
             string ScaleoutNumberOfAccountsString = ConfigurationManager.AppSettings["ScaleoutNumberOfAccounts"];
             Int32 numAcc = Convert.ToInt32(ScaleoutNumberOfAccountsString);
             Int64 chosenAccount = GetInt64HashCode(masterBlobString, numAcc);
@@ -241,13 +213,15 @@ namespace Microsoft.Dash.Server.Handlers
             string ScaleoutAccountInfo = ConfigurationManager.AppSettings["ScaleoutStorage" + chosenAccount.ToString()];
 
             //getting account name
-            Match match1 = Regex.Match(ScaleoutAccountInfo, @"AccountName=([A-Za-z0-9\-]+);",RegexOptions.IgnoreCase);
+            Match match1 = Regex.Match(ScaleoutAccountInfo, @"AccountName=([A-Za-z0-9\-]+);", RegexOptions.IgnoreCase);
             accountName = "";
             if (match1.Success)
+            {
                 accountName = match1.Groups[1].Value;
+            }
 
             //getting account key
-            accountKey = ScaleoutAccountInfo.Substring(ScaleoutAccountInfo.IndexOf("AccountKey=")+11);
+            accountKey = ScaleoutAccountInfo.Substring(ScaleoutAccountInfo.IndexOf("AccountKey=") + 11);
         }
 
 
@@ -272,7 +246,7 @@ namespace Microsoft.Dash.Server.Handlers
                 hashCode = hashCodeStart ^ hashCodeMedium ^ hashCodeEnd;
             }
             return (hashCode > 0) ? hashCode % numAcc : (-hashCode) % numAcc;
-        }  
+        }
 
 
 
@@ -302,7 +276,9 @@ namespace Microsoft.Dash.Server.Handlers
                 //calculating next storage account for storing
                 curAcc = curAcc + 1;
                 if (curAcc > numAcc)
+                {
                     curAcc = 1;
+                }
 
                 sw.WriteLine(numAcc.ToString() + "\r\n" + curAcc.ToString());
                 string temp;
@@ -312,13 +288,17 @@ namespace Microsoft.Dash.Server.Handlers
                     sw.WriteLine(temp);
 
                     if (i == curAcc)
+                    {
                         accountName = temp;
+                    }
 
                     temp = sr.ReadLine();
                     sw.WriteLine(temp);
 
                     if (i == curAcc)
+                    {
                         accountKey = temp;
+                    }
                 }
 
                 sw.Close();
@@ -338,46 +318,12 @@ namespace Microsoft.Dash.Server.Handlers
             Match match1 = Regex.Match(ScaleoutAccountInfo, @"AccountName=([A-Za-z0-9\-]+);", RegexOptions.IgnoreCase);
             accountName = "";
             if (match1.Success)
+            {
                 accountName = match1.Groups[1].Value;
+            }
 
             //getting account key
             accountKey = ScaleoutAccountInfo.Substring(ScaleoutAccountInfo.IndexOf("AccountKey=") + 11);
-        }
-
-        public static Operation GetOperationType(HttpRequestMessage request)
-        {
-            if (request.Method == HttpMethod.Get && request.RequestUri.ToString().Contains("comp=list") && !request.RequestUri.ToString().Contains("/?"))
-                return Operation.ListBlobs;
-            if (request.Method == HttpMethod.Get && request.RequestUri.ToString().Contains("comp=list") && request.RequestUri.ToString().Contains("/?"))
-                return Operation.ListContainers;
-            if (request.Method == HttpMethod.Get && request.RequestUri.ToString().Contains("comp=acl"))
-                return Operation.ListContainers;
-            else if (request.Method == HttpMethod.Put && request.Headers.Contains("x-ms-copy-source"))
-                return Operation.CopyBlob;
-            else if (request.Method == HttpMethod.Put && request.RequestUri.ToString().Contains("restype=container"))
-                return Operation.PutContainer;
-            else if (request.RequestUri.ToString().Contains("comp=blocklist") && request.Method == HttpMethod.Put)
-                return Operation.PutBlockList;
-            else if (request.RequestUri.ToString().Contains("comp=block") && request.Method == HttpMethod.Put)
-                return Operation.PutBlock;
-            else if (request.Method == HttpMethod.Head && request.RequestUri.ToString().Contains("restype=container"))
-                return Operation.HeadContainer;
-            else if (request.Method == HttpMethod.Head)
-                return Operation.HeadBlob;
-            else if (request.Method == HttpMethod.Delete && request.RequestUri.ToString().Contains("restype=container"))
-                return Operation.DeleteContainer;
-            else if (request.Method == HttpMethod.Delete)
-                return Operation.DeleteBlob;
-            else if (request.Method == HttpMethod.Put)
-                return Operation.PutBlob;
-            else if (request.Method == HttpMethod.Get)
-                return Operation.GetBlob;
-            else if (request.Method == HttpMethod.Options)
-                return Operation.OptionsMethod;
-            else if (request.Method == HttpMethod.Head)
-                return Operation.GetBlobPropertiesHandler;
-            else
-                return Operation.Unknown;
         }
 
         //calculates SAS string to have access to a container
@@ -437,6 +383,4 @@ namespace Microsoft.Dash.Server.Handlers
             return calculateSASStringForContainer(container);
         }
     }
-
-
 }

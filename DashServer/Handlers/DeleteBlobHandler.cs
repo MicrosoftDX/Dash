@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
+using System.IO;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -10,13 +12,14 @@ using System.Xml.Linq;
 using System.Linq;
 using System.Data;
 
-namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer
+namespace Microsoft.Dash.Server.Handlers
 {
     using System;
     using System.Net.Http;
     using System.Threading;
     using System.Threading.Tasks;
     using System.Configuration;
+    using Microsoft.WindowsAzure.Storage;
 
     class DeleteBlobHandler : Handler
     {
@@ -33,45 +36,7 @@ namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer
             String containerName = "";
             String blobName = "";
 
-            setNamespaceBlobForDeletion(request, masterAccount);
-
-            //reading metadata from namespace blob
-            base.ReadMetaData(request, masterAccount, out blobUri, out accountName, out accountKey, out containerName, out blobName);
-
-            HttpResponseMessage response = new HttpResponseMessage();
-            base.FormRedirectResponse(blobUri, accountName, accountKey, containerName, blobName, request, ref response);
-
-            deleteNamespaceBlob(namespaceBlobUri, masterAccount);
-
-            return response;
-
-
-            ////old forwarding code
-
-            //forming forwarding request
-            //base.FormForwardingRequest(blobUri, accountName, accountKey, ref request);
-
-            //HttpClient client = new HttpClient();
-            //try
-            //{
-            //    HttpResponseMessage response = new HttpResponseMessage();
-            //    response = await client.SendAsync(request, HttpCompletionOption.ResponseContentRead);
-            //    if (response.IsSuccessStatusCode)
-            //    {
-            //        deleteNamespaceBlob(namespaceBlobUri, masterAccount);
-            //    }
-            //    TreeCopyProxyTrace.TraceInformation("[ProxyHandler] Outgoing response: {0}.", response);
-            //    return response;
-            //}
-            //catch (Exception e)
-            //{
-            //    TreeCopyProxyTrace.TraceWarning("[ProxyHandler] Exception ocurred while relaying request {0}: {1}", request.RequestUri, e);
-            //    throw;
-            //}
-        }
-
-        private void setNamespaceBlobForDeletion(HttpRequestMessage request, CloudStorageAccount masterAccount)
-        {
+            // Set Namespace Blob for deletion
             //create an namespace blob with hardcoded metadata
             CloudBlockBlob namespaceBlob = GetBlobByUri(masterAccount, request.RequestUri);
 
@@ -83,14 +48,18 @@ namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer
             namespaceBlob.FetchAttributes();
             namespaceBlob.Metadata["todelete"] = "true";
             namespaceBlob.SetMetadata();
-        }
 
-        private void deleteNamespaceBlob(Uri namespaceBlobUri, CloudStorageAccount masterAccount)
-        {
-            //creating blobClient for namespace Blob
+            //reading metadata from namespace blob
+            base.ReadMetaData(request, masterAccount, out blobUri, out accountName, out accountKey, out containerName, out blobName);
+
+            HttpResponseMessage response = new HttpResponseMessage();
+            base.FormRedirectResponse(blobUri, accountName, accountKey, containerName, blobName, request, ref response);
+
             CloudBlockBlob blob = GetBlobByUri(masterAccount, namespaceBlobUri);
 
             blob.Delete();
+
+            return response;
         }
     }
 }

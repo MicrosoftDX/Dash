@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
+using System.IO;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -10,7 +12,7 @@ using System.Xml.Linq;
 using System.Linq;
 using System.Data;
 
-namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer.Handlers
+namespace Microsoft.Dash.Server.Handlers
 {
     using System;
     using System.Net.Http;
@@ -20,6 +22,7 @@ namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer.Handlers
     using System.Globalization;
     using System.Security.Cryptography;
     using System.Configuration;
+    using Microsoft.WindowsAzure.Storage;
 
     class ListContainersHandler : Handler
     {
@@ -33,7 +36,5 @@ namespace Microsoft.WindowsAzure.Storage.DataAtScaleHub.ProxyServer.Handlers
             request.Content = null;
             return await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
         }
-
-     
     }
 }
