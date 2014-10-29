@@ -34,7 +34,7 @@ namespace Microsoft.Dash.Server.Controllers
             containerName = namespaceBlob.Metadata["container"];
         }
 
-        protected Uri GetForwardingUri(Uri blobUri, String accountName, String accountKey, HttpRequestMessage request)
+        protected Uri GetForwardingUri(Uri blobUri, String accountName, String accountKey, HttpRequestBase request)
         {
             StorageCredentials credentials = new StorageCredentials(accountName, accountKey);
 
@@ -50,11 +50,12 @@ namespace Microsoft.Dash.Server.Controllers
             request.Headers.Host = accountName + ".blob.core.windows.net";
 
             //creating redirection Uri
-            UriBuilder forwardUri = new UriBuilder(blob.Uri.ToString() + sas + "&" + request.RequestUri.Query.Substring(1));
+            UriBuilder forwardUri = new UriBuilder(blob.Uri.ToString() + sas + "&" + request.Url.Query.Substring(1));
 
            return forwardUri.Uri;
         }
 
+        // Not refactoring this one to use HttpRequestBase as it will be deleted once forwarding is figured out
         protected void FormForwardingRequest(Uri blobUri, String accountName, String accountKey, ref HttpRequestMessage request)
         {
             StorageCredentials credentials = new StorageCredentials(accountName, accountKey);
