@@ -67,7 +67,7 @@ namespace Microsoft.Dash.Server
                                 var blobName = String.Join("/", urlSegments.Skip(2));
                                 switch (StorageOperations.GetBlobOperationFromCompParam(this.Request.QueryString["comp"]))
                                 {
-                                    case StorageOperationTyes.GetPutBlob:
+                                    case StorageOperationTypes.GetPutBlob:
                                         // TODO: Insert call to common function to lookup blob in namespace account & generate redirect SAS URI
                                         redirectBlobUri = "http://dashstorage2.blob.core.windows.net/test/test.txt?sv=2014-02-14&sr=c&sig=AGw1j7kMvb41HuXZo6TX2Z%2BpJntlMqWfhmU6cw491zU%3D&se=2014-10-29T05%3A24%3A30Z&sp=rwdl";
                                         break;

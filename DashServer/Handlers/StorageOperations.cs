@@ -7,7 +7,7 @@ using System.Web;
 
 namespace Microsoft.Dash.Server.Handlers
 {
-    public enum StorageOperationTyes
+    public enum StorageOperationTypes
     {
         Unknown,
         GetPutBlob,
@@ -29,35 +29,35 @@ namespace Microsoft.Dash.Server.Handlers
         public const string OperationNameBlobBlock      = "block";
         public const string OperationNameBlobBlockList  = "blocklist";
 
-        public static StorageOperationTyes GetBlobOperationFromCompParam(string compParam)
+        public static StorageOperationTypes GetBlobOperationFromCompParam(string compParam)
         {
             if (String.IsNullOrWhiteSpace(compParam))
             {
-                return StorageOperationTyes.GetPutBlob;
+                return StorageOperationTypes.GetPutBlob;
             }
             switch (compParam.ToLower())
             {
                 case OperationNameProperties:
-                    return StorageOperationTyes.BlobProperties;
+                    return StorageOperationTypes.BlobProperties;
 
                 case OperationNameMetadata:
-                    return StorageOperationTyes.BlobMetadata;
+                    return StorageOperationTypes.BlobMetadata;
 
                 case OperationNameLease:
-                    return StorageOperationTyes.BlobLease;
+                    return StorageOperationTypes.BlobLease;
 
                 case OperationNameSnapshot:
-                    return StorageOperationTyes.BlobSnapshot;
+                    return StorageOperationTypes.BlobSnapshot;
 
                 case OperationNameBlobBlock:
-                    return StorageOperationTyes.BlobBlock;
+                    return StorageOperationTypes.BlobBlock;
 
                 case OperationNameBlobBlockList:
-                    return StorageOperationTyes.BlobBlockList;
+                    return StorageOperationTypes.BlobBlockList;
 
                 default:
                     System.Diagnostics.Debug.Assert(false);
-                    return StorageOperationTyes.Unknown;
+                    return StorageOperationTypes.Unknown;
             }
         }
 
