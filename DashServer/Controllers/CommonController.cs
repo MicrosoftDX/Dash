@@ -3,15 +3,14 @@
 using System;
 using System.Configuration;
 using System.IO;
-using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Web;
 using System.Web.Http;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Auth;
 using Microsoft.WindowsAzure.Storage.Blob;
-using System.Web;
 
 namespace Microsoft.Dash.Server.Controllers
 {
