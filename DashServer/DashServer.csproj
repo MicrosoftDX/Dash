@@ -108,9 +108,7 @@
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
     <Compile Include="Handlers\CopyBlobHandler.cs" />
-    <Compile Include="Handlers\DeleteBlobHandler.cs" />
     <Compile Include="Handlers\DeleteContainerHandler.cs" />
-    <Compile Include="Handlers\GetBlobHandler.cs" />
     <Compile Include="Handlers\GetBlobPropertiesHandler.cs" />
     <Compile Include="Handlers\Handler.cs" />
     <Compile Include="Handlers\HeadBlobHandler.cs" />
@@ -118,7 +116,6 @@
     <Compile Include="Handlers\ListBlobsHandler.cs" />
     <Compile Include="Handlers\ListContainersHandler.cs" />
     <Compile Include="Handlers\OptionsMethodHandler.cs" />
-    <Compile Include="Handlers\PutBlobHandler.cs" />
     <Compile Include="Handlers\PutBlockHandler.cs" />
     <Compile Include="Handlers\PutBlockListHandler.cs" />
     <Compile Include="Handlers\PutContainerHandler.cs" />

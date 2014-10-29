@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Web.Http;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
+using System.Web;
 
 namespace Microsoft.Dash.Server.Controllers
 {
@@ -22,6 +23,7 @@ namespace Microsoft.Dash.Server.Controllers
             String accountName = "";
             String accountKey = "";
             Uri blobUri;
+            HttpRequestBase request = RequestFromContext(HttpContext.Current);
 
             CloudBlockBlob namespaceBlob = GetBlobByName(masterAccount, container, blob);
 
@@ -31,7 +33,7 @@ namespace Microsoft.Dash.Server.Controllers
             blobUri = new Uri(namespaceBlob.Metadata["link"]);
             accountName = namespaceBlob.Metadata["accountname"];
             accountKey = namespaceBlob.Metadata["accountkey"];
-            Uri redirect = GetRedirectUri(blobUri, accountName, accountKey, container, Request);
+            Uri redirect = GetRedirectUri(blobUri, accountName, accountKey, container, request);
 
             return Redirect(redirect);
         }
@@ -46,13 +48,14 @@ namespace Microsoft.Dash.Server.Controllers
             String accountKey = "";
             Uri blobUri;
             String containerName = "";
+            HttpRequestBase request = RequestFromContext(HttpContext.Current);
 
-            CreateNamespaceBlob(Request, masterAccount, container, blob);
+            CreateNamespaceBlob(request, masterAccount, container, blob);
 
             ReadMetaData(masterAccount, container, blob, out blobUri, out accountName, out accountKey, out containerName);
 
             //redirection code
-            Uri redirect = GetRedirectUri(blobUri, accountName, accountKey, container, Request);
+            Uri redirect = GetRedirectUri(blobUri, accountName, accountKey, container, request);
             return Redirect(redirect);
         }
 
@@ -66,6 +69,7 @@ namespace Microsoft.Dash.Server.Controllers
             String accountKey = "";
             Uri blobUri;
             String containerName = "";
+            HttpRequestBase request = RequestFromContext(HttpContext.Current);
 
             // Set Namespace Blob for deletion
             //create a namespace blob with hardcoded metadata
@@ -81,7 +85,7 @@ namespace Microsoft.Dash.Server.Controllers
             namespaceBlob.SetMetadata();
 
             ReadMetaData(masterAccount, container, blob, out blobUri, out accountName, out accountKey, out containerName);
-            Uri redirect = GetRedirectUri(blobUri, accountName, accountKey, containerName, Request);
+            Uri redirect = GetRedirectUri(blobUri, accountName, accountKey, containerName, request);
 
             CloudBlockBlob blobObj = GetBlobByName(masterAccount, container, blob);
             blobObj.Delete();
@@ -99,11 +103,12 @@ namespace Microsoft.Dash.Server.Controllers
             String accountKey = "";
             Uri blobUri;
             String containerName = "";
+            HttpRequestBase request = RequestFromContext(HttpContext.Current);
 
             //reading metadata from namespace blob
             ReadMetaData(masterAccount, container, blob, out blobUri, out accountName, out accountKey, out containerName);
 
-            return Redirect(GetRedirectUri(blobUri, accountName, accountKey, containerName, Request));
+            return Redirect(GetRedirectUri(blobUri, accountName, accountKey, containerName, request));
         }
 
         /// Get Blob operations with the 'comp' query parameter
@@ -166,10 +171,11 @@ namespace Microsoft.Dash.Server.Controllers
             String accountKey = "";
             Uri blobUri;
             String containerName = "";
+            HttpRequestBase request = RequestFromContext(HttpContext.Current);
 
             ReadMetaData(masterAccount, container, blob, out blobUri, out accountName, out accountKey, out containerName);
 
-            return Redirect(GetRedirectUri(blobUri, accountName, accountKey, container, Request));
+            return Redirect(GetRedirectUri(blobUri, accountName, accountKey, container, request));
         }
 
         /// Set Blob Properties - http://msdn.microsoft.com/en-us/library/azure/ee691966.aspx
@@ -221,13 +227,14 @@ namespace Microsoft.Dash.Server.Controllers
             String accountKey = "";
             Uri blobUri;
             String containerName = "";
+            HttpRequestBase request = RequestFromContext(HttpContext.Current);
 
-            CreateNamespaceBlob(Request, masterAccount, container, blob);
+            CreateNamespaceBlob(request, masterAccount, container, blob);
 
             //reading metadata from namespace blob
             ReadMetaData(masterAccount, container, blob, out blobUri, out accountName, out accountKey, out containerName);
 
-            return Redirect(GetRedirectUri(blobUri, accountName, accountKey, container, Request));
+            return Redirect(GetRedirectUri(blobUri, accountName, accountKey, container, request));
         }
 
         /// Put Block List - http://msdn.microsoft.com/en-us/library/azure/dd179467.aspx

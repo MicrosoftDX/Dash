@@ -11,6 +11,7 @@ using System.Web.Http;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Auth;
 using Microsoft.WindowsAzure.Storage.Blob;
+using System.Web;
 
 namespace Microsoft.Dash.Server.Controllers
 {
@@ -93,7 +94,7 @@ namespace Microsoft.Dash.Server.Controllers
             }
         }
 
-        protected Uri GetRedirectUri(Uri blobUri, String accountName, String accountKey, string containerName, HttpRequestMessage request)
+        protected Uri GetRedirectUri(Uri blobUri, String accountName, String accountKey, string containerName, HttpRequestBase request)
         {
             StorageCredentials credentials = new StorageCredentials(accountName, accountKey);
             CloudStorageAccount account = new CloudStorageAccount(credentials, false);
@@ -106,9 +107,9 @@ namespace Microsoft.Dash.Server.Controllers
             UriBuilder forwardUri;
 
             //creating redirection Uri
-            if (request.RequestUri.Query != "")
+            if (request.Url.Query != "")
             {
-                forwardUri = new UriBuilder(blobUri.ToString() + sas + "&" + request.RequestUri.Query.Substring(1).Replace("timeout=90", "timeout=90000"));
+                forwardUri = new UriBuilder(blobUri.ToString() + sas + "&" + request.Url.Query.Substring(1).Replace("timeout=90", "timeout=90000"));
             }
             else
             {
@@ -158,28 +159,16 @@ namespace Microsoft.Dash.Server.Controllers
             return sas;
         }
 
-        protected void CreateNamespaceBlob(HttpRequestMessage request, CloudStorageAccount masterAccount, string container, string blob)
+        protected void CreateNamespaceBlob(HttpRequestBase request, CloudStorageAccount masterAccount, string container, string blob)
         {
             String accountName = "";
             String accountKey = "";
 
             //create an namespace blob with hardcoded metadata
-            var namespaceBlobClient = masterAccount.CreateCloudBlobClient();
-
-            //string masterContainerString = request.RequestUri.AbsolutePath.Substring(1,
-            //                                                                         request.RequestUri.AbsolutePath
-            //                                                                                .IndexOf('/', 2) - 1);
-
-            CloudBlobContainer masterContainer = namespaceBlobClient.GetContainerReference(container);
-
-            //string masterBlobString = request.RequestUri.LocalPath.Substring(masterContainerString.Length + 2);
-
-            CloudBlockBlob blobMaster = masterContainer.GetBlockBlobReference(blob);
-
+            CloudBlockBlob blobMaster = GetBlobByName(masterAccount, container, blob);
 
             //getting storage account name and account key from file account, by using simple hashing algorithm to choose account storage
             getStorageAccount(masterAccount, blob, out accountName, out accountKey);
-
 
             if (blobMaster.Exists())
             {
@@ -190,12 +179,7 @@ namespace Microsoft.Dash.Server.Controllers
                 blobMaster.UploadText("");
             }
 
-
-            ////calculating client blob name as a hash value of it's real name
-            //var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(masterBlobString.GetHashCode().ToString());
-            //String clientBlobName = System.Convert.ToBase64String(plainTextBytes);
-
-            blobMaster.Metadata["link"] = request.RequestUri.Scheme + "://" + accountName + ".blob.core.windows.net/" + container + "/" + blob;
+            blobMaster.Metadata["link"] = request.Url.Scheme + "://" + accountName + ".blob.core.windows.net/" + container + "/" + blob;
             blobMaster.Metadata["accountname"] = accountName;
             blobMaster.Metadata["accountkey"] = accountKey;
             blobMaster.Metadata["container"] = container;
@@ -381,6 +365,12 @@ namespace Microsoft.Dash.Server.Controllers
             CloudBlobContainer container = ContainerFromRequest(account, request);
 
             return calculateSASStringForContainer(container);
+        }
+
+        protected HttpRequestBase RequestFromContext(HttpContext context)
+        {
+            var curContext = new HttpContextWrapper(context);
+            return curContext.Request;
         }
     }
 }
