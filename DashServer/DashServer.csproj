@@ -125,6 +125,7 @@
     <Compile Include="Handlers\RequestAuthorization.cs" />
     <Compile Include="Handlers\StorageOperations.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Utils\AzureUtils.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="packages.config">
