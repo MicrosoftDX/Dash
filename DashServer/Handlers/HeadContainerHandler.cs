@@ -38,20 +38,6 @@ namespace Microsoft.Dash.Server.Handlers
 
             return response;
 
-
-            //HttpClient client = new HttpClient();
-            //try
-            //{
-            //    HttpResponseMessage response = new HttpResponseMessage();
-            //    response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-            //    TreeCopyProxyTrace.TraceInformation("[ProxyHandler] Outgoing response: {0}.", response);
-            //    return response;
-            //}
-            //catch (Exception e)
-            //{
-            //    TreeCopyProxyTrace.TraceWarning("[ProxyHandler] Exception ocurred while relaying request {0}: {1}", request.RequestUri, e);
-            //    throw;
-            //}
         }
 
         private bool containerExists(HttpRequestMessage request, CloudStorageAccount masterAccount)

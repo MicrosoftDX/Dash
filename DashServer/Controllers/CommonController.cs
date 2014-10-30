@@ -16,9 +16,16 @@ namespace Microsoft.Dash.Server.Controllers
 {
     public class CommonController : ApiController
     {
+        String ENDPOINT = ".blob.core.windows.net";
         protected CloudStorageAccount GetMasterAccount()
         {
             return CloudStorageAccount.Parse(ConfigurationManager.AppSettings["StorageConnectionStringMaster"]);
+        }
+
+        protected CloudStorageAccount GetAccount(String accountName, String accountKey)
+        {
+            StorageCredentials credentials = new StorageCredentials(accountName, accountKey);
+            return new CloudStorageAccount(credentials, false);
         }
 
         protected void ReadMetaData(CloudStorageAccount masterAccount, string origContainerName, string blobName, out Uri blobUri, out String accountName, out String accountKey, out String containerName)
@@ -34,25 +41,30 @@ namespace Microsoft.Dash.Server.Controllers
             containerName = namespaceBlob.Metadata["container"];
         }
 
-        protected Uri GetForwardingUri(Uri blobUri, String accountName, String accountKey, HttpRequestBase request)
+        protected Uri GetForwardingUri(HttpRequestBase request, String accountName, String accountKey, String containerName, String blobName)
         {
-            StorageCredentials credentials = new StorageCredentials(accountName, accountKey);
-
-            CloudStorageAccount account = new CloudStorageAccount(credentials, false);
-
-            var blobClient = account.CreateCloudBlobClient();
-            string containerString = blobUri.AbsolutePath.Substring(1, blobUri.AbsolutePath.IndexOf('/', 2) - 1);
-            CloudBlobContainer container = blobClient.GetContainerReference(containerString);
-            string blobString = blobUri.AbsolutePath.Substring(blobUri.AbsolutePath.IndexOf('/', 2) + 1).Replace("%20", " ");
-            var blob = container.GetBlockBlobReference(blobString);
+            CloudStorageAccount account = GetAccount(accountName, accountKey);
+            CloudBlobContainer container = GetContainerByName(account, containerName);
+            CloudBlockBlob blob = GetBlobByName(account, containerName, blobName);
             string sas = calculateSASStringForContainer(container);
-
-            request.Headers.Host = accountName + ".blob.core.windows.net";
 
             //creating redirection Uri
             UriBuilder forwardUri = new UriBuilder(blob.Uri.ToString() + sas + "&" + request.Url.Query.Substring(1));
+            forwardUri.Host = accountName + ENDPOINT;
 
-           return forwardUri.Uri;
+            return forwardUri.Uri;
+        }
+
+        protected Uri GetForwardingUri(HttpRequestBase request, String accountName, String accountKey, String containerName)
+        {
+            CloudStorageAccount account = GetAccount(accountName, accountKey);
+            CloudBlobContainer container = GetContainerByName(account, containerName);
+            string sas = calculateSASStringForContainer(container);
+
+            UriBuilder forwardUri = new UriBuilder(container.Uri.ToString() + sas + "&" + request.Url.Query.Substring(1));
+            forwardUri.Host = accountName + ENDPOINT;
+
+            return forwardUri.Uri;
         }
 
         // Not refactoring this one to use HttpRequestBase as it will be deleted once forwarding is figured out
@@ -190,8 +202,7 @@ namespace Microsoft.Dash.Server.Controllers
         //getting storage account name and account key from file account, by using simple hashing algorithm to choose account storage
         protected void getStorageAccount(CloudStorageAccount masterAccount, string masterBlobString, out string accountName, out string accountKey)
         {
-            string ScaleoutNumberOfAccountsString = ConfigurationManager.AppSettings["ScaleoutNumberOfAccounts"];
-            Int32 numAcc = Convert.ToInt32(ScaleoutNumberOfAccountsString);
+            Int32 numAcc = NumOfAccounts();
             Int64 chosenAccount = GetInt64HashCode(masterBlobString, numAcc);
 
             string ScaleoutAccountInfo = ConfigurationManager.AppSettings["ScaleoutStorage" + chosenAccount.ToString()];
@@ -327,6 +338,11 @@ namespace Microsoft.Dash.Server.Controllers
             return sas;
         }
 
+        protected Int32 NumOfAccounts()
+        {
+            return Convert.ToInt32(ConfigurationManager.AppSettings["ScaleoutNumberOfAccounts"]);
+        }
+
         protected void GetNamesFromUri(Uri blobUri, out string containerName, out string blobName)
         {
             containerName = blobUri.AbsolutePath.Substring(1, blobUri.AbsolutePath.IndexOf('/', 2) - 1);
@@ -353,14 +369,14 @@ namespace Microsoft.Dash.Server.Controllers
             return GetBlobByName(masterAccount, namespaceContainerString, namespaceBlobString);
         }
 
-        protected CloudBlobContainer ContainerFromRequest(CloudStorageAccount account, HttpRequestMessage request)
+        protected CloudBlobContainer ContainerFromRequest(CloudStorageAccount account, HttpRequestBase request)
         {
-            string containerString = request.RequestUri.AbsolutePath.Substring(1);
+            string containerString = request.Url.AbsolutePath.Substring(1);
 
             return GetContainerByName(account, containerString);
         }
 
-        protected string ContainerSASFromRequest(CloudStorageAccount account, HttpRequestMessage request)
+        protected string ContainerSASFromRequest(CloudStorageAccount account, HttpRequestBase request)
         {
             CloudBlobContainer container = ContainerFromRequest(account, request);
 
