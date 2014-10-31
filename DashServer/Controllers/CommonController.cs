@@ -194,7 +194,7 @@ namespace Microsoft.Dash.Server.Controllers
                 await blobMaster.UploadTextAsync("");
             }
 
-            blobMaster.Metadata["link"] = request.Url.Scheme + "://" + accountName + ".blob.core.windows.net/" + container + "/" + blob;
+            blobMaster.Metadata["link"] = request.Url.Scheme + "://" + accountName + Endpoint() + container + "/" + blob;
             blobMaster.Metadata["accountname"] = accountName;
             blobMaster.Metadata["accountkey"] = accountKey;
             blobMaster.Metadata["container"] = container;

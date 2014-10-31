@@ -14,14 +14,9 @@ using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace Microsoft.Dash.Server.Controllers
 {
-    [RoutePrefix("Container")]
+    //[RoutePrefix("Container")]
     public class ContainerController : CommonController
     {
-        public async Task<IHttpActionResult> Get()
-        {
-            await Task.Delay(10);
-            return Ok();
-        }
 
         /// Put Container - http://msdn.microsoft.com/en-us/library/azure/dd179468.aspx
         [HttpPut]
@@ -41,6 +36,26 @@ namespace Microsoft.Dash.Server.Controllers
             }
 
             return new HttpResponseMessage(HttpStatusCode.Created);
+        }
+
+        // Put Container operations, with 'comp' parameter'
+        [HttpPut]
+        public async Task<IHttpActionResult> PutContainerData(string container, string comp)
+        {
+            CloudStorageAccount masterAccount = GetMasterAccount();
+
+            Uri forwardUri = GetForwardingUri(RequestFromContext(HttpContext.Current), masterAccount.Credentials.AccountName, masterAccount.Credentials.ExportBase64EncodedKey(), container);
+            HttpClient client = new HttpClient();
+            HttpRequestBase request = RequestFromContext(HttpContext.Current);
+            HttpRequestMessage request2 = new HttpRequestMessage(HttpMethod.Put, forwardUri);
+            request2.Content = Request.Content;
+            return Ok();
+            //foreach (var header in Request.Headers)
+            //{
+            //    request2.Headers.Add(header.Name, header.Value);
+            //}
+
+            //await client.SendAsync(request2);
         }
 
         /// Delete Container - http://msdn.microsoft.com/en-us/library/azure/dd179408.aspx
@@ -67,9 +82,10 @@ namespace Microsoft.Dash.Server.Controllers
 
         [AcceptVerbs("GET", "HEAD")]
         //Get Container operations, with optional 'comp' parameter
-        public async Task<IHttpActionResult> GetContainerData(string container, string comp)
+        public async Task<IHttpActionResult> GetContainerData(string container, string comp=null)
         {
-            switch (comp.ToLower())
+            string compvar = comp == null ? "" : comp;
+            switch (compvar.ToLower())
             {
                 case "list":
                     return await GetBlobList(container);
