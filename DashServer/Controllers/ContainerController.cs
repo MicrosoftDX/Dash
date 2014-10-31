@@ -31,10 +31,10 @@ namespace Microsoft.Dash.Server.Controllers
 
             //Create Master Container
             CloudBlobContainer masterContainer = GetContainerByName(masterAccount, container);
-            masterContainer.CreateIfNotExists();
+            await masterContainer.CreateIfNotExistsAsync();
 
             //if the creation of a namespace container is successful we create all containers in other partition storage accounts
-            Int32 numOfAccounts = NumOfAccounts();
+            int numOfAccounts = NumOfAccounts();
             for (int currAccount = 0; currAccount < numOfAccounts; currAccount++)
             {
                 CreateChildContainer(currAccount, masterAccount, container);
@@ -51,7 +51,7 @@ namespace Microsoft.Dash.Server.Controllers
 
             //Delete Master Container
             CloudBlobContainer masterContainer = GetContainerByName(masterAccount, container);
-            masterContainer.Delete();
+            await masterContainer.DeleteAsync();
 
             //if the deletion of a namespace container is successfull we delete all containers in other partition storage accounts
             int numOfAccounts = NumOfAccounts();
@@ -67,12 +67,25 @@ namespace Microsoft.Dash.Server.Controllers
 
         [AcceptVerbs("GET", "HEAD")]
         //Get Container operations, with optional 'comp' parameter
-        public async Task<IHttpActionResult> GetContainerData(string container)
+        public async Task<IHttpActionResult> GetContainerData(string container, string comp)
         {
-            CloudStorageAccount masterAccount = GetMasterAccount();
-            Uri forwardUri = GetForwardingUri(RequestFromContext(HttpContext.Current), masterAccount.Credentials.AccountName, masterAccount.Credentials.ExportBase64EncodedKey(), container);
+            switch (comp.ToLower())
+            {
+                case "list":
+                    return await GetBlobList(container);
+                default:
+                    CloudStorageAccount masterAccount = GetMasterAccount();
+                    Uri forwardUri = GetForwardingUri(RequestFromContext(HttpContext.Current), masterAccount.Credentials.AccountName, masterAccount.Credentials.ExportBase64EncodedKey(), container);
+                    return Redirect(forwardUri);
+            }
+            
+        }
 
-            return Redirect(forwardUri);
+        private async Task<IHttpActionResult> GetBlobList(string container)
+        {
+            //TODO
+            await Task.Delay(10);
+            return Ok();
         }
 
         private void CreateChildContainer(int currAccount, CloudStorageAccount masterAccount, string container)

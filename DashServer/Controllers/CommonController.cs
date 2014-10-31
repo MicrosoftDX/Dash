@@ -16,19 +16,22 @@ namespace Microsoft.Dash.Server.Controllers
 {
     public class CommonController : ApiController
     {
-        String ENDPOINT = ".blob.core.windows.net";
+        protected string Endpoint()
+        {
+            return ".blob.core.windows.net";
+        }
         protected CloudStorageAccount GetMasterAccount()
         {
             return CloudStorageAccount.Parse(ConfigurationManager.AppSettings["StorageConnectionStringMaster"]);
         }
 
-        protected CloudStorageAccount GetAccount(String accountName, String accountKey)
+        protected CloudStorageAccount GetAccount(string accountName, string accountKey)
         {
             StorageCredentials credentials = new StorageCredentials(accountName, accountKey);
             return new CloudStorageAccount(credentials, false);
         }
 
-        protected void ReadMetaData(CloudStorageAccount masterAccount, string origContainerName, string blobName, out Uri blobUri, out String accountName, out String accountKey, out String containerName)
+        protected void ReadMetaData(CloudStorageAccount masterAccount, string origContainerName, string blobName, out Uri blobUri, out string accountName, out string accountKey, out string containerName)
         {
             CloudBlockBlob namespaceBlob = GetBlobByName(masterAccount, origContainerName, blobName);
 
@@ -41,7 +44,7 @@ namespace Microsoft.Dash.Server.Controllers
             containerName = namespaceBlob.Metadata["container"];
         }
 
-        protected Uri GetForwardingUri(HttpRequestBase request, String accountName, String accountKey, String containerName, String blobName)
+        protected Uri GetForwardingUri(HttpRequestBase request, string accountName, string accountKey, string containerName, string blobName)
         {
             CloudStorageAccount account = GetAccount(accountName, accountKey);
             CloudBlobContainer container = GetContainerByName(account, containerName);
@@ -50,25 +53,25 @@ namespace Microsoft.Dash.Server.Controllers
 
             //creating redirection Uri
             UriBuilder forwardUri = new UriBuilder(blob.Uri.ToString() + sas + "&" + request.Url.Query.Substring(1));
-            forwardUri.Host = accountName + ENDPOINT;
+            forwardUri.Host = accountName + Endpoint();
 
             return forwardUri.Uri;
         }
 
-        protected Uri GetForwardingUri(HttpRequestBase request, String accountName, String accountKey, String containerName)
+        protected Uri GetForwardingUri(HttpRequestBase request, string accountName, string accountKey, string containerName)
         {
             CloudStorageAccount account = GetAccount(accountName, accountKey);
             CloudBlobContainer container = GetContainerByName(account, containerName);
             string sas = calculateSASStringForContainer(container);
 
             UriBuilder forwardUri = new UriBuilder(container.Uri.ToString() + sas + "&" + request.Url.Query.Substring(1));
-            forwardUri.Host = accountName + ENDPOINT;
+            forwardUri.Host = accountName + Endpoint();
 
             return forwardUri.Uri;
         }
 
         // Not refactoring this one to use HttpRequestBase as it will be deleted once forwarding is figured out
-        protected void FormForwardingRequest(Uri blobUri, String accountName, String accountKey, ref HttpRequestMessage request)
+        protected void FormForwardingRequest(Uri blobUri, string accountName, string accountKey, ref HttpRequestMessage request)
         {
             StorageCredentials credentials = new StorageCredentials(accountName, accountKey);
 
@@ -106,7 +109,7 @@ namespace Microsoft.Dash.Server.Controllers
             }
         }
 
-        protected Uri GetRedirectUri(Uri blobUri, String accountName, String accountKey, string containerName, HttpRequestBase request)
+        protected Uri GetRedirectUri(Uri blobUri, string accountName, string accountKey, string containerName, HttpRequestBase request)
         {
             StorageCredentials credentials = new StorageCredentials(accountName, accountKey);
             CloudStorageAccount account = new CloudStorageAccount(credentials, false);
@@ -171,10 +174,10 @@ namespace Microsoft.Dash.Server.Controllers
             return sas;
         }
 
-        protected void CreateNamespaceBlob(HttpRequestBase request, CloudStorageAccount masterAccount, string container, string blob)
+        protected async void CreateNamespaceBlob(HttpRequestBase request, CloudStorageAccount masterAccount, string container, string blob)
         {
-            String accountName = "";
-            String accountKey = "";
+            string accountName = "";
+            string accountKey = "";
 
             //create an namespace blob with hardcoded metadata
             CloudBlockBlob blobMaster = GetBlobByName(masterAccount, container, blob);
@@ -184,11 +187,11 @@ namespace Microsoft.Dash.Server.Controllers
 
             if (blobMaster.Exists())
             {
-                blobMaster.FetchAttributes();
+                await blobMaster.FetchAttributesAsync();
             }
             else
             {
-                blobMaster.UploadText("");
+                await blobMaster.UploadTextAsync("");
             }
 
             blobMaster.Metadata["link"] = request.Url.Scheme + "://" + accountName + ".blob.core.windows.net/" + container + "/" + blob;
@@ -196,14 +199,14 @@ namespace Microsoft.Dash.Server.Controllers
             blobMaster.Metadata["accountkey"] = accountKey;
             blobMaster.Metadata["container"] = container;
             blobMaster.Metadata["blobname"] = blob;
-            blobMaster.SetMetadata();
+            await blobMaster.SetMetadataAsync();
         }
 
         //getting storage account name and account key from file account, by using simple hashing algorithm to choose account storage
         protected void getStorageAccount(CloudStorageAccount masterAccount, string masterBlobString, out string accountName, out string accountKey)
         {
-            Int32 numAcc = NumOfAccounts();
-            Int64 chosenAccount = GetInt64HashCode(masterBlobString, numAcc);
+            int numAcc = NumOfAccounts();
+            long chosenAccount = GetInt64HashCode(masterBlobString, numAcc);
 
             string ScaleoutAccountInfo = ConfigurationManager.AppSettings["ScaleoutStorage" + chosenAccount.ToString()];
 
@@ -226,18 +229,18 @@ namespace Microsoft.Dash.Server.Controllers
         /// </summary>
         /// <param name="strText"></param>
         /// <returns></returns>
-        static Int64 GetInt64HashCode(string strText, Int32 numAcc)
+        static Int64 GetInt64HashCode(string strText, int numAcc)
         {
-            Int64 hashCode = 0;
+            long hashCode = 0;
             if (!string.IsNullOrEmpty(strText))
             {
                 byte[] byteContents = Encoding.UTF8.GetBytes(strText);
                 System.Security.Cryptography.SHA256 hash =
                 new System.Security.Cryptography.SHA256CryptoServiceProvider();
                 byte[] hashText = hash.ComputeHash(byteContents);
-                Int64 hashCodeStart = BitConverter.ToInt64(hashText, 0);
-                Int64 hashCodeMedium = BitConverter.ToInt64(hashText, 8);
-                Int64 hashCodeEnd = BitConverter.ToInt64(hashText, 24);
+                long hashCodeStart = BitConverter.ToInt64(hashText, 0);
+                long hashCodeMedium = BitConverter.ToInt64(hashText, 8);
+                long hashCodeEnd = BitConverter.ToInt64(hashText, 24);
                 hashCode = hashCodeStart ^ hashCodeMedium ^ hashCodeEnd;
             }
             return (hashCode > 0) ? hashCode % numAcc : (-hashCode) % numAcc;
@@ -263,10 +266,10 @@ namespace Microsoft.Dash.Server.Controllers
             using (StringWriter sw = new StringWriter(newContent))
             {
                 //reading number of accounts
-                Int32 numAcc = Convert.ToInt32(sr.ReadLine());
+                int numAcc = Convert.ToInt32(sr.ReadLine());
 
                 //reading last account used for storing, we use round-robin algorithm so next account is curAcc+1 (mod numAcc)
-                Int32 curAcc = Convert.ToInt32(sr.ReadLine());
+                int curAcc = Convert.ToInt32(sr.ReadLine());
 
                 //calculating next storage account for storing
                 curAcc = curAcc + 1;
