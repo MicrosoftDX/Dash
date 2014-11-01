@@ -58,11 +58,15 @@ namespace Microsoft.Dash.Server.Controllers
             return forwardUri.Uri;
         }
 
-        protected Uri GetForwardingUri(HttpRequestBase request, string accountName, string accountKey, string containerName)
+        protected Uri GetForwardingUri(HttpRequestBase request, string accountName, string accountKey, string containerName, bool useSas=false)
         {
             CloudStorageAccount account = GetAccount(accountName, accountKey);
             CloudBlobContainer container = GetContainerByName(account, containerName);
-            string sas = calculateSASStringForContainer(container);
+            string sas = "";
+            if (useSas)
+            {
+                sas = calculateSASStringForContainer(container);
+            }
 
             UriBuilder forwardUri = new UriBuilder(container.Uri.ToString() + sas + "&" + request.Url.Query.Substring(1));
             forwardUri.Host = accountName + Endpoint();

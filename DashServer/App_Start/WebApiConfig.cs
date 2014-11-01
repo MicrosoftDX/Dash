@@ -16,14 +16,13 @@ namespace Microsoft.Dash.Server
             // Web API routes
             config.MapHttpAttributeRoutes();
 
-            config.Routes.MapHttpRoute(
-                name: "DefaultApi",
-                routeTemplate: "{controller}/{id}",
-                defaults: new { id = RouteParameter.Optional }
-            );
+            
             config.Routes.MapHttpRoute(
                 name: "Blobs",
                 routeTemplate: "{controller}/{container}/{*blob}");
+            config.Routes.MapHttpRoute(
+                name: "Containers",
+                routeTemplate: "{controller}/{container}");
 
         }
     }

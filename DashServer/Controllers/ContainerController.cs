@@ -82,7 +82,7 @@ namespace Microsoft.Dash.Server.Controllers
 
         [AcceptVerbs("GET", "HEAD")]
         //Get Container operations, with optional 'comp' parameter
-        public async Task<IHttpActionResult> GetContainerData(string container, string comp=null)
+        public async Task<HttpResponseMessage> GetContainerData(string container, string comp=null)
         {
             string compvar = comp == null ? "" : comp;
             switch (compvar.ToLower())
@@ -92,16 +92,22 @@ namespace Microsoft.Dash.Server.Controllers
                 default:
                     CloudStorageAccount masterAccount = GetMasterAccount();
                     Uri forwardUri = GetForwardingUri(RequestFromContext(HttpContext.Current), masterAccount.Credentials.AccountName, masterAccount.Credentials.ExportBase64EncodedKey(), container);
-                    return Redirect(forwardUri);
+                    CloudBlobContainer containerObj = GetContainerByName(masterAccount, container);
+                    await containerObj.FetchAttributesAsync();
+                    HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.OK);
+                    response.Headers.Add("ETag", containerObj.Properties.ETag);
+                    //response.Headers.Add("Last-Modified", "foo");
+
+                    return response;
             }
             
         }
 
-        private async Task<IHttpActionResult> GetBlobList(string container)
+        private async Task<HttpResponseMessage> GetBlobList(string container)
         {
             //TODO
             await Task.Delay(10);
-            return Ok();
+            return new HttpResponseMessage();
         }
 
         private void CreateChildContainer(int currAccount, CloudStorageAccount masterAccount, string container)
