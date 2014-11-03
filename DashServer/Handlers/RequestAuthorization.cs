@@ -20,7 +20,6 @@ namespace Microsoft.Dash.Server.Handlers
 
         public static bool IsRequestAuthorized(HttpRequest request)
         {
-            return true;
             var headers = request.Headers.Keys
                 .Cast<string>()
                 .SelectMany(headerName => 
