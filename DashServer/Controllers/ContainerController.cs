@@ -1,7 +1,9 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Configuration;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -105,9 +107,81 @@ namespace Microsoft.Dash.Server.Controllers
 
         private async Task<HttpResponseMessage> GetBlobList(string container)
         {
-            //TODO
-            await Task.Delay(10);
-            return new HttpResponseMessage();
+            CloudStorageAccount masterAccount = GetMasterAccount();
+            int numOfAccounts = NumOfAccounts();
+            List<string> blobs = new List<string>();
+            for (int currAccount = 0; currAccount < numOfAccounts; currAccount++)
+            {
+                blobs = blobs.Concat(await ChildBlobList(masterAccount, currAccount, container)).ToList();
+            }
+            string xmlresponse = "<?xml version=\"1.0\" encoding=\"utf-8\"?>";
+            xmlresponse += "<EnumerationResults ServiceEndpoint=\"\" ContainerName=\"" + container + "\">";
+            //TODO: Need to figure out the appropriate values for ServiceEndpoint, Prefix, Marker, MaxResults, and Delimiter
+            xmlresponse += xmlEntry("Prefix", "");
+            xmlresponse += xmlEntry("Marker", "");
+            xmlresponse += xmlEntry("MaxResults", "");
+            xmlresponse += xmlEntry("Delimiter", "");
+            xmlresponse += xmlEntry("Blobs", String.Join("", blobs.ToArray()));
+            xmlresponse += "</EnumerationResults>";
+            HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.OK);
+            response.Content = new StringContent(xmlresponse);
+            //TODO: Add headers for Content-Type, x-ms-request-id, x-ms-version, and Date
+            return response;
+        }
+
+        private Dictionary<string, string> BlobProperties(CloudBlockBlob item)
+        {
+            Dictionary<string, string> blobDict = new Dictionary<string, string>();
+            blobDict.Add("Last-Modified", item.Properties.LastModified.ToString());
+            blobDict.Add("Etag", item.Properties.ETag);
+            // Missing - how to get Content Length?
+            blobDict.Add("Content-Type", item.Properties.ContentType);
+            blobDict.Add("Content-Encoding", item.Properties.ContentEncoding);
+            blobDict.Add("Content-Language", item.Properties.ContentLanguage);
+            blobDict.Add("Content-MD5", item.Properties.ContentMD5);
+            blobDict.Add("Cache-Control", item.Properties.CacheControl);
+            blobDict.Add("x-ms-blob-sequence-number", item.Properties.PageBlobSequenceNumber.ToString());
+            blobDict.Add("LeaseStatus", item.Properties.LeaseStatus.ToString());
+            blobDict.Add("LeaseState", item.Properties.LeaseState.ToString());
+            blobDict.Add("LeaseDuration", item.Properties.LeaseDuration.ToString());
+            if (item.CopyState != null)
+            {
+                blobDict.Add("CopyId", item.CopyState.CopyId);
+                blobDict.Add("CopyStatus", item.CopyState.Status.ToString());
+                blobDict.Add("CopySource", item.CopyState.Source.ToString());
+                blobDict.Add("CopyProgress", item.CopyState.BytesCopied.ToString());
+                blobDict.Add("CopyCompletionTime", item.CopyState.CompletionTime.ToString());
+                blobDict.Add("CopyStatusDescription", item.CopyState.StatusDescription);
+            }
+            
+            return blobDict;
+        }
+
+        private async Task<string> GetBlobXml(CloudBlockBlob item)
+        {
+            await item.FetchAttributesAsync();
+            Dictionary<string, string> propDict = BlobProperties(item);
+            string xml = "<Blob>";
+            xml += xmlEntry("Name", item.Name);
+            xml += xmlEntry("Snapshot", item.SnapshotTime.ToString());
+            xml += "<Properties>";
+            foreach(KeyValuePair<string, string> pair in propDict) {
+                xml += xmlEntry(pair.Key, pair.Value);
+            }
+            xml += "</Properties>";
+            xml += "<Metadata>";
+            foreach (KeyValuePair<string, string> pair in item.Metadata)
+            {
+                xml += xmlEntry(pair.Key, pair.Value);
+            }
+            xml += "</Metadata>";
+            xml += "</Blob>";
+            return xml;
+        }
+
+        private string xmlEntry(string key, string value)
+        {
+            return "<" + key + ">" + value + "</" + key + ">";
         }
 
         private void CreateChildContainer(int currAccount, CloudStorageAccount masterAccount, string container)
@@ -136,6 +210,24 @@ namespace Microsoft.Dash.Server.Controllers
             var blobContainer = GetContainerByName(account, container);
 
             blobContainer.DeleteIfExists();
+        }
+
+        private async Task<List<string>> ChildBlobList(CloudStorageAccount masterAccount, int currAccount, string container)
+        {
+            string accountName = "";
+            string accountKey = "";
+
+            base.readAccountData(masterAccount, currAccount, out accountName, out accountKey);
+            CloudStorageAccount account = GetAccount(accountName, accountKey);
+            CloudBlobContainer containerObj = GetContainerByName(account, container);
+            List<string> blobs = new List<string>();
+            IEnumerable<IListBlobItem> blobObjs = containerObj.ListBlobs();
+            foreach (CloudBlockBlob item in blobObjs)
+            {
+                string blobXml = await GetBlobXml(item);
+                blobs.Add(blobXml);
+            }
+            return blobs;
         }
     }
 }
