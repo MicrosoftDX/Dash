@@ -22,7 +22,7 @@ namespace Microsoft.Dash.Server
 
         void Application_AuthorizeRequest()
         {
-            if (!RequestAuthorization.IsRequestAuthorized(this.Request))
+            if (!RequestAuthorization.IsRequestAuthorized(new RequestAuthorization.HttpRequestWrapper(this.Request)))
             {
                 this.Response.StatusCode = (int)HttpStatusCode.Forbidden;
                 // Details lifted directly from Storage Service auth failure responses
