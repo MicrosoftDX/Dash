@@ -2,13 +2,13 @@
 
 using System;
 using System.IO;
+using System.Net.Http;
+using System.Net;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
-using System.Net.Http;
-using System.Net;
 
 namespace Microsoft.Dash.Server.Controllers
 {
