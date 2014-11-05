@@ -97,15 +97,15 @@ namespace Microsoft.Dash.Server.Controllers
         }
 
         //calculates Shared Access Signature (SAS) string based on type of request (GET, HEAD, DELETE, PUT)
-        protected SharedAccessBlobPolicy GetSasPolicy(HttpRequestMessage request)
+        protected SharedAccessBlobPolicy GetSasPolicy(HttpRequestBase request)
         {
             //Default to read only
             SharedAccessBlobPermissions permission = SharedAccessBlobPermissions.Read;
-            if (request.Method == HttpMethod.Delete)
+            if (request.HttpMethod == HttpMethod.Delete.ToString())
             {
                 permission = SharedAccessBlobPermissions.Delete;
             }
-            else if (request.Method == HttpMethod.Put)
+            else if (request.HttpMethod == HttpMethod.Put.ToString())
             {
                 permission = SharedAccessBlobPermissions.Write;
             }
