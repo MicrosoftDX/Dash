@@ -1,6 +1,7 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Collections.Specialized;
 using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography;
@@ -10,6 +11,13 @@ using Microsoft.Dash.Server.Utils;
 
 namespace Microsoft.Dash.Server.Handlers
 {
+    public interface IHttpRequestWrapper
+    {
+        NameValueCollection Headers { get; }
+        Uri Url { get; }
+        string HttpMethod { get; }
+    }
+
     public static class RequestAuthorization
     {
         static readonly string AccountName  = AzureUtils.GetConfigSetting("AccountName", "");
@@ -18,7 +26,32 @@ namespace Microsoft.Dash.Server.Handlers
         const string AlgorithmSharedKey     = "SharedKey";
         const string AlgorithmSharedKeyLite = "SharedKeyLite";
 
-        public static bool IsRequestAuthorized(HttpRequest request)
+        public class HttpRequestWrapper : IHttpRequestWrapper
+        {
+            HttpRequest _request;
+
+            public HttpRequestWrapper(HttpRequest request)
+            {
+                _request = request;
+            }
+
+            public NameValueCollection Headers
+            {
+                get { return _request.Headers; }
+            }
+
+            public Uri Url
+            {
+                get { return _request.Url; }
+            }
+
+            public string HttpMethod
+            {
+                get { return _request.HttpMethod; }
+            }
+        }
+
+        public static bool IsRequestAuthorized(IHttpRequestWrapper request, bool ignoreRequestAge = false)
         {
             var headers = request.Headers.Keys
                 .Cast<string>()
@@ -39,14 +72,17 @@ namespace Microsoft.Dash.Server.Handlers
                 // One of the date headers is mandatory
                 return false;
             }
-            DateTime requestDate;
-            if (!DateTime.TryParse(requestDateHeader, out requestDate))
+            if (!ignoreRequestAge)
             {
-                return false;
-            }
-            else if (requestDate < DateTime.UtcNow.AddMinutes(-15))
-            {
-                return false;
+                DateTime requestDate;
+                if (!DateTime.TryParse(requestDateHeader, out requestDate))
+                {
+                    return false;
+                }
+                else if (requestDate < DateTime.Now.AddMinutes(-15))
+                {
+                    return false;
+                }
             }
             // Now the auth header with signature
             var authHeader = headers.First("Authorization");
@@ -66,10 +102,19 @@ namespace Microsoft.Dash.Server.Handlers
             var account = parts[1];
             var signature = parts[2];
 
+            // Pull out the MVC controller part of the path
+            var uriPath = "/" + String.Join("/",
+                request.Url.Segments
+                    .Select(segment => segment.Trim('/'))
+                    .Where(segment => !String.IsNullOrWhiteSpace(segment))
+                    .Skip(1));
+            var uriUnencodedPath = uriPath.Replace(":", "%3A").Replace("@", "%40");
+            bool runUnencodedComparison = uriPath != uriUnencodedPath;
+
             // Both encoding schemes are valid for the signature
             return String.Equals(account, AccountName, StringComparison.OrdinalIgnoreCase) &&
-                (signature == SharedKeySignature(parts[0] == AlgorithmSharedKeyLite, request.HttpMethod.ToUpper(), request.Url.AbsolutePath, headers, request.Url.Query, dateHeader) ||
-                 signature == SharedKeySignature(parts[0] == AlgorithmSharedKeyLite, request.HttpMethod.ToUpper(), request.Url.AbsolutePath.Replace(":", "%3A").Replace("@", "%40"), headers, request.Url.Query, dateHeader));
+                (signature == SharedKeySignature(parts[0] == AlgorithmSharedKeyLite, request.HttpMethod.ToUpper(), uriPath, headers, request.Url.Query, dateHeader) ||
+                 (runUnencodedComparison && signature == SharedKeySignature(parts[0] == AlgorithmSharedKeyLite, request.HttpMethod.ToUpper(), uriUnencodedPath, headers, request.Url.Query, dateHeader)));
         }
 
         public static string SharedKeySignature(bool liteAlgorithm, string method, string uriPath, ILookup<string, string> headers, string uriQuery, string requestDate)
@@ -90,11 +135,17 @@ namespace Microsoft.Dash.Server.Handlers
             }
             else
             {
+                var contentLength = headers.FirstOrDefault("Content-Length", "0");
+                int length;
+                if (!int.TryParse(contentLength, out length) || length <= 0)
+                {
+                    contentLength = String.Empty;
+                }
                 stringToSign = String.Format("{0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}\n{8}\n{9}\n{10}\n{11}\n{12}\n{13}",
                                                     method,
                                                     headers.FirstOrDefault("Content-Encoding", String.Empty),
                                                     headers.FirstOrDefault("Content-Language", String.Empty),
-                                                    headers.FirstOrDefault("Content-Length", String.Empty),
+                                                    contentLength,
                                                     headers.FirstOrDefault("Content-MD5", String.Empty),
                                                     headers.FirstOrDefault("Content-Type", String.Empty),
                                                     requestDate,

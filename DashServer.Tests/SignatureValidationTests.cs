@@ -22,7 +22,7 @@ namespace Microsoft.Tests
         }
 
         [TestMethod]
-        public void TestSharedKey()
+        public void SharedKeySignatureTest()
         {
             // Taken directly from the payload emitted by the .NET Storage FX
             var headers = new List<Tuple<string, string>>()
@@ -111,6 +111,7 @@ namespace Microsoft.Tests
                 Tuple.Create("x-ms-version", "2014-02-14"),
                 Tuple.Create("x-ms-client-request-id", "9e51b5a3-2dff-4fb2-98f8-c7cfe05a223a"),
                 Tuple.Create("x-ms-date", "Thu, 30 Oct 2014 20:55:13 GMT"),
+                Tuple.Create("Content-Length", "0"),
                 Tuple.Create("Connection", "Keep-Alive"),
                 Tuple.Create("Expect", "100-continue"),
                 Tuple.Create("Host", "dashstorage1.blob.core.windows.net"),
@@ -122,7 +123,7 @@ namespace Microsoft.Tests
         }
 
         [TestMethod]
-        public void TestSharedKeyLite()
+        public void SharedKeyLiteSignatureTest()
         {
             // Taken directly from the payload emitted by the .NET Storage FX
             var headers = new List<Tuple<string, string>>()
