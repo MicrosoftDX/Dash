@@ -186,18 +186,22 @@ namespace Microsoft.Dash.Server.Controllers
             //create an namespace blob with hardcoded metadata
             CloudBlockBlob blobMaster = GetBlobByName(masterAccount, container, blob);
 
-            //getting storage account name and account key from file account, by using simple hashing algorithm to choose account storage
-            getStorageAccount(masterAccount, blob, out accountName, out accountKey);
-
             if (blobMaster.Exists())
             {
                 await blobMaster.FetchAttributesAsync();
+                //If we already have a link, the rest of the metadata is there, too. Just return.
+                if (blobMaster.Metadata["link"] != null)
+                {
+                    return;
+                }
             }
             else
             {
                 await blobMaster.UploadTextAsync("");
             }
 
+            //getting storage account name and account key from file account, by using simple hashing algorithm to choose account storage
+            getStorageAccount(masterAccount, blob, out accountName, out accountKey);
             blobMaster.Metadata["link"] = request.Url.Scheme + "://" + accountName + Endpoint() + container + "/" + blob;
             blobMaster.Metadata["accountname"] = accountName;
             blobMaster.Metadata["accountkey"] = accountKey;

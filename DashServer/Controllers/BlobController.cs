@@ -7,6 +7,8 @@ using System.Web;
 using System.Web.Http;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
+using System.Net.Http;
+using System.Net;
 
 namespace Microsoft.Dash.Server.Controllers
 {
@@ -43,54 +45,34 @@ namespace Microsoft.Dash.Server.Controllers
 
         /// Delete Blob - http://msdn.microsoft.com/en-us/library/azure/dd179413.aspx
         [HttpDelete]
-        public async Task<IHttpActionResult> DeleteBlob(string container, string blob, string snapshot = null)
+        public async Task<HttpResponseMessage> DeleteBlob(string container, string blob, string snapshot = null)
         {
+            //We only need to delete the actual blob. We are leaving the namespace entry alone as a sort of cache.
             CloudStorageAccount masterAccount = GetMasterAccount();
 
             string accountName = "";
             string accountKey = "";
             Uri blobUri;
             string containerName = "";
-            HttpRequestBase request = RequestFromContext(HttpContext.Current);
-
-            // Set Namespace Blob for deletion
-            //create a namespace blob with hardcoded metadata
-            CloudBlockBlob namespaceBlob = GetBlobByName(masterAccount, container, blob);
-
-            if (!namespaceBlob.Exists())
-            {
-                throw new FileNotFoundException("Namespace blob not found");
-            }
-
-            namespaceBlob.FetchAttributes();
-            namespaceBlob.Metadata["todelete"] = "true";
-            await namespaceBlob.SetMetadataAsync();
 
             ReadMetaData(masterAccount, container, blob, out blobUri, out accountName, out accountKey, out containerName);
-            Uri redirect = GetRedirectUri(blobUri, accountName, accountKey, containerName, request);
-
-            CloudBlockBlob blobObj = GetBlobByName(masterAccount, container, blob);
+            CloudStorageAccount blobAccount = GetAccount(accountName, accountKey);
+            CloudBlockBlob blobObj = GetBlobByName(blobAccount, container, blob);
+            //Check whether we have an entry for the blob to be deleted
+            if (!blobObj.Exists())
+            {
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            }
             await blobObj.DeleteAsync();
 
-            return Redirect(redirect);
+            return new HttpResponseMessage(HttpStatusCode.Accepted);
         }
 
         /// Get Blob Properties - http://msdn.microsoft.com/en-us/library/azure/dd179394.aspx
         [HttpHead]
         public async Task<IHttpActionResult> GetBlobProperties(string container, string blob, string snapshot = null)
         {
-            CloudStorageAccount masterAccount = GetMasterAccount();
-
-            string accountName = "";
-            string accountKey = "";
-            Uri blobUri;
-            string containerName = "";
-            HttpRequestBase request = RequestFromContext(HttpContext.Current);
-
-            //reading metadata from namespace blob
-            ReadMetaData(masterAccount, container, blob, out blobUri, out accountName, out accountKey, out containerName);
-
-            return Redirect(GetRedirectUri(blobUri, accountName, accountKey, containerName, request));
+            return await BasicBlobHandler(container, blob);
         }
 
         /// Get Blob operations with the 'comp' query parameter
@@ -169,7 +151,7 @@ namespace Microsoft.Dash.Server.Controllers
         /// Get Blob Metadata - http://msdn.microsoft.com/en-us/library/azure/dd179350.aspx
         private async Task<IHttpActionResult> GetBlobMetadata(string container, string blob, string snapshot)
         {
-            return await GetBlob(container, blob, snapshot);
+            return await BasicBlobHandler(container, blob);
         }
 
         /// Set Blob Metadata - http://msdn.microsoft.com/en-us/library/azure/dd179414.aspx
@@ -189,15 +171,13 @@ namespace Microsoft.Dash.Server.Controllers
         {
             // This will need to be some variation of copy. May need to replicate snapshotting logic in case
             // original server is out of space.
-            await Task.Delay(10);
-            return Ok();
+            return await BasicBlobHandler(container, blob);
         }
 
         /// Get Block List - http://msdn.microsoft.com/en-us/library/azure/dd179400.aspx
         private async Task<IHttpActionResult> GetBlobBlockList(string container, string blob, string snapshot)
         {
-            await Task.Delay(10);
-            return Ok();
+            return await BasicBlobHandler(container, blob);
         }
 
         /// Put Block - http://msdn.microsoft.com/en-us/library/azure/dd135726.aspx

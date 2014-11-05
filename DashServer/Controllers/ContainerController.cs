@@ -47,17 +47,7 @@ namespace Microsoft.Dash.Server.Controllers
             CloudStorageAccount masterAccount = GetMasterAccount();
 
             Uri forwardUri = GetForwardingUri(RequestFromContext(HttpContext.Current), masterAccount.Credentials.AccountName, masterAccount.Credentials.ExportBase64EncodedKey(), container);
-            HttpClient client = new HttpClient();
-            HttpRequestBase request = RequestFromContext(HttpContext.Current);
-            HttpRequestMessage request2 = new HttpRequestMessage(HttpMethod.Put, forwardUri);
-            request2.Content = Request.Content;
-            return Ok();
-            //foreach (var header in Request.Headers)
-            //{
-            //    request2.Headers.Add(header.Name, header.Value);
-            //}
-
-            //await client.SendAsync(request2);
+            return Redirect(forwardUri);
         }
 
         /// Delete Container - http://msdn.microsoft.com/en-us/library/azure/dd179408.aspx
@@ -86,15 +76,19 @@ namespace Microsoft.Dash.Server.Controllers
         //Get Container operations, with optional 'comp' parameter
         public async Task<HttpResponseMessage> GetContainerData(string container, string comp=null)
         {
+            CloudStorageAccount masterAccount = GetMasterAccount();
+            CloudBlobContainer containerObj = GetContainerByName(masterAccount, container);
+            if (!containerObj.Exists())
+            {
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            }
             string compvar = comp == null ? "" : comp;
             switch (compvar.ToLower())
             {
                 case "list":
                     return await GetBlobList(container);
                 default:
-                    CloudStorageAccount masterAccount = GetMasterAccount();
-                    Uri forwardUri = GetForwardingUri(RequestFromContext(HttpContext.Current), masterAccount.Credentials.AccountName, masterAccount.Credentials.ExportBase64EncodedKey(), container);
-                    CloudBlobContainer containerObj = GetContainerByName(masterAccount, container);
+                    //Uri forwardUri = GetForwardingUri(RequestFromContext(HttpContext.Current), masterAccount.Credentials.AccountName, masterAccount.Credentials.ExportBase64EncodedKey(), container);
                     await containerObj.FetchAttributesAsync();
                     HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.OK);
                     response.Headers.Add("ETag", containerObj.Properties.ETag);
