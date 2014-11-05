@@ -30,16 +30,16 @@ namespace Microsoft.Dash.Server.Controllers
 
             string accountName = "";
             string accountKey = "";
-            Uri blobUri;
             string containerName = "";
+            string blobName = "";
             HttpRequestBase request = RequestFromContext(HttpContext.Current);
 
             CreateNamespaceBlob(request, masterAccount, container, blob);
 
-            ReadMetaData(masterAccount, container, blob, out blobUri, out accountName, out accountKey, out containerName);
+            ReadMetaData(masterAccount, container, blob, out accountName, out accountKey, out containerName, out blobName);
 
             //redirection code
-            Uri redirect = GetRedirectUri(blobUri, accountName, accountKey, container, request);
+            Uri redirect = GetRedirectUri(request, accountName, accountKey, container, blobName);
             return Redirect(redirect);
         }
 
@@ -52,10 +52,10 @@ namespace Microsoft.Dash.Server.Controllers
 
             string accountName = "";
             string accountKey = "";
-            Uri blobUri;
             string containerName = "";
+            string blobName = "";
 
-            ReadMetaData(masterAccount, container, blob, out blobUri, out accountName, out accountKey, out containerName);
+            ReadMetaData(masterAccount, container, blob, out accountName, out accountKey, out containerName, out blobName);
             CloudStorageAccount blobAccount = GetAccount(accountName, accountKey);
             CloudBlockBlob blobObj = GetBlobByName(blobAccount, container, blob);
             //Check whether we have an entry for the blob to be deleted
@@ -133,13 +133,13 @@ namespace Microsoft.Dash.Server.Controllers
 
             string accountName = "";
             string accountKey = "";
-            Uri blobUri;
             string containerName = "";
+            string blobName = "";
             HttpRequestBase request = RequestFromContext(HttpContext.Current);
 
-            ReadMetaData(masterAccount, container, blob, out blobUri, out accountName, out accountKey, out containerName);
+            ReadMetaData(masterAccount, container, blob, out accountName, out accountKey, out containerName, out blobName);
 
-            return Redirect(GetRedirectUri(blobUri, accountName, accountKey, container, request));
+            return Redirect(GetRedirectUri(request, accountName, accountKey, container, blobName));
         }
 
         /// Set Blob Properties - http://msdn.microsoft.com/en-us/library/azure/ee691966.aspx
@@ -187,16 +187,16 @@ namespace Microsoft.Dash.Server.Controllers
 
             string accountName = "";
             string accountKey = "";
-            Uri blobUri;
             string containerName = "";
+            string blobName = "";
             HttpRequestBase request = RequestFromContext(HttpContext.Current);
 
             CreateNamespaceBlob(request, masterAccount, container, blob);
 
             //reading metadata from namespace blob
-            ReadMetaData(masterAccount, container, blob, out blobUri, out accountName, out accountKey, out containerName);
+            ReadMetaData(masterAccount, container, blob, out accountName, out accountKey, out containerName, out blobName);
 
-            return Redirect(GetRedirectUri(blobUri, accountName, accountKey, container, request));
+            return Redirect(GetRedirectUri(request, accountName, accountKey, container, blobName));
         }
 
         /// Put Block List - http://msdn.microsoft.com/en-us/library/azure/dd179467.aspx
@@ -206,11 +206,11 @@ namespace Microsoft.Dash.Server.Controllers
 
             string accountName = "";
             string accountKey = "";
-            Uri blobUri;
             string containerName = "";
+            string blobName = "";
 
             //reading metadata from namespace blob
-            ReadMetaData(masterAccount, container, blob, out blobUri, out accountName, out accountKey, out containerName);
+            ReadMetaData(masterAccount, container, blob, out accountName, out accountKey, out containerName, out blobName);
 
             //Need to figure out what to do with this one. Commented out for now.
             //forming forward request

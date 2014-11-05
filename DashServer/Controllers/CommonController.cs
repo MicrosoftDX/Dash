@@ -31,17 +31,16 @@ namespace Microsoft.Dash.Server.Controllers
             return new CloudStorageAccount(credentials, false);
         }
 
-        protected void ReadMetaData(CloudStorageAccount masterAccount, string origContainerName, string blobName, out Uri blobUri, out string accountName, out string accountKey, out string containerName)
+        protected void ReadMetaData(CloudStorageAccount masterAccount, string origContainerName, string origBlobName, out string accountName, out string accountKey, out string containerName, out string blobName)
         {
-            CloudBlockBlob namespaceBlob = GetBlobByName(masterAccount, origContainerName, blobName);
+            CloudBlockBlob namespaceBlob = GetBlobByName(masterAccount, origContainerName, origBlobName);
 
             //Get blob metadata
             namespaceBlob.FetchAttributes();
-
-            blobUri = new Uri(namespaceBlob.Metadata["link"]);
             accountName = namespaceBlob.Metadata["accountname"];
             accountKey = namespaceBlob.Metadata["accountkey"];
             containerName = namespaceBlob.Metadata["container"];
+            blobName = namespaceBlob.Metadata["blobname"];
         }
 
         protected Uri GetForwardingUri(HttpRequestBase request, string accountName, string accountKey, string containerName, string blobName)
@@ -49,7 +48,7 @@ namespace Microsoft.Dash.Server.Controllers
             CloudStorageAccount account = GetAccount(accountName, accountKey);
             CloudBlobContainer container = GetContainerByName(account, containerName);
             CloudBlockBlob blob = GetBlobByName(account, containerName, blobName);
-            string sas = calculateSASStringForContainer(container);
+            string sas = calculateSASStringForContainer(request, container);
 
             //creating redirection Uri
             UriBuilder forwardUri = new UriBuilder(blob.Uri.ToString() + sas + "&" + request.Url.Query.Substring(1));
@@ -65,7 +64,7 @@ namespace Microsoft.Dash.Server.Controllers
             string sas = "";
             if (useSas)
             {
-                sas = calculateSASStringForContainer(container);
+                sas = calculateSASStringForContainer(request, container);
             }
 
             UriBuilder forwardUri = new UriBuilder(container.Uri.ToString() + sas + "&" + request.Url.Query.Substring(1));
@@ -74,108 +73,49 @@ namespace Microsoft.Dash.Server.Controllers
             return forwardUri.Uri;
         }
 
-        // Not refactoring this one to use HttpRequestBase as it will be deleted once forwarding is figured out
-        protected void FormForwardingRequest(Uri blobUri, string accountName, string accountKey, ref HttpRequestMessage request)
+        protected Uri GetRedirectUri(HttpRequestBase request, string accountName, string accountKey, string containerName, string blobName)
         {
-            StorageCredentials credentials = new StorageCredentials(accountName, accountKey);
+            CloudStorageAccount account = GetAccount(accountName, accountKey);
+            CloudBlobContainer container = GetContainerByName(account, containerName);
 
-            CloudStorageAccount account = new CloudStorageAccount(credentials, false);
-
-            var blobClient = account.CreateCloudBlobClient();
-
-            string containerString = blobUri.AbsolutePath.Substring(1, blobUri.AbsolutePath.IndexOf('/', 2) - 1);
-
-            CloudBlobContainer container = blobClient.GetContainerReference(containerString);
-
-            string blobString = blobUri.AbsolutePath.Substring(blobUri.AbsolutePath.IndexOf('/', 2) + 1).Replace("%20", " ");
-
-            var blob = container.GetBlockBlobReference(blobString);
-
-            string sas = calculateSASStringForContainer(container);
-
-
-            request.Headers.Host = accountName + ".blob.core.windows.net";
-
-            //creating redirection Uri
-            UriBuilder forwardUri = new UriBuilder(blob.Uri.ToString() + sas + "&" + request.RequestUri.Query.Substring(1));
-
-            //strip off the proxy port and replace with an Http port
-            forwardUri.Port = 80;
-
-            request.RequestUri = forwardUri.Uri;
-
-            //sets the Authorization to null, so getting the blob doesnt't use this string but sas
-            request.Headers.Authorization = null;
-
-            if (request.Method == HttpMethod.Get || request.Method == HttpMethod.Head)
-            {
-                request.Content = null;
-            }
-        }
-
-        protected Uri GetRedirectUri(Uri blobUri, string accountName, string accountKey, string containerName, HttpRequestBase request)
-        {
-            StorageCredentials credentials = new StorageCredentials(accountName, accountKey);
-            CloudStorageAccount account = new CloudStorageAccount(credentials, false);
-
-            var blobClient = account.CreateCloudBlobClient();
-            CloudBlobContainer container = blobClient.GetContainerReference(containerName);
-
-            string sas = calculateSASStringForContainer(container);
+            string sas = calculateSASStringForContainer(request, container);
 
             UriBuilder forwardUri;
+            string uri = request.Url.Scheme + "://" + accountName + Endpoint() + containerName + "/" + blobName + sas;
 
             //creating redirection Uri
             if (request.Url.Query != "")
             {
-                forwardUri = new UriBuilder(blobUri.ToString() + sas + "&" + request.Url.Query.Substring(1).Replace("timeout=90", "timeout=90000"));
+                forwardUri = new UriBuilder(uri + "&" + request.Url.Query.Substring(1).Replace("timeout=90", "timeout=90000"));
             }
             else
             {
-                forwardUri = new UriBuilder(blobUri.ToString() + sas);
+                forwardUri = new UriBuilder(uri);
             }
 
             return forwardUri.Uri;
         }
 
         //calculates Shared Access Signature (SAS) string based on type of request (GET, HEAD, DELETE, PUT)
-        protected string calculateSASString(HttpRequestMessage request, ICloudBlob blob)
+        protected SharedAccessBlobPolicy GetSasPolicy(HttpRequestMessage request)
         {
-            string sas = "";
-            if (request.Method == HttpMethod.Get || request.Method == HttpMethod.Head)
+            //Default to read only
+            SharedAccessBlobPermissions permission = SharedAccessBlobPermissions.Read;
+            if (request.Method == HttpMethod.Delete)
             {
-                //creating sas string (Shared Access Signature) to get permissions to access to hardcoded blob
-                sas = blob.GetSharedAccessSignature(
-                    new SharedAccessBlobPolicy()
-                    {
-                        Permissions = SharedAccessBlobPermissions.Read,
-                        SharedAccessStartTime = DateTime.Now.AddMinutes(-5),
-                        SharedAccessExpiryTime = DateTime.Now.AddMinutes(54)
-                    });
-            }
-            else if (request.Method == HttpMethod.Delete)
-            {
-                //creating sas string (Shared Access Signature) to get permissions to access to hardcoded blob
-                sas = blob.GetSharedAccessSignature(
-                    new SharedAccessBlobPolicy()
-                    {
-                        Permissions = SharedAccessBlobPermissions.Delete,
-                        SharedAccessStartTime = DateTime.Now.AddMinutes(-5),
-                        SharedAccessExpiryTime = DateTime.Now.AddMinutes(54)
-                    });
+                permission = SharedAccessBlobPermissions.Delete;
             }
             else if (request.Method == HttpMethod.Put)
             {
-                sas = blob.GetSharedAccessSignature(
-                    new SharedAccessBlobPolicy()
-                    {
-                        Permissions = SharedAccessBlobPermissions.Write,
-                        SharedAccessStartTime = DateTime.Now.AddMinutes(-5),
-                        SharedAccessExpiryTime = DateTime.Now.AddMinutes(54)
-                    });
+                permission = SharedAccessBlobPermissions.Write;
             }
 
-            return sas;
+            return new SharedAccessBlobPolicy()
+            {
+                Permissions = permission,
+                SharedAccessStartTime = DateTime.Now.AddMinutes(-5),
+                SharedAccessExpiryTime = DateTime.Now.AddMinutes(54)
+            };
         }
 
         protected async void CreateNamespaceBlob(HttpRequestBase request, CloudStorageAccount masterAccount, string container, string blob)
@@ -190,7 +130,7 @@ namespace Microsoft.Dash.Server.Controllers
             {
                 await blobMaster.FetchAttributesAsync();
                 //If we already have a link, the rest of the metadata is there, too. Just return.
-                if (blobMaster.Metadata["link"] != null)
+                if (blobMaster.Metadata["blobname"] != null)
                 {
                     return;
                 }
@@ -202,7 +142,6 @@ namespace Microsoft.Dash.Server.Controllers
 
             //getting storage account name and account key from file account, by using simple hashing algorithm to choose account storage
             getStorageAccount(masterAccount, blob, out accountName, out accountKey);
-            blobMaster.Metadata["link"] = request.Url.Scheme + "://" + accountName + Endpoint() + container + "/" + blob;
             blobMaster.Metadata["accountname"] = accountName;
             blobMaster.Metadata["accountkey"] = accountKey;
             blobMaster.Metadata["container"] = container;
@@ -333,11 +272,11 @@ namespace Microsoft.Dash.Server.Controllers
         }
 
         //calculates SAS string to have access to a container
-        protected string calculateSASStringForContainer(CloudBlobContainer container)
+        protected string calculateSASStringForContainer(HttpRequestBase request, CloudBlobContainer container)
         {
             string sas = "";
 
-            SharedAccessBlobPolicy sasConstraints = new SharedAccessBlobPolicy();
+            SharedAccessBlobPolicy sasConstraints = GetSasPolicy(request);
             sasConstraints.SharedAccessExpiryTime = DateTime.UtcNow.AddHours(4);
 
             //we do not need all of those permisions
@@ -354,12 +293,6 @@ namespace Microsoft.Dash.Server.Controllers
             return Convert.ToInt32(ConfigurationManager.AppSettings["ScaleoutNumberOfAccounts"]);
         }
 
-        protected void GetNamesFromUri(Uri blobUri, out string containerName, out string blobName)
-        {
-            containerName = blobUri.AbsolutePath.Substring(1, blobUri.AbsolutePath.IndexOf('/', 2) - 1);
-            blobName = System.IO.Path.GetFileName(blobUri.LocalPath);
-        }
-
         protected CloudBlobContainer GetContainerByName(CloudStorageAccount account, string containerName)
         {
             CloudBlobClient client = account.CreateCloudBlobClient();
@@ -370,28 +303,6 @@ namespace Microsoft.Dash.Server.Controllers
         {
             CloudBlobContainer container = GetContainerByName(account, containerName);
             return container.GetBlockBlobReference(blobName);
-        }
-
-        protected CloudBlockBlob GetBlobByUri(CloudStorageAccount masterAccount, Uri blobUri)
-        {
-            string namespaceContainerString = "";
-            string namespaceBlobString = "";
-            GetNamesFromUri(blobUri, out namespaceContainerString, out namespaceBlobString);
-            return GetBlobByName(masterAccount, namespaceContainerString, namespaceBlobString);
-        }
-
-        protected CloudBlobContainer ContainerFromRequest(CloudStorageAccount account, HttpRequestBase request)
-        {
-            string containerString = request.Url.AbsolutePath.Substring(1);
-
-            return GetContainerByName(account, containerString);
-        }
-
-        protected string ContainerSASFromRequest(CloudStorageAccount account, HttpRequestBase request)
-        {
-            CloudBlobContainer container = ContainerFromRequest(account, request);
-
-            return calculateSASStringForContainer(container);
         }
 
         protected HttpRequestBase RequestFromContext(HttpContext context)
