@@ -277,11 +277,6 @@ namespace Microsoft.Dash.Server.Controllers
             string sas = "";
 
             SharedAccessBlobPolicy sasConstraints = GetSasPolicy(request);
-            sasConstraints.SharedAccessExpiryTime = DateTime.UtcNow.AddHours(4);
-
-            //we do not need all of those permisions
-            sasConstraints.Permissions = SharedAccessBlobPermissions.Write | SharedAccessBlobPermissions.List | SharedAccessBlobPermissions.Read | SharedAccessBlobPermissions.Delete;
-
             //Generate the shared access signature on the container, setting the constraints directly on the signature.
             sas = container.GetSharedAccessSignature(sasConstraints);
 
