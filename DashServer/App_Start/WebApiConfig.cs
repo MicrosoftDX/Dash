@@ -25,7 +25,7 @@ namespace Microsoft.Dash.Server
                 routeTemplate: "{controller}/{container}");
             config.Routes.MapHttpRoute(
                 name: "Account",
-                routeTemplate: "");
+                routeTemplate: "{controller}");
 
         }
     }

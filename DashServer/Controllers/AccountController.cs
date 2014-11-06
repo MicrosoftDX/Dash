@@ -13,12 +13,18 @@ namespace Microsoft.Dash.Server.Controllers
     public class AccountController : CommonController
     {
         [HttpGet]
-        public async Task<HttpResponseMessage> ListContainers()
+        public async Task<IHttpActionResult> ListContainers()
         {
             CloudStorageAccount masterAccount = GetMasterAccount();
-            HttpClient client = new HttpClient();
-            HttpResponseMessage response = new HttpResponseMessage();
-            return await client.SendAsync(Request, HttpCompletionOption.ResponseHeadersRead);
+            UriBuilder forwardUri = new UriBuilder(Request.RequestUri.Scheme + "://" + masterAccount.Credentials.AccountName + Endpoint() + Request.RequestUri.Query);
+            return Redirect(forwardUri.Uri);
+        }
+
+        [HttpPut]
+        public async Task<HttpResponseMessage> SetBlobServiceProperties()
+        {
+            await Task.Delay(10);
+            return new HttpResponseMessage();
         }
     }
 }

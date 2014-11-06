@@ -96,6 +96,12 @@ namespace Microsoft.Dash.Server.Controllers
             return forwardUri.Uri;
         }
 
+        protected Uri AccountRedirectUri(HttpRequestBase request, string accountName)
+        {
+            UriBuilder forwardUri = new UriBuilder(request.Url.Scheme + "://" + accountName + Endpoint() + request.Url.Query);
+            return forwardUri.Uri;
+        }
+
         //calculates Shared Access Signature (SAS) string based on type of request (GET, HEAD, DELETE, PUT)
         protected SharedAccessBlobPolicy GetSasPolicy(HttpRequestBase request)
         {
@@ -274,16 +280,12 @@ namespace Microsoft.Dash.Server.Controllers
         //calculates SAS string to have access to a container
         protected string calculateSASStringForContainer(HttpRequestBase request, CloudBlobContainer container)
         {
-            string sas = "";
-
             SharedAccessBlobPolicy sasConstraints = GetSasPolicy(request);
             //Generate the shared access signature on the container, setting the constraints directly on the signature.
-            sas = container.GetSharedAccessSignature(sasConstraints);
-
-            return sas;
+            return container.GetSharedAccessSignature(sasConstraints);
         }
 
-        protected Int32 NumOfAccounts()
+        protected int NumOfAccounts()
         {
             return Convert.ToInt32(ConfigurationManager.AppSettings["ScaleoutNumberOfAccounts"]);
         }
