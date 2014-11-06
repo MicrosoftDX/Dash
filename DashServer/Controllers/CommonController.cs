@@ -80,25 +80,18 @@ namespace Microsoft.Dash.Server.Controllers
 
             string sas = calculateSASStringForContainer(request, container);
 
-            UriBuilder forwardUri;
-            string uri = request.Url.Scheme + "://" + accountName + Endpoint() + containerName + "/" + blobName + sas;
+            UriBuilder forwardUri = new UriBuilder();
+            forwardUri.Scheme = request.Url.Scheme;
+            forwardUri.Host = accountName + Endpoint();
+            forwardUri.Path = containerName + "/" + blobName;
+            forwardUri.Query = sas;
 
             //creating redirection Uri
-            if (request.Url.Query != "")
+            if (!string.IsNullOrWhiteSpace(request.Url.Query))
             {
-                forwardUri = new UriBuilder(uri + "&" + request.Url.Query.Substring(1).Replace("timeout=90", "timeout=90000"));
-            }
-            else
-            {
-                forwardUri = new UriBuilder(uri);
+                forwardUri.Query += "&" + request.Url.Query.Substring(1).Replace("timeout=90", "timeout=90000");
             }
 
-            return forwardUri.Uri;
-        }
-
-        protected Uri AccountRedirectUri(HttpRequestBase request, string accountName)
-        {
-            UriBuilder forwardUri = new UriBuilder(request.Url.Scheme + "://" + accountName + Endpoint() + request.Url.Query);
             return forwardUri.Uri;
         }
 
@@ -135,8 +128,8 @@ namespace Microsoft.Dash.Server.Controllers
             if (blobMaster.Exists())
             {
                 await blobMaster.FetchAttributesAsync();
-                //If we already have a link, the rest of the metadata is there, too. Just return.
-                if (blobMaster.Metadata["blobname"] != null)
+                //If we already have a blob, the rest of the metadata is there, too. Just return.
+                if (!string.IsNullOrWhiteSpace(blobMaster.Metadata["blobname"]))
                 {
                     return;
                 }

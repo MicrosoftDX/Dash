@@ -1,11 +1,10 @@
-﻿using Microsoft.WindowsAzure.Storage;
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using System.Web;
 using System.Web.Http;
+using Microsoft.WindowsAzure.Storage;
 
 namespace Microsoft.Dash.Server.Controllers
 {
