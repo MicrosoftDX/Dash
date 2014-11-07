@@ -3,6 +3,7 @@
 using System;
 using System.Configuration;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -11,6 +12,7 @@ using System.Web.Http;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Auth;
 using Microsoft.WindowsAzure.Storage.Blob;
+using Microsoft.Dash.Server.Utils;
 
 namespace Microsoft.Dash.Server.Controllers
 {
@@ -22,7 +24,7 @@ namespace Microsoft.Dash.Server.Controllers
         }
         protected CloudStorageAccount GetMasterAccount()
         {
-            return CloudStorageAccount.Parse(ConfigurationManager.AppSettings["StorageConnectionStringMaster"]);
+            return CloudStorageAccount.Parse(AzureUtils.GetConfigSetting("StorageConnectionStringMaster", ""));
         }
 
         protected CloudStorageAccount GetAccount(string accountName, string accountKey)
@@ -212,7 +214,7 @@ namespace Microsoft.Dash.Server.Controllers
             int numAcc = NumOfAccounts();
             long chosenAccount = GetInt64HashCode(masterBlobString, numAcc);
 
-            string ScaleoutAccountInfo = ConfigurationManager.AppSettings["ScaleoutStorage" + chosenAccount.ToString()];
+            string ScaleoutAccountInfo = AzureUtils.GetConfigSetting("ScaleoutStorage" + chosenAccount.ToString(), "");
 
             //getting account name
             Match match1 = Regex.Match(ScaleoutAccountInfo, @"AccountName=([A-Za-z0-9\-]+);", RegexOptions.IgnoreCase);
@@ -314,7 +316,7 @@ namespace Microsoft.Dash.Server.Controllers
         //reads account data and returns accountName and accountKey for currAccount (account index)
         protected void readAccountData(CloudStorageAccount masterAccount, int currAccount, out string accountName, out string accountKey)
         {
-            string ScaleoutAccountInfo = ConfigurationManager.AppSettings["ScaleoutStorage" + currAccount.ToString()];
+            string ScaleoutAccountInfo = AzureUtils.GetConfigSetting("ScaleoutStorage" + currAccount.ToString(), "");
 
             //getting account name
             Match match1 = Regex.Match(ScaleoutAccountInfo, @"AccountName=([A-Za-z0-9\-]+);", RegexOptions.IgnoreCase);
@@ -347,7 +349,7 @@ namespace Microsoft.Dash.Server.Controllers
 
         protected Int32 NumOfAccounts()
         {
-            return Convert.ToInt32(ConfigurationManager.AppSettings["ScaleoutNumberOfAccounts"]);
+            return AzureUtils.GetConfigSetting("ScaleoutNumberOfAccounts", 0);
         }
 
         protected void GetNamesFromUri(Uri blobUri, out string containerName, out string blobName)
@@ -394,6 +396,19 @@ namespace Microsoft.Dash.Server.Controllers
         {
             var curContext = new HttpContextWrapper(context);
             return curContext.Request;
+        }
+
+        protected HttpResponseMessage CreateResponse<T>(T result)
+        {
+            return CreateResponse(result, HttpStatusCode.OK);
+        }
+
+        protected HttpResponseMessage CreateResponse<T>(T result, HttpStatusCode status)
+        {
+            var response = this.Request.CreateResponse(status, result, GlobalConfiguration.Configuration.Formatters.XmlFormatter, "application/xml");
+            response.Headers.TryAddWithoutValidation("x-ms-version", "2014-02-14");
+            response.Headers.TryAddWithoutValidation("x-ms-date", DateTimeOffset.UtcNow.ToString("r"));
+            return response;
         }
     }
 }
