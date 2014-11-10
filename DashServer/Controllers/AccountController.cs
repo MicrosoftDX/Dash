@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Http;
 using Microsoft.WindowsAzure.Storage;
+using System.Web;
 
 namespace Microsoft.Dash.Server.Controllers
 {
@@ -12,11 +13,26 @@ namespace Microsoft.Dash.Server.Controllers
     public class AccountController : CommonController
     {
         [HttpGet]
-        public async Task<IHttpActionResult> ListContainers()
+        public IHttpActionResult ListContainers()
         {
-            CloudStorageAccount masterAccount = GetMasterAccount();
-            UriBuilder forwardUri = new UriBuilder(Request.RequestUri.Scheme + "://" + masterAccount.Credentials.AccountName + Endpoint() + Request.RequestUri.Query);
-            return Redirect(forwardUri.Uri);
+            HttpRequestBase request = RequestFromContext(HttpContext.Current);
+            Uri forwardUri = ForwardUriToNamespace(request);
+            return ForwardRequest();
+        }
+
+        [HttpGet]
+        public IHttpActionResult GetBlobServiceComp(string comp)
+        {
+            //Can just ignore the comp parameter as it just gets passed through with the forward Uri
+            //comp can be one of either stats or properties
+            return ForwardRequest(comp);
+        }
+
+        private IHttpActionResult ForwardRequest(string comp = null)
+        {
+            HttpRequestBase request = RequestFromContext(HttpContext.Current);
+            Uri forwardUri = ForwardUriToNamespace(request);
+            return Redirect(forwardUri);
         }
 
         [HttpPut]

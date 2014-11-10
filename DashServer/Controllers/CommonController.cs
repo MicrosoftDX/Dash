@@ -97,6 +97,18 @@ namespace Microsoft.Dash.Server.Controllers
             return forwardUri.Uri;
         }
 
+        protected Uri ForwardUriToNamespace(HttpRequestBase request)
+        {
+            CloudStorageAccount masterAccount = GetMasterAccount();
+            UriBuilder forwardUri = new UriBuilder()
+            {
+                Scheme = request.Url.Scheme,
+                Host = masterAccount.Credentials.AccountName + Endpoint(),
+                Query = request.Url.Query
+            };
+            return forwardUri.Uri;
+        }
+
         //calculates Shared Access Signature (SAS) string based on type of request (GET, HEAD, DELETE, PUT)
         protected SharedAccessBlobPolicy GetSasPolicy(HttpRequestBase request)
         {
