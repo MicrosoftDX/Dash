@@ -80,11 +80,13 @@ namespace Microsoft.Dash.Server.Controllers
 
             string sas = calculateSASStringForContainer(request, container);
 
-            UriBuilder forwardUri = new UriBuilder();
-            forwardUri.Scheme = request.Url.Scheme;
-            forwardUri.Host = accountName + Endpoint();
-            forwardUri.Path = containerName + "/" + blobName;
-            forwardUri.Query = sas;
+            UriBuilder forwardUri = new UriBuilder()
+            {
+                Scheme = request.Url.Scheme,
+                Host = accountName + Endpoint(),
+                Path = containerName + "/" + blobName,
+                Query = sas
+            };
 
             //creating redirection Uri
             if (!string.IsNullOrWhiteSpace(request.Url.Query))
