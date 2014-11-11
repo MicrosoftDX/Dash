@@ -169,7 +169,6 @@ namespace Microsoft.Dash.Server.Controllers
         {
             int numAcc = NumOfAccounts();
             long chosenAccount = GetInt64HashCode(masterBlobString, numAcc);
-
             string ScaleoutAccountInfo = AzureUtils.GetConfigSetting("ScaleoutStorage" + chosenAccount.ToString(), "");
 
             //getting account name
@@ -294,7 +293,7 @@ namespace Microsoft.Dash.Server.Controllers
             return container.GetSharedAccessSignature(sasConstraints);
         }
 
-        protected int NumOfAccounts()
+        protected Int32 NumOfAccounts()
         {
             return AzureUtils.GetConfigSetting("ScaleoutNumberOfAccounts", 0);
         }
@@ -329,5 +328,6 @@ namespace Microsoft.Dash.Server.Controllers
             response.Headers.TryAddWithoutValidation("x-ms-date", DateTimeOffset.UtcNow.ToString("r"));
             return response;
         }
+
     }
 }
