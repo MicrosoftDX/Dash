@@ -106,6 +106,7 @@
     <Compile Include="Controllers\BlobController.cs" />
     <Compile Include="Controllers\CommonController.cs" />
     <Compile Include="Controllers\ContainerController.cs" />
+    <Compile Include="Controllers\NamespaceBlob.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
@@ -122,6 +123,7 @@
     <Compile Include="Handlers\StorageOperations.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Utils\AzureUtils.cs" />
+    <Compile Include="Utils\DashConfiguration.cs" />
     <Compile Include="Utils\ObjectSerializer.cs" />
     <Compile Include="Utils\RequestUtils.cs" />
   </ItemGroup>

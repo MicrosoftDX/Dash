@@ -20,8 +20,8 @@ namespace Microsoft.Dash.Server.Handlers
 
     public static class RequestAuthorization
     {
-        static readonly string AccountName  = AzureUtils.GetConfigSetting("AccountName", "");
-        static readonly byte[] AccountKey   = Convert.FromBase64String(AzureUtils.GetConfigSetting("AccountKey", ""));
+        static readonly string AccountName  = DashConfiguration.AccountName;
+        static readonly byte[] AccountKey   = DashConfiguration.AccountKey;
 
         const string AlgorithmSharedKey     = "SharedKey";
         const string AlgorithmSharedKeyLite = "SharedKeyLite";
