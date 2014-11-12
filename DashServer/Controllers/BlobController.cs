@@ -9,6 +9,7 @@ using System.Web;
 using System.Web.Http;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
+using Microsoft.Dash.Server.Utils;
 
 namespace Microsoft.Dash.Server.Controllers
 {
@@ -26,21 +27,7 @@ namespace Microsoft.Dash.Server.Controllers
         [HttpPut]
         public async Task<IHttpActionResult> PutBlob(string container, string blob)
         {
-            CloudStorageAccount masterAccount = GetMasterAccount();
-
-            string accountName = "";
-            string accountKey = "";
-            string containerName = "";
-            string blobName = "";
-            HttpRequestBase request = RequestFromContext(HttpContext.Current);
-
-            CreateNamespaceBlob(request, masterAccount, container, blob);
-
-            ReadMetaData(masterAccount, container, blob, out accountName, out accountKey, out containerName, out blobName);
-
-            //redirection code
-            Uri redirect = GetRedirectUri(request, accountName, accountKey, container, blobName);
-            return Redirect(redirect);
+            return await PutBlobHandler(container, blob);
         }
 
         /// Delete Blob - http://msdn.microsoft.com/en-us/library/azure/dd179413.aspx
@@ -48,22 +35,16 @@ namespace Microsoft.Dash.Server.Controllers
         public async Task<HttpResponseMessage> DeleteBlob(string container, string blob, string snapshot = null)
         {
             //We only need to delete the actual blob. We are leaving the namespace entry alone as a sort of cache.
-            CloudStorageAccount masterAccount = GetMasterAccount();
-
-            string accountName = "";
-            string accountKey = "";
-            string containerName = "";
-            string blobName = "";
-
-            ReadMetaData(masterAccount, container, blob, out accountName, out accountKey, out containerName, out blobName);
-            CloudStorageAccount blobAccount = GetAccount(accountName, accountKey);
-            CloudBlockBlob blobObj = GetBlobByName(blobAccount, container, blob);
-            //Check whether we have an entry for the blob to be deleted
-            if (!blobObj.Exists())
+            var namespaceBlob = new NamespaceBlob(GetBlobByName(DashConfiguration.NamespaceAccount, container, blob));
+            if (!await namespaceBlob.ExistsAsync())
             {
                 return new HttpResponseMessage(HttpStatusCode.NotFound);
             }
-            await blobObj.DeleteAsync();
+            // Delete the real data blob
+            var dataBlob = GetBlobByName(DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName), container, blob);
+            await dataBlob.DeleteAsync();
+            // Mark the namespace blob for deletion
+            await namespaceBlob.MarkForDeletionAsync();
 
             return new HttpResponseMessage(HttpStatusCode.Accepted);
         }
@@ -121,27 +102,6 @@ namespace Microsoft.Dash.Server.Controllers
             }
         }
 
-        /// <summary>
-        /// Generic function to redirect a put request for properties of a blob
-        /// </summary>
-        /// <param name="container"></param>
-        /// <param name="blob"></param>
-        /// <returns></returns>
-        private async Task<IHttpActionResult> BasicBlobHandler(string container, string blob)
-        {
-            CloudStorageAccount masterAccount = GetMasterAccount();
-
-            string accountName = "";
-            string accountKey = "";
-            string containerName = "";
-            string blobName = "";
-            HttpRequestBase request = RequestFromContext(HttpContext.Current);
-
-            ReadMetaData(masterAccount, container, blob, out accountName, out accountKey, out containerName, out blobName);
-
-            return Redirect(GetRedirectUri(request, accountName, accountKey, container, blobName));
-        }
-
         /// Set Blob Properties - http://msdn.microsoft.com/en-us/library/azure/ee691966.aspx
         private async Task<IHttpActionResult> SetBlobProperties(string container, string blob)
         {
@@ -183,43 +143,40 @@ namespace Microsoft.Dash.Server.Controllers
         /// Put Block - http://msdn.microsoft.com/en-us/library/azure/dd135726.aspx
         private async Task<IHttpActionResult> PutBlobBlock(string container, string blob)
         {
-            CloudStorageAccount masterAccount = GetMasterAccount();
-
-            string accountName = "";
-            string accountKey = "";
-            string containerName = "";
-            string blobName = "";
-            HttpRequestBase request = RequestFromContext(HttpContext.Current);
-
-            CreateNamespaceBlob(request, masterAccount, container, blob);
-
-            //reading metadata from namespace blob
-            ReadMetaData(masterAccount, container, blob, out accountName, out accountKey, out containerName, out blobName);
-
-            return Redirect(GetRedirectUri(request, accountName, accountKey, container, blobName));
+            return await PutBlobHandler(container, blob);
         }
 
         /// Put Block List - http://msdn.microsoft.com/en-us/library/azure/dd179467.aspx
         private async Task<IHttpActionResult> PutBlobBlockList(string container, string blob)
         {
-            CloudStorageAccount masterAccount = GetMasterAccount();
-
-            string accountName = "";
-            string accountKey = "";
-            string containerName = "";
-            string blobName = "";
-
-            //reading metadata from namespace blob
-            ReadMetaData(masterAccount, container, blob, out accountName, out accountKey, out containerName, out blobName);
-
-            //Need to figure out what to do with this one. Commented out for now.
-            //forming forward request
-            //base.FormForwardingRequest(blobUri, accountName, accountKey, ref Request);
-
-            //HttpClient client = new HttpClient();
-            //HttpResponseMessage response = new HttpResponseMessage();
-            //response = await client.SendAsync(Request, HttpCompletionOption.ResponseContentRead);
-            return Ok();
+            return await PutBlobHandler(container, blob);
         }
+
+        /// <summary>
+        /// Generic function to redirect a put request for properties of a blob
+        /// </summary>
+        private async Task<IHttpActionResult> BasicBlobHandler(string container, string blob)
+        {
+            var namespaceBlob = await FetchNamespaceBlobAsync(container, blob);
+            if (!await namespaceBlob.ExistsAsync())
+            {
+                return NotFound();
+            }
+            HttpRequestBase request = RequestFromContext(HttpContext.Current);
+            return Redirect(GetRedirectUri(request,
+                DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName),
+                namespaceBlob.Container,
+                namespaceBlob.BlobName));
+        }
+
+        private async Task<IHttpActionResult> PutBlobHandler(string container, string blob)
+        {
+            HttpRequestBase request = RequestFromContext(HttpContext.Current);
+            var namespaceBlob = await CreateNamespaceBlobAsync(request, container, blob);
+            //redirection code
+            Uri redirect = GetRedirectUri(request, DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName), container, blob);
+            return Redirect(redirect);
+        }
+
     }
 }

@@ -32,10 +32,6 @@ namespace Microsoft.Dash.Server.Controllers
             {
                 await _namespaceBlob.FetchAttributesAsync();
             }
-            else
-            {
-                await _namespaceBlob.UploadTextAsync("");
-            }
         }
 
         public async Task SaveAsync()
@@ -43,7 +39,7 @@ namespace Microsoft.Dash.Server.Controllers
             await _namespaceBlob.SetMetadataAsync(AccessCondition.GenerateIfMatchCondition(_namespaceBlob.Properties.ETag), null, null);
         }
 
-        public async Task MarkForDeletion()
+        public async Task MarkForDeletionAsync()
         {
             await RefreshAsync();
             _namespaceBlob.Metadata["todelete"] = "true";
@@ -53,6 +49,11 @@ namespace Microsoft.Dash.Server.Controllers
         public async Task<bool> ExistsAsync()
         {
             return await _namespaceBlob.ExistsAsync();
+        }
+
+        public async Task CreateAsync()
+        {
+            await _namespaceBlob.UploadTextAsync("");
         }
 
         public string AccountName

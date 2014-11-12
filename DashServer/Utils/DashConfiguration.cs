@@ -39,7 +39,7 @@ namespace Microsoft.Dash.Server.Utils
 
             _dataAccountsByName = new Lazy<IDictionary<string,CloudStorageAccount>>(() => DashConfiguration.DataAccounts
                 .Where(account => account != null)
-                .ToDictionary(account => account.Credentials.AccountName), LazyThreadSafetyMode.PublicationOnly);
+                .ToDictionary(account => account.Credentials.AccountName, StringComparer.OrdinalIgnoreCase), LazyThreadSafetyMode.PublicationOnly);
 
             _namespaceAccount = new Lazy<CloudStorageAccount>(() =>
             {
