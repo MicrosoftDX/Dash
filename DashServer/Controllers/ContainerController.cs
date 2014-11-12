@@ -13,6 +13,7 @@ using System.Xml;
 using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
+using System.Net.Http.Headers;
 
 namespace Microsoft.Dash.Server.Controllers
 {
@@ -49,12 +50,25 @@ namespace Microsoft.Dash.Server.Controllers
 
         // Put Container operations, with 'comp' parameter'
         [HttpPut]
-        public async Task<IHttpActionResult> PutContainerData(string container, string comp)
+        public async Task<IHttpActionResult> PutContainerComp(string container, string comp)
         {
             CloudStorageAccount masterAccount = GetMasterAccount();
-
+            CloudBlobContainer containerObj = GetContainerByName(masterAccount, container);
+            if (!containerObj.Exists())
+            {
+                return NotFound();
+            }
             Uri forwardUri = GetForwardingUri(RequestFromContext(HttpContext.Current), masterAccount.Credentials.AccountName, masterAccount.Credentials.ExportBase64EncodedKey(), container);
-            return Redirect(forwardUri);
+            string compvar = comp == null ? "" : comp;
+            switch (compvar.ToLower())
+            {
+                case "lease":
+                    return Redirect(forwardUri);
+                case "metadata":
+                    return Redirect(forwardUri);
+                default:
+                    return BadRequest();
+            }
         }
 
         /// Delete Container - http://msdn.microsoft.com/en-us/library/azure/dd179408.aspx
@@ -80,6 +94,18 @@ namespace Microsoft.Dash.Server.Controllers
         }
 
         [AcceptVerbs("GET", "HEAD")]
+        public async Task<HttpResponseMessage> GetContainerProperties(string container)
+        {
+            CloudStorageAccount masterAccount = GetMasterAccount();
+            CloudBlobContainer containerObj = GetContainerByName(masterAccount, container);
+            if (!containerObj.Exists())
+            {
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            }
+            return RedirectContainerRequest(masterAccount, container);
+        }
+
+        [AcceptVerbs("GET", "HEAD")]
         //Get Container operations, with optional 'comp' parameter
         public async Task<HttpResponseMessage> GetContainerData(string container, string comp = null)
         {
@@ -94,17 +120,24 @@ namespace Microsoft.Dash.Server.Controllers
             {
                 case "list":
                     return await GetBlobList(container);
+                case "acl":
+                    return RedirectContainerRequest(masterAccount, container);
+                case "metadata":
+                    return RedirectContainerRequest(masterAccount, container);
 
                 default:
-                    //Uri forwardUri = GetForwardingUri(RequestFromContext(HttpContext.Current), masterAccount.Credentials.AccountName, masterAccount.Credentials.ExportBase64EncodedKey(), container);
-                    await containerObj.FetchAttributesAsync();
-                    HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.OK);
-                    response.Headers.Add("ETag", containerObj.Properties.ETag);
-                    //response.Headers.Add("Last-Modified", "foo");
-
-                    return response;
+                    return new HttpResponseMessage(HttpStatusCode.BadRequest);
             }
             
+        }
+
+        private HttpResponseMessage RedirectContainerRequest(CloudStorageAccount account, string container)
+        {
+            Uri forwardUri = GetForwardingUri(RequestFromContext(HttpContext.Current), account.Credentials.AccountName, account.Credentials.ExportBase64EncodedKey(), container);
+            HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.Redirect);
+            response.Headers.Location = forwardUri;
+
+            return response;
         }
 
         private async Task<HttpResponseMessage> GetBlobList(string container)

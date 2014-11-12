@@ -45,32 +45,18 @@ namespace Microsoft.Dash.Server.Controllers
             blobName = namespaceBlob.Metadata["blobname"];
         }
 
-        protected Uri GetForwardingUri(HttpRequestBase request, string accountName, string accountKey, string containerName, string blobName)
+        protected Uri GetForwardingUri(HttpRequestBase request, string accountName, string accountKey, string containerName)
         {
             CloudStorageAccount account = GetAccount(accountName, accountKey);
             CloudBlobContainer container = GetContainerByName(account, containerName);
-            CloudBlockBlob blob = GetBlobByName(account, containerName, blobName);
-            string sas = calculateSASStringForContainer(request, container);
 
-            //creating redirection Uri
-            UriBuilder forwardUri = new UriBuilder(blob.Uri.ToString() + sas + "&" + request.Url.Query.Substring(1));
-            forwardUri.Host = accountName + Endpoint();
-
-            return forwardUri.Uri;
-        }
-
-        protected Uri GetForwardingUri(HttpRequestBase request, string accountName, string accountKey, string containerName, bool useSas=false)
-        {
-            CloudStorageAccount account = GetAccount(accountName, accountKey);
-            CloudBlobContainer container = GetContainerByName(account, containerName);
-            string sas = "";
-            if (useSas)
+            UriBuilder forwardUri = new UriBuilder()
             {
-                sas = calculateSASStringForContainer(request, container);
-            }
-
-            UriBuilder forwardUri = new UriBuilder(container.Uri.ToString() + sas + "&" + request.Url.Query.Substring(1));
-            forwardUri.Host = accountName + Endpoint();
+                Scheme = container.Uri.Scheme,
+                Host = accountName + Endpoint(),
+                Path = container.Uri.AbsolutePath,
+                Query = request.Url.Query
+            };
 
             return forwardUri.Uri;
         }
