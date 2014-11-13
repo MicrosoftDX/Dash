@@ -133,14 +133,21 @@ namespace Microsoft.Tests
             SetupRequest("http://mydashserver/container/createtest?restype=container");
             var results = _controller.CreateContainer("createtest").Result;
             Assert.AreEqual(HttpStatusCode.Created, results.StatusCode, "Expected Created result");
+
+            //Try to re-create the same container again.
+            results = _controller.CreateContainer("createtest").Result;
+            Assert.AreEqual(HttpStatusCode.Created, results.StatusCode, "Expected Created result");
+            //TODO: Add more variations on create container, including attempt to create already existing container
         }
 
+        [TestMethod]
         public void SetContainerMetadataTest()
         {
             SetupRequest("http://mydashserver/container/createtest?restype=container&comp=metadata");
-            _controller.Request.Headers.Add("x-ms-meta-name:value", "foo:fee");
-            _controller.Request.Headers.Add("x-ms-meta-name:value", "Dog:Cat");
-            IHttpActionResult results = _controller.PutContainerComp("createtest", "metadata").Result;
+            //TODO: Complete this test
+            //_controller.Request.Headers.Add("x-ms-meta-name:value", "foo:fee");
+            //_controller.Request.Headers.Add("x-ms-meta-name:value", "Dog:Cat");
+            //IHttpActionResult results = _controller.PutContainerComp("createtest", "metadata").Result;
         }
 
         [TestMethod]
@@ -152,7 +159,7 @@ namespace Microsoft.Tests
         }
 
         [TestMethod]
-        public void DeleteNonExistentTest()
+        public void DeleteNonExistentContainerTest()
         {
             SetupRequest("http://mydashserver/container/fwimbanger?restype=container");
             var results = _controller.DeleteContainer("createtest").Result;
