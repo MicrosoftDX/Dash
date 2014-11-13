@@ -26,8 +26,8 @@ namespace Microsoft.Dash.Server.Controllers
 
             UriBuilder forwardUri = new UriBuilder()
             {
-                Scheme = container.Uri.Scheme,
-                Host = accountName + Endpoint(),
+                Scheme = request.Url.Scheme,
+                Host = account.BlobEndpoint.Host,
                 Path = container.Uri.AbsolutePath,
                 Query = request.Url.Query
             };

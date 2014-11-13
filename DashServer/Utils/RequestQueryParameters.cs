@@ -2,70 +2,40 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Net.Http;
 using System.Web;
 
 namespace Microsoft.Dash.Server.Utils
 {
-    public class RequestQueryParameters
+    public class RequestQueryParameters : RequestItems
     {
-        ILookup<string, string> _queryParams;
-
         public static RequestQueryParameters Create(HttpRequestMessage request)
         {
             return new RequestQueryParameters(request.GetQueryNameValuePairs());
         }
 
-        protected RequestQueryParameters(IEnumerable<KeyValuePair<string, string>> queryParams)
+        public static RequestQueryParameters Create(HttpRequest request)
         {
-            _queryParams = queryParams
-                .ToLookup(queryParam => queryParam.Key, queryParam => queryParam.Value, StringComparer.OrdinalIgnoreCase);
+            return Create(request.QueryString);
         }
 
-        public string this[string queryParamName]
+        public static RequestQueryParameters Create(string uriQuery)
         {
-            get { return this.Value<string>(queryParamName); }
+            return Create(HttpUtility.ParseQueryString(uriQuery));
         }
 
-        public T Value<T>(string queryParamName)
+        public static RequestQueryParameters Create(NameValueCollection queryParams)
         {
-            return Value(queryParamName, default(T));
+            return new RequestQueryParameters(queryParams.Keys
+                .Cast<string>()
+                .Select(queryParamName => new KeyValuePair<string, string>(queryParamName, queryParams[queryParamName])));
         }
 
-        public T Value<T>(string queryParamName, T defaultValue)
+        private RequestQueryParameters(IEnumerable<KeyValuePair<string, string>> queryParams) 
+            : base(queryParams)
         {
-            var values = Values<T>(queryParamName);
-            if (values != null && values.Any())
-            {
-                return values.First();
-            }
-            return defaultValue;
-        }
-
-        public IEnumerable<T> Values<T>(string queryParamName)
-        {
-            var values = _queryParams[queryParamName];
-            if (values != null)
-            {
-                return values
-                    .Select(value =>
-                    {
-                        try
-                        {
-                            if (typeof(T).IsEnum)
-                            {
-                                return (T)Enum.Parse(typeof(T), value);
-                            }
-                            return (T)Convert.ChangeType(value, typeof(T));
-                        }
-                        catch
-                        {
-                        }
-                        return default(T);
-                    });
-            }
-            return Enumerable.Empty<T>();
         }
     }
 }

@@ -125,6 +125,8 @@
     <Compile Include="Utils\AzureUtils.cs" />
     <Compile Include="Utils\DashConfiguration.cs" />
     <Compile Include="Utils\ObjectSerializer.cs" />
+    <Compile Include="Utils\RequestHeaders.cs" />
+    <Compile Include="Utils\RequestItems.cs" />
     <Compile Include="Utils\RequestQueryParameters.cs" />
     <Compile Include="Utils\RequestUriParts.cs" />
     <Compile Include="Utils\RequestUtils.cs" />

@@ -16,6 +16,21 @@ namespace Microsoft.Dash.Server.Utils
             return RequestQueryParameters.Create(request);
         }
 
+        public static RequestQueryParameters GetQueryParameters(this HttpRequest request)
+        {
+            return RequestQueryParameters.Create(request);
+        }
+
+        public static RequestHeaders GetHeaders(this HttpRequestMessage request)
+        {
+            return RequestHeaders.Create(request);
+        }
+
+        public static RequestHeaders GetHeaders(this HttpRequest request)
+        {
+            return RequestHeaders.Create(request);
+        }
+
         public static void WriteElementStringIfNotNull(this XmlWriter writer, string localName, string value)
         {
             if (!String.IsNullOrWhiteSpace(value))

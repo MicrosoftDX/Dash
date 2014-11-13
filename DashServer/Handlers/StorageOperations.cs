@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
+using Microsoft.Dash.Server.Utils;
 
 namespace Microsoft.Dash.Server.Handlers
 {
@@ -17,6 +18,8 @@ namespace Microsoft.Dash.Server.Handlers
         BlobSnapshot,
         BlobBlock,
         BlobBlockList,
+        BlobCopyBlob,
+        BlobAbortCopy,
     }
 
     public static class StorageOperations
@@ -29,10 +32,14 @@ namespace Microsoft.Dash.Server.Handlers
         public const string OperationNameBlobBlock      = "block";
         public const string OperationNameBlobBlockList  = "blocklist";
 
-        public static StorageOperationTypes GetBlobOperationFromCompParam(string compParam)
+        public static StorageOperationTypes GetBlobOperationFromCompParam(string compParam, RequestHeaders headers)
         {
             if (String.IsNullOrWhiteSpace(compParam))
             {
+                if (headers.Contains("x-ms-copy-source"))
+                {
+                    return StorageOperationTypes.BlobCopyBlob;
+                }
                 return StorageOperationTypes.GetPutBlob;
             }
             switch (compParam.ToLower())

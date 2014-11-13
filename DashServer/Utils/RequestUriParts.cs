@@ -65,5 +65,13 @@ namespace Microsoft.Dash.Server.Utils
                     !String.IsNullOrWhiteSpace(this.BlobName);
             }
         }
+
+        public string PublicUriPath
+        {
+            get
+            {
+                return "/" + this.Container + (String.IsNullOrWhiteSpace(this.Container) ? String.Empty : "/" + this.BlobName);
+            }
+        }
     }
 }

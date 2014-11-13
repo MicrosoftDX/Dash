@@ -58,7 +58,7 @@ namespace Microsoft.Dash.Server
                 }
                 else if (requestUriParts.IsBlobRequest)
                 { 
-                    switch (StorageOperations.GetBlobOperationFromCompParam(this.Request.QueryString["comp"]))
+                    switch (StorageOperations.GetBlobOperationFromCompParam(this.Request.QueryString["comp"], this.Request.GetHeaders()))
                     {
                         case StorageOperationTypes.GetPutBlob:
                             // TODO: Insert call to common function to lookup blob in namespace account & generate redirect SAS URI

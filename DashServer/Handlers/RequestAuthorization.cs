@@ -11,13 +11,6 @@ using Microsoft.Dash.Server.Utils;
 
 namespace Microsoft.Dash.Server.Handlers
 {
-    public interface IHttpRequestWrapper
-    {
-        NameValueCollection Headers { get; }
-        Uri Url { get; }
-        string HttpMethod { get; }
-    }
-
     public static class RequestAuthorization
     {
         static readonly string AccountName  = DashConfiguration.AccountName;
@@ -26,50 +19,22 @@ namespace Microsoft.Dash.Server.Handlers
         const string AlgorithmSharedKey     = "SharedKey";
         const string AlgorithmSharedKeyLite = "SharedKeyLite";
 
-        public class HttpRequestWrapper : IHttpRequestWrapper
-        {
-            HttpRequest _request;
-
-            public HttpRequestWrapper(HttpRequest request)
-            {
-                _request = request;
-            }
-
-            public NameValueCollection Headers
-            {
-                get { return _request.Headers; }
-            }
-
-            public Uri Url
-            {
-                get { return _request.Url; }
-            }
-
-            public string HttpMethod
-            {
-                get { return _request.HttpMethod; }
-            }
-        }
-
         public static bool IsRequestAuthorized(IHttpRequestWrapper request, bool ignoreRequestAge = false)
         {
-            var headers = request.Headers.Keys
-                .Cast<string>()
-                .SelectMany(headerName => request.Headers.GetValues(headerName)
-                    .Select(headerValue => Tuple.Create(headerName, headerValue)))
-                .ToLookup(header => header.Item1, header => header.Item2, StringComparer.OrdinalIgnoreCase);
+            var headers = RequestHeaders.Create(request.Headers);
+            var queryParams = RequestQueryParameters.Create(request.Url.Query);
             // See if this is an anonymous request
-            var authHeader = headers.First("Authorization");
+            var authHeader = headers.Value<string>("Authorization");
             if (String.IsNullOrWhiteSpace(authHeader))
             {
                 return IsAnonymousAccessAllowed(request);
             }
             // Quick request age check
-            string requestDateHeader = headers.First("x-ms-date");
+            string requestDateHeader = headers.Value<string>("x-ms-date");
             string dateHeader = String.Empty;
             if (String.IsNullOrWhiteSpace(requestDateHeader))
             {
-                requestDateHeader = headers.First("Date");
+                requestDateHeader = headers.Value<string>("Date");
                 dateHeader = requestDateHeader;
             }
             if (String.IsNullOrWhiteSpace(requestDateHeader))
@@ -102,21 +67,18 @@ namespace Microsoft.Dash.Server.Handlers
             var signature = parts[2];
 
             // Pull out the MVC controller part of the path
-            var uriPath = "/" + String.Join("/",
-                request.Url.Segments
-                    .Select(segment => segment.Trim('/'))
-                    .Where(segment => !String.IsNullOrWhiteSpace(segment))
-                    .Skip(1));
+            var requestUriParts = RequestUriParts.Create(request.Url);
+            string uriPath = requestUriParts.PublicUriPath;
             var uriUnencodedPath = uriPath.Replace(":", "%3A").Replace("@", "%40");
             bool runUnencodedComparison = uriPath != uriUnencodedPath;
 
             // Both encoding schemes are valid for the signature
             return String.Equals(account, AccountName, StringComparison.OrdinalIgnoreCase) &&
-                (signature == SharedKeySignature(parts[0] == AlgorithmSharedKeyLite, request.HttpMethod.ToUpper(), uriPath, headers, request.Url.Query, dateHeader) ||
-                 (runUnencodedComparison && signature == SharedKeySignature(parts[0] == AlgorithmSharedKeyLite, request.HttpMethod.ToUpper(), uriUnencodedPath, headers, request.Url.Query, dateHeader)));
+                (signature == SharedKeySignature(parts[0] == AlgorithmSharedKeyLite, request.HttpMethod.ToUpper(), uriPath, headers, queryParams, dateHeader) ||
+                 (runUnencodedComparison && signature == SharedKeySignature(parts[0] == AlgorithmSharedKeyLite, request.HttpMethod.ToUpper(), uriUnencodedPath, headers, queryParams, dateHeader)));
         }
 
-        public static string SharedKeySignature(bool liteAlgorithm, string method, string uriPath, ILookup<string, string> headers, string uriQuery, string requestDate)
+        public static string SharedKeySignature(bool liteAlgorithm, string method, string uriPath, RequestHeaders headers, RequestQueryParameters queryParams, string requestDate)
         {
             // Signature scheme is described at: http://msdn.microsoft.com/en-us/library/azure/dd179428.aspx
             // and the SDK implementation is at: https://github.com/Azure/azure-storage-net/tree/master/Lib/ClassLibraryCommon/Auth/Protocol
@@ -126,15 +88,15 @@ namespace Microsoft.Dash.Server.Handlers
             {
                 stringToSign = String.Format("{0}\n{1}\n{2}\n{3}\n{4}\n{5}",
                                                     method,
-                                                    headers.FirstOrDefault("Content-MD5", String.Empty),
-                                                    headers.FirstOrDefault("Content-Type", String.Empty),
+                                                    headers.Value("Content-MD5", String.Empty),
+                                                    headers.Value("Content-Type", String.Empty),
                                                     requestDate,
                                                     GetCanonicalizedHeaders(headers),
-                                                    GetCanonicalizedResource(liteAlgorithm, uriPath, uriQuery, AccountName));
+                                                    GetCanonicalizedResource(liteAlgorithm, uriPath, queryParams, AccountName));
             }
             else
             {
-                var contentLength = headers.FirstOrDefault("Content-Length", "0");
+                var contentLength = headers.Value("Content-Length", "0");
                 int length;
                 if (!int.TryParse(contentLength, out length) || length <= 0)
                 {
@@ -142,19 +104,19 @@ namespace Microsoft.Dash.Server.Handlers
                 }
                 stringToSign = String.Format("{0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}\n{8}\n{9}\n{10}\n{11}\n{12}\n{13}",
                                                     method,
-                                                    headers.FirstOrDefault("Content-Encoding", String.Empty),
-                                                    headers.FirstOrDefault("Content-Language", String.Empty),
+                                                    headers.Value("Content-Encoding", String.Empty),
+                                                    headers.Value("Content-Language", String.Empty),
                                                     contentLength,
-                                                    headers.FirstOrDefault("Content-MD5", String.Empty),
-                                                    headers.FirstOrDefault("Content-Type", String.Empty),
+                                                    headers.Value("Content-MD5", String.Empty),
+                                                    headers.Value("Content-Type", String.Empty),
                                                     requestDate,
-                                                    headers.FirstOrDefault("If-Modified-Since", String.Empty),
-                                                    headers.FirstOrDefault("If-Match", String.Empty),
-                                                    headers.FirstOrDefault("If-None-Match", String.Empty),
-                                                    headers.FirstOrDefault("If-Unmodified-Since", String.Empty),
-                                                    headers.FirstOrDefault("Range", String.Empty),
+                                                    headers.Value("If-Modified-Since", String.Empty),
+                                                    headers.Value("If-Match", String.Empty),
+                                                    headers.Value("If-None-Match", String.Empty),
+                                                    headers.Value("If-Unmodified-Since", String.Empty),
+                                                    headers.Value("Range", String.Empty),
                                                     GetCanonicalizedHeaders(headers),
-                                                    GetCanonicalizedResource(liteAlgorithm, uriPath, uriQuery, AccountName));
+                                                    GetCanonicalizedResource(liteAlgorithm, uriPath, queryParams, AccountName));
             }
 
             var bytesToSign = Encoding.UTF8.GetBytes(stringToSign);
@@ -164,7 +126,7 @@ namespace Microsoft.Dash.Server.Handlers
             }
         }
 
-        static string GetCanonicalizedHeaders(ILookup<string, string> headers)
+        static string GetCanonicalizedHeaders(RequestHeaders headers)
         {
             return String.Join("\n", headers
                 .Where(header => header.Key.StartsWith("x-ms-") && 
@@ -173,25 +135,19 @@ namespace Microsoft.Dash.Server.Handlers
                 .Select(header => FormatCanonicalizedValues(header)));
         }
 
-        static string GetCanonicalizedResource(bool liteAlgorithm, string uriPath, string uriQuery, string accountName)
+        static string GetCanonicalizedResource(bool liteAlgorithm, string uriPath, RequestQueryParameters queryParams, string accountName)
         {
-            var queryParams = HttpUtility.ParseQueryString(uriQuery);
-            var queryParamsLookup = queryParams
-                .AllKeys
-                .SelectMany(queryParam => queryParams.GetValues(queryParam)
-                    .Select(paramValue => Tuple.Create(queryParam, paramValue)))
-                .ToLookup(queryParam => queryParam.Item1, queryParam => queryParam.Item2, StringComparer.InvariantCultureIgnoreCase);
             string commonPrefix = "/" + accountName + uriPath;
             if (liteAlgorithm)
             {
-                var compParam = queryParamsLookup.First("comp");
+                var compParam = queryParams.Value<string>("comp");
                 return commonPrefix + (!String.IsNullOrWhiteSpace(compParam) ? "?comp=" + compParam : "");
             }
             else
             {
-                if (queryParamsLookup.Any())
+                if (queryParams.Any())
                 {
-                    return commonPrefix + "\n" + String.Join("\n", queryParamsLookup
+                    return commonPrefix + "\n" + String.Join("\n", queryParams
                         .OrderBy(queryParam => queryParam.Key, StringComparer.OrdinalIgnoreCase)
                         .Select(queryParam => FormatCanonicalizedValues(queryParam)));
                 }
@@ -205,21 +161,6 @@ namespace Microsoft.Dash.Server.Handlers
                 String.Join(",", headerOrParameter
                     .Select(value => value.TrimStart().Replace("\r\n", String.Empty))
                     .OrderBy(value => value, StringComparer.OrdinalIgnoreCase));
-        }
-
-        static T First<K,T>(this ILookup<K,T> lookup, K key)
-        {
-            return lookup.FirstOrDefault(key, default(T));
-        }
-
-        static T FirstOrDefault<K, T>(this ILookup<K, T> lookup, K key, T defaultValue)
-        {
-            var values = lookup[key];
-            if (values != null)
-            {
-                return values.FirstOrDefault();
-            }
-            return defaultValue;
         }
 
         static bool IsAnonymousAccessAllowed(IHttpRequestWrapper request)
@@ -241,5 +182,43 @@ namespace Microsoft.Dash.Server.Handlers
             }
             return retval;
         }
+
+        /// <summary>
+        /// Implementation for real request
+        /// </summary>
+        public class HttpRequestWrapper : IHttpRequestWrapper
+        {
+            HttpRequest _request;
+
+            public HttpRequestWrapper(HttpRequest request)
+            {
+                _request = request;
+            }
+
+            public NameValueCollection Headers
+            {
+                get { return _request.Headers; }
+            }
+
+            public Uri Url
+            {
+                get { return _request.Url; }
+            }
+
+            public string HttpMethod
+            {
+                get { return _request.HttpMethod; }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Test mock-out interface
+    /// </summary>
+    public interface IHttpRequestWrapper
+    {
+        NameValueCollection Headers { get; }
+        Uri Url { get; }
+        string HttpMethod { get; }
     }
 }
