@@ -7,12 +7,12 @@ namespace Microsoft.Dash.Server.Controllers
 {
     public class CommonController: ApiController
     {
-        public HttpResponseMessage CreateResponse<T>(T result)
+        protected HttpResponseMessage CreateResponse<T>(T result)
         {
             return CreateResponse(result, HttpStatusCode.OK);
         }
 
-        public HttpResponseMessage CreateResponse<T>(T result, HttpStatusCode status)
+        protected HttpResponseMessage CreateResponse<T>(T result, HttpStatusCode status)
         {
             var response = this.Request.CreateResponse(status, result, GlobalConfiguration.Configuration.Formatters.XmlFormatter, "application/xml");
             response.Headers.TryAddWithoutValidation("x-ms-version", "2014-02-14");
