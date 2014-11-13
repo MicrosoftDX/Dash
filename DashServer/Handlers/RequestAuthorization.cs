@@ -55,10 +55,15 @@ namespace Microsoft.Dash.Server.Handlers
         {
             var headers = request.Headers.Keys
                 .Cast<string>()
-                .SelectMany(headerName => 
-                    request.Headers.GetValues(headerName)
-                        .Select(headerValue => Tuple.Create(headerName, headerValue)))
+                .SelectMany(headerName => request.Headers.GetValues(headerName)
+                    .Select(headerValue => Tuple.Create(headerName, headerValue)))
                 .ToLookup(header => header.Item1, header => header.Item2, StringComparer.OrdinalIgnoreCase);
+            // See if this is an anonymous request
+            var authHeader = headers.First("Authorization");
+            if (String.IsNullOrWhiteSpace(authHeader))
+            {
+                return IsAnonymousAccessAllowed(request);
+            }
             // Quick request age check
             string requestDateHeader = headers.First("x-ms-date");
             string dateHeader = String.Empty;
@@ -83,12 +88,6 @@ namespace Microsoft.Dash.Server.Handlers
                 {
                     return false;
                 }
-            }
-            // Now the auth header with signature
-            var authHeader = headers.First("Authorization");
-            if (String.IsNullOrWhiteSpace(authHeader))
-            {
-                return false;
             }
             var parts = authHeader.Split(' ', ':');
             if (parts.Length != 3)
@@ -221,6 +220,26 @@ namespace Microsoft.Dash.Server.Handlers
                 return values.FirstOrDefault();
             }
             return defaultValue;
+        }
+
+        static bool IsAnonymousAccessAllowed(IHttpRequestWrapper request)
+        {
+            bool retval = false;
+            var requestUriParts = RequestUriParts.Create(request.Url);
+            if (requestUriParts.IsAccountRequest)
+            {
+                // No anonymous access to account operations
+                retval = false;
+            }
+            else if (requestUriParts.IsContainerRequest)
+            {
+                // TODO: Check if the container permits anonymous operations for this type
+            }
+            else if (requestUriParts.IsBlobRequest)
+            {
+                // TODO: Check if the containing container permits anonymous operations for this type
+            }
+            return retval;
         }
     }
 }

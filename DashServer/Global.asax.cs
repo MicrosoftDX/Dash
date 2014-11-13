@@ -9,6 +9,7 @@ using System.Web;
 using System.Web.Http;
 using System.Web.Routing;
 using Microsoft.Dash.Server.Handlers;
+using Microsoft.Dash.Server.Utils;
 
 namespace Microsoft.Dash.Server
 {
@@ -45,41 +46,35 @@ namespace Microsoft.Dash.Server
             // BEFORE IIS sends the 100 Continue response. This way the blob content is never sent to us.
             if (this.Request.HttpMethod == HttpMethod.Put.Method)
             {
-                // Manually parse out container & blob names. Format is:
-                //  /mvc-controller/container[/blobseg1/blobseg2/.../blobsegn]
-                var urlSegments = this.Request.Url.Segments
-                    .Select(segment => segment.Trim('/'))
-                    .Where(segment => !String.IsNullOrWhiteSpace(segment))
-                    .ToArray();
-                if (urlSegments.Length >= 2)
+                string redirectUri = String.Empty;
+                var requestUriParts = RequestUriParts.Create(this.Request.Url);
+                if (requestUriParts.IsAccountRequest)
                 {
-                    string redirectBlobUri = "";
-                    var controller = urlSegments[0].ToLower();
-                    switch (controller)
+                    // TODO: Take appropriate pre-body action for account PUT operations
+                }
+                else if (requestUriParts.IsContainerRequest)
+                {
+                    // TODO: Take appropriate pre-body action for container PUT operations
+                }
+                else if (requestUriParts.IsBlobRequest)
+                { 
+                    switch (StorageOperations.GetBlobOperationFromCompParam(this.Request.QueryString["comp"]))
                     {
-                        case "container":
-                            break;
-
-                        case "blob":
-                            if (urlSegments.Length >= 3)
-                            {
-                                var container = urlSegments[1];
-                                var blobName = String.Join("/", urlSegments.Skip(2));
-                                switch (StorageOperations.GetBlobOperationFromCompParam(this.Request.QueryString["comp"]))
-                                {
-                                    case StorageOperationTypes.GetPutBlob:
-                                        // TODO: Insert call to common function to lookup blob in namespace account & generate redirect SAS URI
-                                        redirectBlobUri = "http://dashstorage2.blob.core.windows.net/test/test.txt?sv=2014-02-14&sr=c&sig=AGw1j7kMvb41HuXZo6TX2Z%2BpJntlMqWfhmU6cw491zU%3D&se=2014-10-29T05%3A24%3A30Z&sp=rwdl";
-                                        break;
-                                }
-                            }
+                        case StorageOperationTypes.GetPutBlob:
+                            // TODO: Insert call to common function to lookup blob in namespace account & generate redirect SAS URI
+                            redirectUri = "http://dashstorage2.blob.core.windows.net/test/test.txt?sv=2014-02-14&sr=c&sig=AGw1j7kMvb41HuXZo6TX2Z%2BpJntlMqWfhmU6cw491zU%3D&se=2014-10-29T05%3A24%3A30Z&sp=rwdl";
                             break;
                     }
-                    if (!String.IsNullOrWhiteSpace(redirectBlobUri))
-                    {
-                        this.Response.Redirect(redirectBlobUri, false);
-                        this.CompleteRequest();
-                    }
+                }
+                else
+                {
+                    // Incorrectly formed URI
+                    System.Diagnostics.Debug.Assert(false);
+                }
+                if (!String.IsNullOrWhiteSpace(redirectUri))
+                {
+                    this.Response.Redirect(redirectUri, false);
+                    this.CompleteRequest();
                 }
             }
         }
