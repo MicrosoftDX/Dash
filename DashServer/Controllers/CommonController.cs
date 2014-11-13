@@ -23,14 +23,14 @@ namespace Microsoft.Dash.Server.Controllers
         protected Uri GetForwardingUri(HttpRequestBase request, CloudStorageAccount account, string containerName, bool useSas=false)
         {
             CloudBlobContainer container = GetContainerByName(account, containerName);
-            string sas = "";
-            if (useSas)
-            {
-                sas = CalculateSASStringForContainer(request, container);
-            }
 
-            UriBuilder forwardUri = new UriBuilder(container.Uri.ToString() + sas + "&" + request.Url.Query.Substring(1));
-            forwardUri.Host = account.BlobEndpoint.Host;
+            UriBuilder forwardUri = new UriBuilder()
+            {
+                Scheme = container.Uri.Scheme,
+                Host = accountName + Endpoint(),
+                Path = container.Uri.AbsolutePath,
+                Query = request.Url.Query
+            };
 
             return forwardUri.Uri;
         }
@@ -96,7 +96,7 @@ namespace Microsoft.Dash.Server.Controllers
             if (exists && !String.IsNullOrWhiteSpace(namespaceBlob.BlobName))
             {
                 return namespaceBlob;
-            }
+                }
             else if (!exists)
             {
                 await namespaceBlob.CreateAsync();
@@ -118,14 +118,14 @@ namespace Microsoft.Dash.Server.Controllers
         }
 
         static int GetHashCodeBucket(string stringToHash, int numBuckets)
-        {
+            {
             System.Diagnostics.Debug.Assert(!String.IsNullOrWhiteSpace(stringToHash));
 
             var hash = new SHA256CryptoServiceProvider();
             byte[] hashText = hash.ComputeHash(Encoding.UTF8.GetBytes(stringToHash));
-            long hashCodeStart = BitConverter.ToInt64(hashText, 0);
-            long hashCodeMedium = BitConverter.ToInt64(hashText, 8);
-            long hashCodeEnd = BitConverter.ToInt64(hashText, 24);
+                long hashCodeStart = BitConverter.ToInt64(hashText, 0);
+                long hashCodeMedium = BitConverter.ToInt64(hashText, 8);
+                long hashCodeEnd = BitConverter.ToInt64(hashText, 24);
             long hashCode = hashCodeStart ^ hashCodeMedium ^ hashCodeEnd;
 
             return (int)(Math.Abs(hashCode) % numBuckets);
@@ -142,8 +142,8 @@ namespace Microsoft.Dash.Server.Controllers
         protected async Task<NamespaceBlob> FetchNamespaceBlobAsync(string container, string blobName)
         {
             return await NamespaceBlob.FetchForBlobAsync(GetBlobByName(DashConfiguration.NamespaceAccount, container, blobName));
-        }        
-        
+        }
+
         protected CloudBlobContainer GetContainerByName(CloudStorageAccount account, string containerName)
         {
             CloudBlobClient client = account.CreateCloudBlobClient();

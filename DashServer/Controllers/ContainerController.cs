@@ -13,6 +13,7 @@ using System.Xml;
 using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
+using System.Net.Http.Headers;
 
 namespace Microsoft.Dash.Server.Controllers
 {
@@ -29,83 +30,88 @@ namespace Microsoft.Dash.Server.Controllers
 
         /// Put Container - http://msdn.microsoft.com/en-us/library/azure/dd179468.aspx
         [HttpPut]
-        public async Task<HttpResponseMessage> CreateContainer(string containerName)
+        public async Task<HttpResponseMessage> CreateContainer(string container)
         {
-            await DoForContainerInAllAccounts(containerName, async (container) => await container.CreateIfNotExistsAsync());
+            CloudStorageAccount masterAccount = GetMasterAccount();
+
+            //Create Master Container
+            CloudBlobContainer masterContainer = GetContainerByName(masterAccount, container);
+            await masterContainer.CreateIfNotExistsAsync();
+
+            //if the creation of a namespace container is successful we create all containers in other partition storage accounts
+            int numOfAccounts = NumOfAccounts();
+            for (int currAccount = 0; currAccount < numOfAccounts; currAccount++)
+            {
+                CreateChildContainer(currAccount, masterAccount, container);
+            }
+
             return new HttpResponseMessage(HttpStatusCode.Created);
         }
 
         // Put Container operations, with 'comp' parameter'
         [HttpPut]
-        public async Task<IHttpActionResult> PutContainerData(string containerName, string comp)
+        public async Task<IHttpActionResult> PutContainerComp(string container, string comp)
         {
-            BlobContainerPermissions perms = null;
-            var queryParams = this.Request.GetQueryParameters();
-            switch (comp.ToLowerInvariant())
+            CloudStorageAccount masterAccount = GetMasterAccount();
+            CloudBlobContainer containerObj = GetContainerByName(masterAccount, container);
+            if (!containerObj.Exists())
             {
-                case "acl":
-                    var signedIdentifiers = await this.Request.Content.ReadAsAsync<List<SignedIdentifier>>();
-                    var publicAccessParam = queryParams["x-ms-blob-public-access"];
-                    perms = new BlobContainerPermissions
-                    {
-                        PublicAccess = publicAccessParam == null || publicAccessParam.Length == 0 ? 
-                            BlobContainerPublicAccessType.Off : 
-                            (BlobContainerPublicAccessType)Enum.Parse(typeof(BlobContainerPublicAccessType), publicAccessParam),
-                    };
-                    foreach (var signedIdentifier in signedIdentifiers)
-                    {
-                        perms.SharedAccessPolicies.Add(signedIdentifier.Id, new SharedAccessBlobPolicy
-                        {
-                            SharedAccessStartTime = signedIdentifier.AccessPolicy.Start,
-                            SharedAccessExpiryTime = signedIdentifier.AccessPolicy.Expiry,
-                            Permissions = SharedAccessBlobPolicy.PermissionsFromString(signedIdentifier.AccessPolicy.Permission),
-                        });
-                    }
-                    break;
+                return NotFound();
             }
-
-            await DoForContainerInAllAccounts(containerName, async (container) => {
-                switch (comp.ToLowerInvariant())
-                {
-                    case "metadata":
-                        // TODO: Copy metadata to all containers
-                        break;
-
-                    case "acl":
-                        await container.SetPermissionsAsync(perms);
-                        break;
-                }
-            });
-            return Ok();
-        }
-
-        class SignedIdentifier
-        {
-            public string Id { get; set; }
-            public AccessPolicyType AccessPolicy { get; set; }
-        }
-
-        class AccessPolicyType
-        {
-            public DateTimeOffset Start { get; set; }
-            public DateTimeOffset Expiry { get; set; }
-            public string Permission { get; set; }
+            Uri forwardUri = GetForwardingUri(RequestFromContext(HttpContext.Current), masterAccount.Credentials.AccountName, masterAccount.Credentials.ExportBase64EncodedKey(), container);
+            string compvar = comp == null ? "" : comp;
+            switch (compvar.ToLower())
+            {
+                case "lease":
+                    return Redirect(forwardUri);
+                case "metadata":
+                    return Redirect(forwardUri);
+                default:
+                    return BadRequest();
+            }
         }
 
         /// Delete Container - http://msdn.microsoft.com/en-us/library/azure/dd179408.aspx
         [HttpDelete]
-        public async Task<HttpResponseMessage> DeleteContainer(string containerName)
+        public async Task<HttpResponseMessage> DeleteContainer(string container)
         {
-            await DoForContainerInAllAccounts(containerName, async (container) => await container.DeleteIfExistsAsync());
+            CloudStorageAccount masterAccount = GetMasterAccount();
+
+            //Delete Master Container
+            CloudBlobContainer masterContainer = GetContainerByName(masterAccount, container);
+            await masterContainer.DeleteAsync();
+
+            //if the deletion of a namespace container is successfull we delete all containers in other partition storage accounts
+            int numOfAccounts = NumOfAccounts();
+
+            //going through all storage accounts to create same container in all of them
+            for (int currAccount = 0; currAccount < numOfAccounts; currAccount++)
+            {
+                DeleteChildContainer(masterAccount, currAccount, container);
+            }
+
             return new HttpResponseMessage(HttpStatusCode.Accepted);
+        }
+
+        [AcceptVerbs("GET", "HEAD")]
+        public async Task<HttpResponseMessage> GetContainerProperties(string container)
+        {
+            CloudStorageAccount masterAccount = GetMasterAccount();
+            CloudBlobContainer containerObj = GetContainerByName(masterAccount, container);
+            if (!containerObj.Exists())
+            {
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            }
+            return RedirectContainerRequest(masterAccount, container);
         }
 
         [AcceptVerbs("GET", "HEAD")]
         //Get Container operations, with optional 'comp' parameter
         public async Task<HttpResponseMessage> GetContainerData(string container, string comp = null)
         {
-            CloudBlobContainer containerObj = GetContainerByName(DashConfiguration.NamespaceAccount, container);
-            if (!await containerObj.ExistsAsync())
+            CloudStorageAccount masterAccount = GetMasterAccount();
+            CloudBlobContainer containerObj = GetContainerByName(masterAccount, container);
+            if (!containerObj.Exists())
             {
                 return new HttpResponseMessage(HttpStatusCode.NotFound);
             }
@@ -114,36 +120,30 @@ namespace Microsoft.Dash.Server.Controllers
             {
                 case "list":
                     return await GetBlobList(container);
-
-                case "metadata":
-                    break;
-
                 case "acl":
-                    break;
+                    return RedirectContainerRequest(masterAccount, container);
+                case "metadata":
+                    return RedirectContainerRequest(masterAccount, container);
 
                 default:
-                    //Uri forwardUri = GetForwardingUri(RequestFromContext(HttpContext.Current), masterAccount.Credentials.AccountName, masterAccount.Credentials.ExportBase64EncodedKey(), container);
-                    await containerObj.FetchAttributesAsync();
-                    HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.OK);
-                    response.Headers.Add("ETag", containerObj.Properties.ETag);
-                    //response.Headers.Add("Last-Modified", "foo");
-
-                    return response;
+                    return new HttpResponseMessage(HttpStatusCode.BadRequest);
             }
-            return new HttpResponseMessage(HttpStatusCode.OK);
+            
         }
 
-        private async Task DoForContainerInAllAccounts(string container, Func<CloudBlobContainer, Task> action)
+        private HttpResponseMessage RedirectContainerRequest(CloudStorageAccount account, string container)
         {
-            await action(GetContainerByName(DashConfiguration.NamespaceAccount, container));
-            foreach (var account in DashConfiguration.DataAccounts)
-            {
-                await action(GetContainerByName(account, container));
-            }
+            Uri forwardUri = GetForwardingUri(RequestFromContext(HttpContext.Current), account.Credentials.AccountName, account.Credentials.ExportBase64EncodedKey(), container);
+            HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.Redirect);
+            response.Headers.Location = forwardUri;
+
+            return response;
         }
 
         private async Task<HttpResponseMessage> GetBlobList(string container)
         {
+            CloudStorageAccount masterAccount = GetMasterAccount();
+            int numOfAccounts = NumOfAccounts();
             // Extract query parameters
             var queryParams = this.Request.GetQueryParameters();
             var prefix = queryParams["prefix"];
@@ -153,10 +153,11 @@ namespace Microsoft.Dash.Server.Controllers
             var maxResults = queryParams.Value("maxresults", 5000);
             var includedDataSets = String.Join(",", queryParams.Values<string>("include"));
 
-            var fetchBlobsTasks = DashConfiguration.DataAccounts
-                .Where(account => account != null)
-                .Select(async account => await ChildBlobList(account, container, prefix, String.IsNullOrWhiteSpace(delim), includedDataSets));
-            var blobs = await Task.WhenAll(fetchBlobsTasks);
+            var blobs = new List<IEnumerable<IListBlobItem>>();
+            for (int currAccount = 0; currAccount < numOfAccounts; currAccount++)
+            {
+                blobs.Add(await ChildBlobList(masterAccount, currAccount, container, prefix, String.IsNullOrWhiteSpace(delim), includedDataSets));
+            }
             var sortedBlobs = blobs
                 .SelectMany(blobList => blobList)
                 .OrderBy(blob => blob.Uri.AbsolutePath, StringComparer.Ordinal)                           
@@ -177,8 +178,13 @@ namespace Microsoft.Dash.Server.Controllers
             return CreateResponse(blobResults);
         }
 
-        private async Task<IEnumerable<IListBlobItem>> ChildBlobList(CloudStorageAccount account, string container, string prefix, bool useFlatListing, string includeFlags)
+        private async Task<IEnumerable<IListBlobItem>> ChildBlobList(CloudStorageAccount masterAccount, int currAccount, string container, string prefix, bool useFlatListing, string includeFlags)
         {
+            string accountName = "";
+            string accountKey = "";
+
+            base.readAccountData(masterAccount, currAccount, out accountName, out accountKey);
+            CloudStorageAccount account = GetAccount(accountName, accountKey);
             CloudBlobContainer containerObj = GetContainerByName(account, container);
             var results = new List<IEnumerable<IListBlobItem>>();
             BlobListingDetails listDetails;
@@ -314,6 +320,34 @@ namespace Microsoft.Dash.Server.Controllers
                 markerValue = blob.Uri.AbsolutePath + "|";
             }
             return Convert.ToBase64String(Encoding.UTF8.GetBytes(markerValue));
+        }
+
+        private void CreateChildContainer(int currAccount, CloudStorageAccount masterAccount, string container)
+        {
+            string accountName = "";
+            string accountKey = "";
+
+            base.readAccountData(masterAccount, currAccount, out accountName, out accountKey);
+
+            //get container reference
+            CloudStorageAccount account = GetAccount(accountName, accountKey);
+            var blobContainer = GetContainerByName(account, container);
+
+            blobContainer.CreateIfNotExists();
+        }
+
+        private void DeleteChildContainer(CloudStorageAccount masterAccount, int currAccount, string container)
+        {
+            string accountName = "";
+            string accountKey = "";
+
+            base.readAccountData(masterAccount, currAccount, out accountName, out accountKey);
+
+            //get container reference
+            CloudStorageAccount account = GetAccount(accountName, accountKey);
+            var blobContainer = GetContainerByName(account, container);
+
+            blobContainer.DeleteIfExists();
         }
     }
 }
