@@ -127,5 +127,37 @@ namespace Microsoft.Tests
             Assert.AreEqual("Package/", directory.Element("Name").Value);
         }
 
+        [TestMethod]
+        public void CreateContainerTest()
+        {
+            SetupRequest("http://mydashserver/container/createtest?restype=container");
+            var results = _controller.CreateContainer("createtest").Result;
+            Assert.AreEqual(HttpStatusCode.Created, results.StatusCode, "Expected Created result");
+        }
+
+        public void SetContainerMetadataTest()
+        {
+            SetupRequest("http://mydashserver/container/createtest?restype=container&comp=metadata");
+            _controller.Request.Headers.Add("x-ms-meta-name:value", "foo:fee");
+            _controller.Request.Headers.Add("x-ms-meta-name:value", "Dog:Cat");
+            IHttpActionResult results = _controller.PutContainerComp("createtest", "metadata").Result;
+        }
+
+        [TestMethod]
+        public void DeleteContainerTest()
+        {
+            SetupRequest("http://mydashserver/container/createtest?restype=container");
+            var results = _controller.DeleteContainer("createtest").Result;
+            Assert.AreEqual(HttpStatusCode.Accepted, results.StatusCode, "Expected Accepted result");
+        }
+
+        [TestMethod]
+        public void DeleteNonExistentTest()
+        {
+            SetupRequest("http://mydashserver/container/fwimbanger?restype=container");
+            var results = _controller.DeleteContainer("createtest").Result;
+            Assert.AreEqual(HttpStatusCode.NotFound, results.StatusCode, "Expected Not found result");
+        }
+
     }
 }

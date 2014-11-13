@@ -3,9 +3,10 @@
 using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Web;
 using System.Web.Http;
 using Microsoft.WindowsAzure.Storage;
-using System.Web;
+using Microsoft.Dash.Server.Handlers;
 
 namespace Microsoft.Dash.Server.Controllers
 {
@@ -15,8 +16,8 @@ namespace Microsoft.Dash.Server.Controllers
         [HttpGet]
         public IHttpActionResult ListContainers()
         {
-            HttpRequestBase request = RequestFromContext(HttpContext.Current);
-            Uri forwardUri = ForwardUriToNamespace(request);
+            HttpRequestBase request = ControllerOperations.RequestFromContext(HttpContext.Current);
+            Uri forwardUri = ControllerOperations.ForwardUriToNamespace(request);
             return ForwardRequest();
         }
 
@@ -30,8 +31,8 @@ namespace Microsoft.Dash.Server.Controllers
 
         private IHttpActionResult ForwardRequest(string comp = null)
         {
-            HttpRequestBase request = RequestFromContext(HttpContext.Current);
-            Uri forwardUri = ForwardUriToNamespace(request);
+            HttpRequestBase request = ControllerOperations.RequestFromContext(HttpContext.Current);
+            Uri forwardUri = ControllerOperations.ForwardUriToNamespace(request);
             return Redirect(forwardUri);
         }
 
