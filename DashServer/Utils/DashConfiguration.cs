@@ -67,6 +67,15 @@ namespace Microsoft.Dash.Server.Utils
             get { return _namespaceAccount.Value; }
         }
 
+        public static IEnumerable<CloudStorageAccount> AllAccounts
+        {
+            get 
+            {
+                return new[] { DashConfiguration.NamespaceAccount }
+                    .Concat(DashConfiguration.DataAccounts);
+            }
+        }
+
         public static string AccountName
         {
             get { return AzureUtils.GetConfigSetting("AccountName", ""); }

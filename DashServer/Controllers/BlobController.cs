@@ -7,6 +7,7 @@ using System.Net;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
+using Microsoft.Dash.Server.Handlers;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.Dash.Server.Utils;
@@ -35,13 +36,13 @@ namespace Microsoft.Dash.Server.Controllers
         public async Task<HttpResponseMessage> DeleteBlob(string container, string blob, string snapshot = null)
         {
             //We only need to delete the actual blob. We are leaving the namespace entry alone as a sort of cache.
-            var namespaceBlob = new NamespaceBlob(GetBlobByName(DashConfiguration.NamespaceAccount, container, blob));
+            var namespaceBlob = new NamespaceBlob(ControllerOperations.GetBlobByName(DashConfiguration.NamespaceAccount, container, blob));
             if (!await namespaceBlob.ExistsAsync())
             {
                 return new HttpResponseMessage(HttpStatusCode.NotFound);
             }
             // Delete the real data blob
-            var dataBlob = GetBlobByName(DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName), container, blob);
+            var dataBlob = ControllerOperations.GetBlobByName(DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName), container, blob);
             await dataBlob.DeleteAsync();
             // Mark the namespace blob for deletion
             await namespaceBlob.MarkForDeletionAsync();
@@ -157,13 +158,13 @@ namespace Microsoft.Dash.Server.Controllers
         /// </summary>
         private async Task<IHttpActionResult> BasicBlobHandler(string container, string blob)
         {
-            var namespaceBlob = await FetchNamespaceBlobAsync(container, blob);
+            var namespaceBlob = await ControllerOperations.FetchNamespaceBlobAsync(container, blob);
             if (!await namespaceBlob.ExistsAsync())
             {
                 return NotFound();
             }
             HttpRequestBase request = RequestFromContext(HttpContext.Current);
-            return Redirect(GetRedirectUri(request,
+            return Redirect(ControllerOperations.GetRedirectUri(request,
                 DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName),
                 namespaceBlob.Container,
                 namespaceBlob.BlobName));
@@ -172,9 +173,9 @@ namespace Microsoft.Dash.Server.Controllers
         private async Task<IHttpActionResult> PutBlobHandler(string container, string blob)
         {
             HttpRequestBase request = RequestFromContext(HttpContext.Current);
-            var namespaceBlob = await CreateNamespaceBlobAsync(request, container, blob);
+            var namespaceBlob = await ControllerOperations.CreateNamespaceBlobAsync(request, container, blob);
             //redirection code
-            Uri redirect = GetRedirectUri(request, DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName), container, blob);
+            Uri redirect = ControllerOperations.GetRedirectUri(request, DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName), container, blob);
             return Redirect(redirect);
         }
 

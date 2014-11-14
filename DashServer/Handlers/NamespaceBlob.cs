@@ -8,7 +8,7 @@ using Microsoft.WindowsAzure.Storage.Blob;
 using System.Threading.Tasks;
 using Microsoft.WindowsAzure.Storage;
 
-namespace Microsoft.Dash.Server.Controllers
+namespace Microsoft.Dash.Server.Handlers
 {
     public class NamespaceBlob
     {
