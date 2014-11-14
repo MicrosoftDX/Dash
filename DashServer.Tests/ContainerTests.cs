@@ -27,7 +27,7 @@ namespace Microsoft.Tests
             TestUtils.InitializeConfig(new Dictionary<string, string>()
                 {
                     { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=http;AccountName=dashstorage0;AccountKey=uCNvIdXcltACBiDUMyO0BflZpKmjseplqOlzE62tx87qnkwpUMBV/GQhrscW9lmdZVT0x8DilYqUoHMNBlVIGg==" },
-                    { "ScaleoutStorage0", "AccountName=dashstorage1;AccountKey=8jqRVtXUWiEthgIhR+dFwrB8gh3lFuquvJQ1v4eabObIj7okI1cZIuzY8zZHmEdpcC0f+XlUkbFwAhjTfyrLIg==" },
+                    { "ScaleoutStorage0", "DefaultEndpointsProtocol=http;AccountName=dashstorage1;AccountKey=8jqRVtXUWiEthgIhR+dFwrB8gh3lFuquvJQ1v4eabObIj7okI1cZIuzY8zZHmEdpcC0f+XlUkbFwAhjTfyrLIg==" },
                     { "ScaleoutNumberOfAccounts", "1"},
                 });
 
@@ -162,7 +162,7 @@ namespace Microsoft.Tests
         public void DeleteNonExistentContainerTest()
         {
             SetupRequest("http://mydashserver/container/fwimbanger?restype=container");
-            var results = _controller.DeleteContainer("createtest").Result;
+            var results = _controller.DeleteContainer("fwimbanger").Result;
             Assert.AreEqual(HttpStatusCode.NotFound, results.StatusCode, "Expected Not found result");
         }
 

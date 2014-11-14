@@ -28,6 +28,12 @@ namespace Microsoft.Dash.Server.Utils
                 .Select(headerName => new KeyValuePair<string, string>(headerName, headers[headerName])));
         }
 
+        public static RequestHeaders Create(ILookup<string, string> headers)
+        {
+            return new RequestHeaders(headers
+                .Select(header => new KeyValuePair<string, IEnumerable<string>>(header.Key, header)));
+        }
+
         private RequestHeaders(IEnumerable<KeyValuePair<string, string>> headers) 
             : base(headers)
         {

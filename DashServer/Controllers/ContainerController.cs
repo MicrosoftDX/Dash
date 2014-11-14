@@ -34,7 +34,7 @@ namespace Microsoft.Dash.Server.Controllers
         public async Task<HttpResponseMessage> CreateContainer(string containerName)
         {
             await DoForAllContainersAsync(containerName, false, async container => await container.CreateIfNotExistsAsync());
-            return new HttpResponseMessage(HttpStatusCode.Accepted);
+            return new HttpResponseMessage(HttpStatusCode.Created);
         }
 
         // Put Container operations, with 'comp' parameter'
@@ -63,7 +63,7 @@ namespace Microsoft.Dash.Server.Controllers
         [HttpDelete]
         public async Task<HttpResponseMessage> DeleteContainer(string containerName)
         {
-            if (!await DoForAllContainersAsync(containerName, true, async container => await container.DeleteAsync()))
+            if (!await DoForAllContainersAsync(containerName, true, async container => await container.DeleteIfExistsAsync()))
             { 
                 return new HttpResponseMessage(HttpStatusCode.NotFound);
             }
@@ -76,11 +76,15 @@ namespace Microsoft.Dash.Server.Controllers
             foreach (var account in DashConfiguration.AllAccounts)
             {
                 var container = ControllerOperations.GetContainerByName(account, containerName);
+                bool doAction = true;
                 if (errorIfNotFound)
                 {
-                    notFound |= await container.ExistsAsync();
+                    notFound |= doAction = !await container.ExistsAsync();
                 }
-                await action(container);
+                if (doAction)
+                {
+                    await action(container);
+                }
             }
             return !notFound;
         }

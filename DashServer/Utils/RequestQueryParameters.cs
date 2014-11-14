@@ -33,6 +33,18 @@ namespace Microsoft.Dash.Server.Utils
                 .Select(queryParamName => new KeyValuePair<string, string>(queryParamName, queryParams[queryParamName])));
         }
 
+        public static RequestQueryParameters Create(ILookup<string, string> queryParams)
+        {
+            return new RequestQueryParameters(queryParams
+                .SelectMany(queryParam => queryParam
+                    .Select(paramValue => new KeyValuePair<string, string>(queryParam.Key, paramValue))));
+        }
+
+        public static RequestQueryParameters Empty
+        {
+            get { return new RequestQueryParameters(Enumerable.Empty<KeyValuePair<string, string>>()); }
+        }
+
         private RequestQueryParameters(IEnumerable<KeyValuePair<string, string>> queryParams) 
             : base(queryParams)
         {

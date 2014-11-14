@@ -70,7 +70,7 @@ namespace Microsoft.Dash.Server.Utils
         {
             get
             {
-                return "/" + this.Container + (String.IsNullOrWhiteSpace(this.Container) ? String.Empty : "/" + this.BlobName);
+                return "/" + this.Container + (String.IsNullOrWhiteSpace(this.BlobName) ? String.Empty : "/" + this.BlobName);
             }
         }
     }
