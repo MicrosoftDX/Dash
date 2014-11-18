@@ -82,7 +82,7 @@ namespace Microsoft.Dash.Server.Handlers
             };
         }
 
-        public static async Task<NamespaceBlob> CreateNamespaceBlobAsync(HttpRequestBase request, string container, string blob)
+        public static async Task<NamespaceBlob> CreateNamespaceBlobAsync(string container, string blob)
         {
             //create an namespace blob with hardcoded metadata
             var namespaceBlob = await FetchNamespaceBlobAsync(container, blob);

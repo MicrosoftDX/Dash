@@ -43,7 +43,7 @@ namespace Microsoft.Dash.Server.Controllers
             }
             // Delete the real data blob
             var dataBlob = ControllerOperations.GetBlobByName(DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName), container, blob);
-            await dataBlob.DeleteAsync();
+            await dataBlob.DeleteIfExistsAsync();
             // Mark the namespace blob for deletion
             await namespaceBlob.MarkForDeletionAsync();
 
@@ -173,7 +173,7 @@ namespace Microsoft.Dash.Server.Controllers
         private async Task<IHttpActionResult> PutBlobHandler(string container, string blob)
         {
             HttpRequestBase request = RequestFromContext(HttpContextFactory.Current);
-            var namespaceBlob = await ControllerOperations.CreateNamespaceBlobAsync(request, container, blob);
+            var namespaceBlob = await ControllerOperations.CreateNamespaceBlobAsync(container, blob);
             //redirection code
             Uri redirect = ControllerOperations.GetRedirectUri(request, DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName), container, blob);
             return Redirect(redirect);

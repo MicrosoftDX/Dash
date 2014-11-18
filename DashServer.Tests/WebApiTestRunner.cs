@@ -65,13 +65,19 @@ namespace Microsoft.Tests
                 new HttpResponse(null)));
         }
 
-        public HttpResponseMessage ExecuteRequest(string uri, string method, HttpContent content)
+        public HttpResponseMessage ExecuteRequest(string uri, string method, HttpContent content, HttpStatusCode expectedStatusCode = HttpStatusCode.Unused)
         {
+            HttpResponseMessage retval = null;
             SetupRequest(uri, method);
             switch (method)
             {
                 case "GET":
-                    return _requestClient.GetAsync(uri).Result;
+                    retval = _requestClient.GetAsync(uri).Result;
+                    break;
+
+                case "HEAD":
+                    retval = _requestClient.SendAsync(new HttpRequestMessage(HttpMethod.Head, uri)).Result;
+                    break;
 
                 case "PUT":
                     var request = new HttpRequestMessage(HttpMethod.Put, uri);
@@ -79,17 +85,23 @@ namespace Microsoft.Tests
                     {
                         request.Content = content;
                     }
-                    return _requestClient.SendAsync(request).Result;
+                    retval = _requestClient.SendAsync(request).Result;
+                    break;
 
                 case "DELETE":
-                    return _requestClient.DeleteAsync(uri).Result;
+                    retval = _requestClient.DeleteAsync(uri).Result;
+                    break;
 
                 default:
                     // Unsupported method
                     System.Diagnostics.Debug.Assert(false);
                     break;
             }
-            return null;
+            if (expectedStatusCode != HttpStatusCode.Unused && retval != null)
+            {
+                Assert.AreEqual(expectedStatusCode, retval.StatusCode);
+            }
+            return retval;
         }
 
         public HttpResponseMessage ExecuteRequest(string uri, string method, XDocument body = null, HttpStatusCode expectedStatusCode = HttpStatusCode.Unused)
@@ -100,12 +112,7 @@ namespace Microsoft.Tests
                 bodycontent = new StringContent(body.ToString(SaveOptions.OmitDuplicateNamespaces));
                 bodycontent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/xml");
             }
-            var response = ExecuteRequest(uri, method, bodycontent);
-            if (expectedStatusCode != HttpStatusCode.Unused)
-            {
-                Assert.AreEqual(expectedStatusCode, response.StatusCode);
-            }
-            return response;
+            return ExecuteRequest(uri, method, bodycontent, expectedStatusCode);
         }
 
         public XDocument ExecuteRequestResponse(string uri, string method, XDocument body = null, HttpStatusCode expectedStatusCode = HttpStatusCode.Unused)
