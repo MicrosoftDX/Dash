@@ -56,7 +56,7 @@ namespace Microsoft.Tests
         public void SetupRequest(string uri, string method)
         {
             var requestUri = new Uri(uri);
-            var request = new HttpRequest("dummy.txt", requestUri.GetLeftPart(UriPartial.Path), requestUri.Query);
+            var request = new HttpRequest("", requestUri.GetLeftPart(UriPartial.Path), requestUri.Query);
             var httpMethodField = typeof(HttpRequest).GetField("_httpMethod", BindingFlags.SetField | BindingFlags.NonPublic | BindingFlags.Instance);
             httpMethodField.SetValue(request, method);
 
@@ -92,7 +92,7 @@ namespace Microsoft.Tests
             return null;
         }
 
-        public HttpResponseMessage ExecuteRequest(string uri, string method, XDocument body = null)
+        public HttpResponseMessage ExecuteRequest(string uri, string method, XDocument body = null, HttpStatusCode expectedStatusCode = HttpStatusCode.Unused)
         {
             HttpContent bodycontent = null;
             if (body != null)
@@ -100,20 +100,17 @@ namespace Microsoft.Tests
                 bodycontent = new StringContent(body.ToString(SaveOptions.OmitDuplicateNamespaces));
                 bodycontent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/xml");
             }
-            return ExecuteRequest(uri, method, bodycontent);
+            var response = ExecuteRequest(uri, method, bodycontent);
+            if (expectedStatusCode != HttpStatusCode.Unused)
+            {
+                Assert.AreEqual(expectedStatusCode, response.StatusCode);
+            }
+            return response;
         }
 
-        public XDocument ExecuteRequestResponse(string uri, string method, XDocument body, HttpStatusCode expectedStatusCode)
+        public XDocument ExecuteRequestResponse(string uri, string method, XDocument body = null, HttpStatusCode expectedStatusCode = HttpStatusCode.Unused)
         {
             var response = ExecuteRequest(uri, method, body);
-            Assert.AreEqual(expectedStatusCode, response.StatusCode);
-            return XDocument.Load(response.Content.ReadAsStreamAsync().Result);
-        }
-
-        public XDocument ExecuteRequestResponse(string uri, string method, HttpStatusCode expectedStatusCode = HttpStatusCode.OK)
-        {
-            var response = ExecuteRequest(uri, method);
-            Assert.AreEqual(expectedStatusCode, response.StatusCode);
             return XDocument.Load(response.Content.ReadAsStreamAsync().Result);
         }
     }

@@ -37,8 +37,9 @@ namespace Microsoft.Tests
         [TestMethod]
         public void GetBlobTest()
         {
-            var response = _runner.ExecuteRequest("http://localhost/blob/test/test.txt", "GET");
-            Assert.AreEqual(HttpStatusCode.Redirect, response.StatusCode, "Expected Redirect result");
+            var response = _runner.ExecuteRequest("http://localhost/blob/test/test.txt", 
+                "GET",
+                expectedStatusCode: HttpStatusCode.Redirect);
             Assert.IsNotNull(response.Headers.Location);
             Assert.AreEqual("http://dashstorage1.blob.core.windows.net/test/test.txt", response.Headers.Location.GetLeftPart(UriPartial.Path));
             var redirectQueryParams = HttpUtility.ParseQueryString(response.Headers.Location.Query);

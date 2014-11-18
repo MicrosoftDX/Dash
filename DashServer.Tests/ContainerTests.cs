@@ -35,7 +35,10 @@ namespace Microsoft.Tests
         [TestMethod]
         public void BlobListFlatAllIncludeTest()
         {
-            var doc = _runner.ExecuteRequestResponse("http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&include=uncommittedblobs&include=metadata%2Ccopy", "GET", HttpStatusCode.OK);
+            var doc = _runner.ExecuteRequestResponse(
+                "http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&include=uncommittedblobs&include=metadata%2Ccopy", 
+                "GET",
+                expectedStatusCode: HttpStatusCode.OK);
             var enumerationResults = doc.Root;
             Assert.AreEqual("http://mydashserver", enumerationResults.Attribute("ServiceEndpoint").Value);
             Assert.AreEqual("test", enumerationResults.Attribute("ContainerName").Value);
@@ -59,7 +62,10 @@ namespace Microsoft.Tests
         [TestMethod]
         public void BlobListFlatNoIncludeTest()
         {
-            var doc = _runner.ExecuteRequestResponse("http://mydashserver/container/test?restype=container&comp=list&prefix=", "GET", HttpStatusCode.OK);
+            var doc = _runner.ExecuteRequestResponse(
+                "http://mydashserver/container/test?restype=container&comp=list&prefix=", 
+                "GET",
+                expectedStatusCode: HttpStatusCode.OK);
             var enumerationResults = doc.Root;
             Assert.AreEqual(20, enumerationResults.Element("Blobs").Elements().Count());
             var nonSnapshotBlob = (XElement)enumerationResults.Element("Blobs").Elements().Skip(19).First();
@@ -70,13 +76,17 @@ namespace Microsoft.Tests
         [TestMethod]
         public void BlobListFlatPagedTest()
         {
-            var doc = _runner.ExecuteRequestResponse("http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&maxresults=2", "GET");
+            var doc = _runner.ExecuteRequestResponse(
+                "http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&maxresults=2", 
+                "GET");
             var enumerationResults = doc.Root;
             Assert.AreEqual(2, enumerationResults.Element("Blobs").Elements().Count());
             Assert.AreEqual("2", enumerationResults.Element("MaxResults").Value);
             Assert.IsNotNull(enumerationResults.Element("NextMarker"));
 
-            doc = _runner.ExecuteRequestResponse("http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&maxresults=18&marker=" + enumerationResults.Element("NextMarker").Value, "GET");
+            doc = _runner.ExecuteRequestResponse(
+                "http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&maxresults=18&marker=" + enumerationResults.Element("NextMarker").Value, 
+                "GET");
             enumerationResults = doc.Root;
             Assert.AreEqual(18, enumerationResults.Element("Blobs").Elements().Count());
             var firstBlob = (XElement)enumerationResults.Element("Blobs").FirstNode;
@@ -85,7 +95,9 @@ namespace Microsoft.Tests
             Assert.IsNotNull(lastBlob.Element("Snapshot").Value);
             Assert.AreEqual("test.txt", lastBlob.Element("Name").Value);
 
-            doc = _runner.ExecuteRequestResponse("http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&marker=" + enumerationResults.Element("NextMarker").Value, "GET");
+            doc = _runner.ExecuteRequestResponse(
+                "http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&marker=" + enumerationResults.Element("NextMarker").Value, 
+                "GET");
             enumerationResults = doc.Root;
             Assert.IsNull(enumerationResults.Element("NextMarker"));
             firstBlob = (XElement)enumerationResults.Element("Blobs").FirstNode;
@@ -96,7 +108,9 @@ namespace Microsoft.Tests
         [TestMethod]
         public void BlobListHierarchicalTest()
         {
-            var doc = _runner.ExecuteRequestResponse("http://mydashserver/container/test?restype=container&comp=list&prefix=&delimiter=/&include=uncommittedblobs&include=metadata%2Ccopy", "GET");
+            var doc = _runner.ExecuteRequestResponse(
+                "http://mydashserver/container/test?restype=container&comp=list&prefix=&delimiter=/&include=uncommittedblobs&include=metadata%2Ccopy", 
+                "GET");
             var enumerationResults = doc.Root;
             Assert.AreEqual("/", enumerationResults.Element("Delimiter").Value);
             var blobs = enumerationResults.Element("Blobs");
@@ -111,12 +125,10 @@ namespace Microsoft.Tests
         {
             string containerName = Guid.NewGuid().ToString("N");
             string baseUri = "http://mydashserver/container/" + containerName + "?restype=container";
-            var results = _runner.ExecuteRequest(baseUri, "PUT");
-            Assert.AreEqual(HttpStatusCode.Created, results.StatusCode, "Expected Created result");
+            var results = _runner.ExecuteRequest(baseUri, "PUT", expectedStatusCode: HttpStatusCode.Created);
 
             //Try to re-create the same container again.
-            results = _runner.ExecuteRequest(baseUri, "PUT");
-            Assert.AreEqual(HttpStatusCode.Conflict, results.StatusCode, "Expected Conflict result");
+            results = _runner.ExecuteRequest(baseUri, "PUT", expectedStatusCode: HttpStatusCode.Conflict);
             //TODO: Add more variations on create container, including attempt to create already existing container
 
             var content = new StringContent("", System.Text.Encoding.UTF8, "application/xml");
@@ -125,8 +137,7 @@ namespace Microsoft.Tests
             results = _runner.ExecuteRequest(baseUri + "&comp=metadata", "PUT");
             //Assert.AreEqual(HttpStatusCode.OK, results.StatusCode, "Expected OK result");
 
-            results = _runner.ExecuteRequest(baseUri, "DELETE");
-            Assert.AreEqual(HttpStatusCode.Accepted, results.StatusCode, "Expected Accepted result");
+            results = _runner.ExecuteRequest(baseUri, "DELETE", expectedStatusCode: HttpStatusCode.Accepted);
         }
 
         [TestMethod]
@@ -134,8 +145,7 @@ namespace Microsoft.Tests
         {
             string containerName = Guid.NewGuid().ToString("N");
             string baseUri = "http://mydashserver/container/" + containerName + "?restype=container";
-            var results = _runner.ExecuteRequest(baseUri, "DELETE");
-            Assert.AreEqual(HttpStatusCode.NotFound, results.StatusCode, "Expected Not found result");
+            var results = _runner.ExecuteRequest(baseUri, "DELETE", expectedStatusCode: HttpStatusCode.NotFound);
         }
 
     }
