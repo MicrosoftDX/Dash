@@ -163,7 +163,7 @@ namespace Microsoft.Dash.Server.Controllers
             {
                 return NotFound();
             }
-            HttpRequestBase request = RequestFromContext(HttpContext.Current);
+            HttpRequestBase request = RequestFromContext(HttpContextFactory.Current);
             return Redirect(ControllerOperations.GetRedirectUri(request,
                 DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName),
                 namespaceBlob.Container,
@@ -172,7 +172,7 @@ namespace Microsoft.Dash.Server.Controllers
 
         private async Task<IHttpActionResult> PutBlobHandler(string container, string blob)
         {
-            HttpRequestBase request = RequestFromContext(HttpContext.Current);
+            HttpRequestBase request = RequestFromContext(HttpContextFactory.Current);
             var namespaceBlob = await ControllerOperations.CreateNamespaceBlobAsync(request, container, blob);
             //redirection code
             Uri redirect = ControllerOperations.GetRedirectUri(request, DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName), container, blob);

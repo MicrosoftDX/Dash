@@ -88,8 +88,9 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RequestAuthTests.cs" />
     <Compile Include="SignatureValidationTests.cs" />
-    <Compile Include="TestUtils.cs" />
+    <Compile Include="WebApiTestRunner.cs" />
     <Compile Include="ContainerTests.cs" />
+    <Compile Include="BlobTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DashServer\DashServer.csproj">

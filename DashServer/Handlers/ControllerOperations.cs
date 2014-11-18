@@ -36,8 +36,8 @@ namespace Microsoft.Dash.Server.Handlers
             {
                 Scheme = request.Url.Scheme,
                 Host = account.BlobEndpoint.Host,
-                Path = containerName + "/" + blobName,
-                Query = CalculateSASStringForContainer(request, container),
+                Path = containerName + "/" + blobName.TrimStart('/'),
+                Query = CalculateSASStringForContainer(request, container).TrimStart('?'),
             };
 
             //creating redirection Uri

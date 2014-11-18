@@ -18,11 +18,8 @@ namespace Microsoft.Dash.Server
 
             
             config.Routes.MapHttpRoute(
-                name: "Blobs",
+                name: "BlobsAndContainers",
                 routeTemplate: "{controller}/{container}/{*blob}");
-            config.Routes.MapHttpRoute(
-                name: "Containers",
-                routeTemplate: "{controller}/{container}");
             config.Routes.MapHttpRoute(
                 name: "Account",
                 routeTemplate: "{controller}");

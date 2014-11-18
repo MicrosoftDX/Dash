@@ -24,7 +24,7 @@ namespace Microsoft.Tests
         [TestInitialize]
         public void Init()
         {
-            TestUtils.InitializeConfig(new Dictionary<string, string>()
+            WebApiTestRunner.InitializeConfig(new Dictionary<string, string>()
                 {
                     { "AccountName", "dashstorage1" },
                     { "AccountKey", "8jqRVtXUWiEthgIhR+dFwrB8gh3lFuquvJQ1v4eabObIj7okI1cZIuzY8zZHmEdpcC0f+XlUkbFwAhjTfyrLIg==" },

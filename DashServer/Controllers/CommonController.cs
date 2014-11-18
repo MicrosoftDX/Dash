@@ -10,10 +10,9 @@ namespace Microsoft.Dash.Server.Controllers
 {
     public class CommonController : ApiController
     {
-        protected HttpRequestBase RequestFromContext(HttpContext context)
+        protected HttpRequestBase RequestFromContext(HttpContextBase context)
         {
-            var curContext = new HttpContextWrapper(context);
-            return curContext.Request;
+            return context.Request;
         }
 
         protected HttpResponseMessage CreateResponse<T>(T result)

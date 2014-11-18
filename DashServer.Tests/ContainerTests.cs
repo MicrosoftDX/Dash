@@ -19,35 +19,23 @@ namespace Microsoft.Tests
     [TestClass]
     public class ContainerTests
     {
-        ContainerController _controller;
+        WebApiTestRunner _runner;
 
         [TestInitialize]
         public void Init()
         {
-            TestUtils.InitializeConfig(new Dictionary<string, string>()
+            _runner = new WebApiTestRunner(new Dictionary<string, string>()
                 {
                     { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=http;AccountName=dashstorage0;AccountKey=uCNvIdXcltACBiDUMyO0BflZpKmjseplqOlzE62tx87qnkwpUMBV/GQhrscW9lmdZVT0x8DilYqUoHMNBlVIGg==" },
                     { "ScaleoutStorage0", "DefaultEndpointsProtocol=http;AccountName=dashstorage1;AccountKey=8jqRVtXUWiEthgIhR+dFwrB8gh3lFuquvJQ1v4eabObIj7okI1cZIuzY8zZHmEdpcC0f+XlUkbFwAhjTfyrLIg==" },
                     { "ScaleoutNumberOfAccounts", "1"},
                 });
-
-            _controller = new ContainerController();
-        }
-
-        void SetupRequest(string uri)
-        {
-            _controller.Request = new HttpRequestMessage();
-            _controller.Request.SetConfiguration(new HttpConfiguration());
-            _controller.Request.RequestUri = new Uri(uri);
         }
 
         [TestMethod]
         public void BlobListFlatAllIncludeTest()
         {
-            SetupRequest("http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&include=uncommittedblobs&include=metadata%2Ccopy");
-            var results = _controller.GetContainerData("test", "list").Result;
-            Assert.AreEqual(HttpStatusCode.OK, results.StatusCode, "Expected OK result");
-            var doc = XDocument.Load(results.Content.ReadAsStreamAsync().Result);
+            var doc = _runner.ExecuteRequestResponse("http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&include=uncommittedblobs&include=metadata%2Ccopy", "GET", HttpStatusCode.OK);
             var enumerationResults = doc.Root;
             Assert.AreEqual("http://mydashserver", enumerationResults.Attribute("ServiceEndpoint").Value);
             Assert.AreEqual("test", enumerationResults.Attribute("ContainerName").Value);
@@ -71,9 +59,7 @@ namespace Microsoft.Tests
         [TestMethod]
         public void BlobListFlatNoIncludeTest()
         {
-            SetupRequest("http://mydashserver/container/test?restype=container&comp=list&prefix=");
-            var results = _controller.GetContainerData("test", "list").Result;
-            var doc = XDocument.Load(results.Content.ReadAsStreamAsync().Result);
+            var doc = _runner.ExecuteRequestResponse("http://mydashserver/container/test?restype=container&comp=list&prefix=", "GET", HttpStatusCode.OK);
             var enumerationResults = doc.Root;
             Assert.AreEqual(20, enumerationResults.Element("Blobs").Elements().Count());
             var nonSnapshotBlob = (XElement)enumerationResults.Element("Blobs").Elements().Skip(19).First();
@@ -84,16 +70,13 @@ namespace Microsoft.Tests
         [TestMethod]
         public void BlobListFlatPagedTest()
         {
-            SetupRequest("http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&maxresults=2");
-            var results = _controller.GetContainerData("test", "list").Result;
-            var doc = XDocument.Load(results.Content.ReadAsStreamAsync().Result);
+            var doc = _runner.ExecuteRequestResponse("http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&maxresults=2", "GET");
             var enumerationResults = doc.Root;
             Assert.AreEqual(2, enumerationResults.Element("Blobs").Elements().Count());
             Assert.AreEqual("2", enumerationResults.Element("MaxResults").Value);
             Assert.IsNotNull(enumerationResults.Element("NextMarker"));
 
-            SetupRequest("http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&maxresults=18&marker=" + enumerationResults.Element("NextMarker").Value);
-            doc = XDocument.Load(_controller.GetContainerData("test", "list").Result.Content.ReadAsStreamAsync().Result);
+            doc = _runner.ExecuteRequestResponse("http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&maxresults=18&marker=" + enumerationResults.Element("NextMarker").Value, "GET");
             enumerationResults = doc.Root;
             Assert.AreEqual(18, enumerationResults.Element("Blobs").Elements().Count());
             var firstBlob = (XElement)enumerationResults.Element("Blobs").FirstNode;
@@ -102,8 +85,7 @@ namespace Microsoft.Tests
             Assert.IsNotNull(lastBlob.Element("Snapshot").Value);
             Assert.AreEqual("test.txt", lastBlob.Element("Name").Value);
 
-            SetupRequest("http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&marker=" + enumerationResults.Element("NextMarker").Value);
-            doc = XDocument.Load(_controller.GetContainerData("test", "list").Result.Content.ReadAsStreamAsync().Result);
+            doc = _runner.ExecuteRequestResponse("http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&marker=" + enumerationResults.Element("NextMarker").Value, "GET");
             enumerationResults = doc.Root;
             Assert.IsNull(enumerationResults.Element("NextMarker"));
             firstBlob = (XElement)enumerationResults.Element("Blobs").FirstNode;
@@ -114,10 +96,7 @@ namespace Microsoft.Tests
         [TestMethod]
         public void BlobListHierarchicalTest()
         {
-            SetupRequest("http://mydashserver/container/test?restype=container&comp=list&prefix=&delimiter=/&include=uncommittedblobs&include=metadata%2Ccopy");
-            var results = _controller.GetContainerData("test", "list").Result;
-            Assert.AreEqual(HttpStatusCode.OK, results.StatusCode, "Expected OK result");
-            var doc = XDocument.Load(results.Content.ReadAsStreamAsync().Result);
+            var doc = _runner.ExecuteRequestResponse("http://mydashserver/container/test?restype=container&comp=list&prefix=&delimiter=/&include=uncommittedblobs&include=metadata%2Ccopy", "GET");
             var enumerationResults = doc.Root;
             Assert.AreEqual("/", enumerationResults.Element("Delimiter").Value);
             var blobs = enumerationResults.Element("Blobs");
@@ -128,41 +107,34 @@ namespace Microsoft.Tests
         }
 
         [TestMethod]
-        public void CreateContainerTest()
+        public void ContainerLifecycleTest()
         {
-            SetupRequest("http://mydashserver/container/createtest?restype=container");
-            var results = _controller.CreateContainer("createtest").Result;
+            string containerName = Guid.NewGuid().ToString("N");
+            string baseUri = "http://mydashserver/container/" + containerName + "?restype=container";
+            var results = _runner.ExecuteRequest(baseUri, "PUT");
             Assert.AreEqual(HttpStatusCode.Created, results.StatusCode, "Expected Created result");
 
             //Try to re-create the same container again.
-            results = _controller.CreateContainer("createtest").Result;
-            Assert.AreEqual(HttpStatusCode.Created, results.StatusCode, "Expected Created result");
+            results = _runner.ExecuteRequest(baseUri, "PUT");
+            Assert.AreEqual(HttpStatusCode.Conflict, results.StatusCode, "Expected Conflict result");
             //TODO: Add more variations on create container, including attempt to create already existing container
-        }
 
-        [TestMethod]
-        public void SetContainerMetadataTest()
-        {
-            SetupRequest("http://mydashserver/container/createtest?restype=container&comp=metadata");
-            //TODO: Complete this test
-            //_controller.Request.Headers.Add("x-ms-meta-name:value", "foo:fee");
-            //_controller.Request.Headers.Add("x-ms-meta-name:value", "Dog:Cat");
-            //IHttpActionResult results = _controller.PutContainerComp("createtest", "metadata").Result;
-        }
+            var content = new StringContent("", System.Text.Encoding.UTF8, "application/xml");
+            content.Headers.Add("x-ms-meta-foo", "fee");
+            content.Headers.Add("x-ms-meta-Dog", "Cat");
+            results = _runner.ExecuteRequest(baseUri + "&comp=metadata", "PUT");
+            //Assert.AreEqual(HttpStatusCode.OK, results.StatusCode, "Expected OK result");
 
-        [TestMethod]
-        public void DeleteContainerTest()
-        {
-            SetupRequest("http://mydashserver/container/createtest?restype=container");
-            var results = _controller.DeleteContainer("createtest").Result;
+            results = _runner.ExecuteRequest(baseUri, "DELETE");
             Assert.AreEqual(HttpStatusCode.Accepted, results.StatusCode, "Expected Accepted result");
         }
 
         [TestMethod]
         public void DeleteNonExistentContainerTest()
         {
-            SetupRequest("http://mydashserver/container/fwimbanger?restype=container");
-            var results = _controller.DeleteContainer("fwimbanger").Result;
+            string containerName = Guid.NewGuid().ToString("N");
+            string baseUri = "http://mydashserver/container/" + containerName + "?restype=container";
+            var results = _runner.ExecuteRequest(baseUri, "DELETE");
             Assert.AreEqual(HttpStatusCode.NotFound, results.StatusCode, "Expected Not found result");
         }
 

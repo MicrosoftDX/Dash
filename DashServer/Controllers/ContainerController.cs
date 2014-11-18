@@ -18,7 +18,7 @@ using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace Microsoft.Dash.Server.Controllers
 {
-    //[RoutePrefix("Container")]
+    [RoutePrefix("Container")]
     public class ContainerController : CommonController
     {
 
@@ -31,10 +31,9 @@ namespace Microsoft.Dash.Server.Controllers
 
         /// Put Container - http://msdn.microsoft.com/en-us/library/azure/dd179468.aspx
         [HttpPut]
-        public async Task<HttpResponseMessage> CreateContainer(string containerName)
+        public async Task<HttpResponseMessage> CreateContainer(string container)
         {
-            await DoForAllContainersAsync(containerName, false, async container => await container.CreateIfNotExistsAsync());
-            return new HttpResponseMessage(HttpStatusCode.Created);
+            return (await DoForAllContainersAsync(container, HttpStatusCode.Created, async containerObj => await containerObj.CreateAsync())).CreateResponse();
         }
 
         // Put Container operations, with 'comp' parameter'
@@ -46,7 +45,7 @@ namespace Microsoft.Dash.Server.Controllers
             {
                 return NotFound();
             }
-            Uri forwardUri = ControllerOperations.GetForwardingUri(RequestFromContext(HttpContext.Current), DashConfiguration.NamespaceAccount, container);
+            Uri forwardUri = ControllerOperations.GetForwardingUri(RequestFromContext(HttpContextFactory.Current), DashConfiguration.NamespaceAccount, container);
             string compvar = comp == null ? "" : comp;
             switch (compvar.ToLower())
             {
@@ -61,32 +60,31 @@ namespace Microsoft.Dash.Server.Controllers
 
         /// Delete Container - http://msdn.microsoft.com/en-us/library/azure/dd179408.aspx
         [HttpDelete]
-        public async Task<HttpResponseMessage> DeleteContainer(string containerName)
+        public async Task<HttpResponseMessage> DeleteContainer(string container)
         {
-            if (!await DoForAllContainersAsync(containerName, true, async container => await container.DeleteIfExistsAsync()))
-            { 
-                return new HttpResponseMessage(HttpStatusCode.NotFound);
-            }
-            return new HttpResponseMessage(HttpStatusCode.Accepted);
+            return (await DoForAllContainersAsync(container, HttpStatusCode.Accepted, async containerObj => await containerObj.DeleteAsync())).CreateResponse();
         }
 
-        async Task<bool> DoForAllContainersAsync(string containerName, bool errorIfNotFound, Func<CloudBlobContainer, Task> action)
+        async Task<DelegatedResponse> DoForAllContainersAsync(string container, HttpStatusCode successStatus, Func<CloudBlobContainer, Task> action)
         {
-            bool notFound = false;
+            DelegatedResponse retval = new DelegatedResponse
+            {
+                StatusCode = successStatus,
+            };
             foreach (var account in DashConfiguration.AllAccounts)
             {
-                var container = ControllerOperations.GetContainerByName(account, containerName);
-                bool doAction = true;
-                if (errorIfNotFound)
+                var containerObj = ControllerOperations.GetContainerByName(account, container);
+                try
                 {
-                    notFound |= doAction = !await container.ExistsAsync();
+                    await action(containerObj);
                 }
-                if (doAction)
+                catch (StorageException ex)
                 {
-                    await action(container);
+                    retval.StatusCode = (HttpStatusCode)ex.RequestInformation.HttpStatusCode;
+                    retval.ReasonPhrase = ex.RequestInformation.HttpStatusMessage;
                 }
             }
-            return !notFound;
+            return retval;
         }
 
         [AcceptVerbs("GET", "HEAD")]
@@ -102,15 +100,14 @@ namespace Microsoft.Dash.Server.Controllers
 
         [AcceptVerbs("GET", "HEAD")]
         //Get Container operations, with optional 'comp' parameter
-        public async Task<HttpResponseMessage> GetContainerData(string container, string comp = null)
+        public async Task<HttpResponseMessage> GetContainerData(string container, string comp)
         {
             CloudBlobContainer containerObj = ControllerOperations.GetContainerByName(DashConfiguration.NamespaceAccount, container);
             if (!await containerObj.ExistsAsync())
             {
                 return new HttpResponseMessage(HttpStatusCode.NotFound);
             }
-            string compvar = comp ?? "";
-            switch (compvar.ToLower())
+            switch (comp.ToLower())
             {
                 case "list":
                     return await GetBlobList(container);
@@ -127,7 +124,7 @@ namespace Microsoft.Dash.Server.Controllers
 
         private HttpResponseMessage RedirectContainerRequest(string container)
         {
-            Uri forwardUri = ControllerOperations.GetForwardingUri(RequestFromContext(HttpContext.Current), DashConfiguration.NamespaceAccount, container);
+            Uri forwardUri = ControllerOperations.GetForwardingUri(RequestFromContext(HttpContextFactory.Current), DashConfiguration.NamespaceAccount, container);
             HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.Redirect);
             response.Headers.Location = forwardUri;
 
