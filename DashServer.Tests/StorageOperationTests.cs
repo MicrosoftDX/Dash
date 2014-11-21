@@ -48,19 +48,7 @@ namespace Microsoft.Tests
 
         StorageOperationTypes GetStorageOperation(string method, string uri, IEnumerable<Tuple<string, string>> headers = null)
         {
-            var request = new MockHttpRequestWrapper
-            {
-                HttpMethod = method,
-                Url = new Uri(uri),
-            };            
-            if (headers != null)
-            {
-                foreach (var header in headers)
-                {
-                    request.Headers.Add(header.Item1, header.Item2);
-                }
-            }
-            return StorageOperations.GetBlobOperation(request);
+            return StorageOperations.GetBlobOperation(new MockHttpRequestWrapper(method, uri, headers));
         }
 
     }

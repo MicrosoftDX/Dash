@@ -44,14 +44,6 @@ namespace Microsoft.Dash.Server.Handlers
 
     public static class StorageOperations
     {
-        // Operation parameter selectors
-        public const string OperationNameProperties     = "properties";
-        public const string OperationNameMetadata       = "metadata";
-        public const string OperationNameLease          = "lease";
-        public const string OperationNameSnapshot       = "snapshot";
-        public const string OperationNameBlobBlock      = "block";
-        public const string OperationNameBlobBlockList  = "blocklist";
-
         class RequestAttributes
         {
             public HttpMethod Method { get; set; }

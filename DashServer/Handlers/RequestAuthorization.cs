@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Web;
 using Microsoft.Dash.Server.Utils;
+using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace Microsoft.Dash.Server.Handlers
 {
@@ -167,20 +168,41 @@ namespace Microsoft.Dash.Server.Handlers
         {
             bool retval = false;
             var requestUriParts = RequestUriParts.Create(request.Url);
-            if (requestUriParts.IsAccountRequest)
+            var requestOperation = StorageOperations.GetBlobOperation(request.HttpMethod, requestUriParts, RequestQueryParameters.Create(request.QueryParameters), RequestHeaders.Create(request.Headers));
+            switch (requestOperation)
             {
-                // No anonymous access to account operations
-                retval = false;
-            }
-            else if (requestUriParts.IsContainerRequest)
-            {
-                // TODO: Check if the container permits anonymous operations for this type
-            }
-            else if (requestUriParts.IsBlobRequest)
-            {
-                // TODO: Check if the containing container permits anonymous operations for this type
+                case StorageOperationTypes.GetContainerProperties:
+                case StorageOperationTypes.GetContainerMetadata:
+                case StorageOperationTypes.ListBlobs:
+                    retval = GetContainerPublicAccess(requestUriParts.Container) == BlobContainerPublicAccessType.Container;
+                    break;
+
+                case StorageOperationTypes.PutBlob:
+                case StorageOperationTypes.GetBlob:
+                case StorageOperationTypes.GetBlobProperties:
+                case StorageOperationTypes.SetBlobProperties:
+                case StorageOperationTypes.GetBlobMetadata:
+                case StorageOperationTypes.SetBlobMetadata:
+                case StorageOperationTypes.LeaseBlob:
+                case StorageOperationTypes.SnapshotBlob:
+                case StorageOperationTypes.CopyBlob:
+                case StorageOperationTypes.AbortCopyBlob:
+                case StorageOperationTypes.DeleteBlob:
+                case StorageOperationTypes.PutBlock:
+                case StorageOperationTypes.PutBlockList:
+                case StorageOperationTypes.GetBlockList:
+                    retval = GetContainerPublicAccess(requestUriParts.Container) != BlobContainerPublicAccessType.Off;
+                    break;
             }
             return retval;
+        }
+
+        static BlobContainerPublicAccessType GetContainerPublicAccess(string container)
+        {
+            // TODO: Plug this potential DoS vector - spurious anonymous requests could drown us here...
+            var containerObject = ControllerOperations.GetContainerByName(DashConfiguration.NamespaceAccount, container);
+            var permissions = containerObject.GetPermissions();
+            return permissions.PublicAccess;
         }
 
     }
