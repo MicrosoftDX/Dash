@@ -183,42 +183,5 @@ namespace Microsoft.Dash.Server.Handlers
             return retval;
         }
 
-        /// <summary>
-        /// Implementation for real request
-        /// </summary>
-        public class HttpRequestWrapper : IHttpRequestWrapper
-        {
-            HttpRequest _request;
-
-            public HttpRequestWrapper(HttpRequest request)
-            {
-                _request = request;
-            }
-
-            public NameValueCollection Headers
-            {
-                get { return _request.Headers; }
-            }
-
-            public Uri Url
-            {
-                get { return _request.Url; }
-            }
-
-            public string HttpMethod
-            {
-                get { return _request.HttpMethod; }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Test mock-out interface
-    /// </summary>
-    public interface IHttpRequestWrapper
-    {
-        NameValueCollection Headers { get; }
-        Uri Url { get; }
-        string HttpMethod { get; }
     }
 }

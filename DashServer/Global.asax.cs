@@ -23,7 +23,7 @@ namespace Microsoft.Dash.Server
 
         void Application_AuthorizeRequest()
         {
-            if (!RequestAuthorization.IsRequestAuthorized(new RequestAuthorization.HttpRequestWrapper(this.Request)))
+            if (!RequestAuthorization.IsRequestAuthorized(new DashHttpRequestWrapper(this.Request)))
             {
                 this.Response.StatusCode = (int)HttpStatusCode.Forbidden;
                 // Details lifted directly from Storage Service auth failure responses
@@ -41,9 +41,9 @@ namespace Microsoft.Dash.Server
 
         void Application_PreRequestHandlerExecute()
         {
-            // Insert handling here for any requests which can potentially contain a body. We must process the request here
-            // because if the client is using the Expect: 100-Continue header, then we should issue our final (redirect) status
-            // BEFORE IIS sends the 100 Continue response. This way the blob content is never sent to us.
+            // Insert handling here for any requests which can potentially contain a body and that we intend to redirect. We must 
+            // process the request here because if the client is using the Expect: 100-Continue header, then we should issue our 
+            // final (redirect) status BEFORE IIS sends the 100 Continue response. This way the blob content is never sent to us.
             if (this.Request.HttpMethod == HttpMethod.Put.Method)
             {
                 string redirectUri = String.Empty;
@@ -58,13 +58,13 @@ namespace Microsoft.Dash.Server
                 }
                 else if (requestUriParts.IsBlobRequest)
                 { 
-                    switch (StorageOperations.GetBlobOperationFromCompParam(this.Request.QueryString["comp"], this.Request.GetHeaders()))
-                    {
-                        case StorageOperationTypes.GetPutBlob:
-                            // TODO: Insert call to common function to lookup blob in namespace account & generate redirect SAS URI
-                            redirectUri = "http://dashstorage2.blob.core.windows.net/test/test.txt?sv=2014-02-14&sr=c&sig=AGw1j7kMvb41HuXZo6TX2Z%2BpJntlMqWfhmU6cw491zU%3D&se=2014-10-29T05%3A24%3A30Z&sp=rwdl";
-                            break;
-                    }
+                    //switch (StorageOperations.GetBlobOperationFromCompParam(this.Request.QueryString["comp"], this.Request.GetHeaders()))
+                    //{
+                    //    case StorageOperationTypes.GetPutBlob:
+                    //        // TODO: Insert call to common function to lookup blob in namespace account & generate redirect SAS URI
+                    //        redirectUri = "http://dashstorage2.blob.core.windows.net/test/test.txt?sv=2014-02-14&sr=c&sig=AGw1j7kMvb41HuXZo6TX2Z%2BpJntlMqWfhmU6cw491zU%3D&se=2014-10-29T05%3A24%3A30Z&sp=rwdl";
+                    //        break;
+                    //}
                 }
                 else
                 {

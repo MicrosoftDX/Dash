@@ -13,14 +13,6 @@ namespace Microsoft.Tests
     [TestClass]
     public class RequestAuthTests
     {
-        public class MockHttpRequestWrapper : IHttpRequestWrapper
-        {
-            public NameValueCollection Headers { get; set; }
-            public Uri Url { get; set; }
-            public string HttpMethod { get; set; }
-        }
-
-
         [TestInitialize]
         public void Init()
         {

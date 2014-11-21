@@ -16,7 +16,7 @@ namespace Microsoft.Dash.Server.Utils
             return RequestQueryParameters.Create(request);
         }
 
-        public static RequestQueryParameters GetQueryParameters(this HttpRequest request)
+        public static RequestQueryParameters GetQueryParameters(this HttpRequestBase request)
         {
             return RequestQueryParameters.Create(request);
         }
@@ -26,7 +26,7 @@ namespace Microsoft.Dash.Server.Utils
             return RequestHeaders.Create(request);
         }
 
-        public static RequestHeaders GetHeaders(this HttpRequest request)
+        public static RequestHeaders GetHeaders(this HttpRequestBase request)
         {
             return RequestHeaders.Create(request);
         }

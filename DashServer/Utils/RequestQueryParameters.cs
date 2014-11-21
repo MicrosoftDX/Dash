@@ -16,7 +16,7 @@ namespace Microsoft.Dash.Server.Utils
             return new RequestQueryParameters(request.GetQueryNameValuePairs());
         }
 
-        public static RequestQueryParameters Create(HttpRequest request)
+        public static RequestQueryParameters Create(HttpRequestBase request)
         {
             return Create(request.QueryString);
         }

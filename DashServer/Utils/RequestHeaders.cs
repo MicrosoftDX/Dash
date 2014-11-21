@@ -16,7 +16,7 @@ namespace Microsoft.Dash.Server.Utils
             return new RequestHeaders(request.Headers);
         }
 
-        public static RequestHeaders Create(HttpRequest request)
+        public static RequestHeaders Create(HttpRequestBase request)
         {
             return Create(request.Headers);
         }
