@@ -15,24 +15,16 @@ namespace Microsoft.Dash.Server.Utils
         {
             get
             {
-                if (_setContext == null)
+                if (_setContext != null)
                 {
-                    lock (typeof(HttpContextFactory))
-                    {
-                        if (_setContext == null)
-                        {
-                            _setContext = new HttpContextWrapper(HttpContext.Current);
-                        }
-                    }
+                    return _setContext;
                 }
-                return _setContext;
+                System.Diagnostics.Debug.Assert(HttpContext.Current != null);
+                return new HttpContextWrapper(HttpContext.Current);
             }
             set 
             {  
-                lock (typeof(HttpContextFactory))
-                {
-                    _setContext = value;
-                }
+                _setContext = value;
             }
         }
     }

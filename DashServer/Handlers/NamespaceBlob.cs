@@ -12,6 +12,11 @@ namespace Microsoft.Dash.Server.Handlers
 {
     public class NamespaceBlob
     {
+        const string MetadataNameAccount    = "accountname";
+        const string MetadataNameContainer  = "container";
+        const string MetadataNameBlobName   = "blobname";
+        const string MetadataNameDeleteFlag = "todelete";
+
         CloudBlockBlob _namespaceBlob;
         bool _blobExists;
 
@@ -41,7 +46,7 @@ namespace Microsoft.Dash.Server.Handlers
         public async Task MarkForDeletionAsync()
         {
             await RefreshAsync();
-            _namespaceBlob.Metadata["todelete"] = "true";
+            this.IsMarkedForDeletion = true;
             await SaveAsync();
         }
 
@@ -61,20 +66,45 @@ namespace Microsoft.Dash.Server.Handlers
 
         public string AccountName
         {
-            get { return _namespaceBlob.Metadata["accountname"]; }
-            set { _namespaceBlob.Metadata["accountname"] = value; }
+            get { return _namespaceBlob.Metadata[MetadataNameAccount]; }
+            set { _namespaceBlob.Metadata[MetadataNameAccount] = value; }
         }
 
         public string Container
         {
-            get { return _namespaceBlob.Metadata["container"]; }
-            set { _namespaceBlob.Metadata["container"] = value; }
+            get { return _namespaceBlob.Metadata[MetadataNameContainer]; }
+            set { _namespaceBlob.Metadata[MetadataNameContainer] = value; }
         }
 
         public string BlobName
         {
-            get { return _namespaceBlob.Metadata["blobname"]; }
-            set { _namespaceBlob.Metadata["blobname"] = value; }
+            get { return _namespaceBlob.Metadata[MetadataNameBlobName]; }
+            set { _namespaceBlob.Metadata[MetadataNameBlobName] = value; }
+        }
+
+        public bool IsMarkedForDeletion
+        {
+            get
+            {
+                bool retval = false;
+                string deleteFlag = String.Empty;
+                if (_namespaceBlob.Metadata.TryGetValue(MetadataNameDeleteFlag, out deleteFlag))
+                {
+                    bool.TryParse(deleteFlag, out retval);
+                }
+                return retval;
+            }
+            set
+            {
+                if (value)
+                {
+                    _namespaceBlob.Metadata[MetadataNameDeleteFlag] = "true";
+                }
+                else
+                {
+                    _namespaceBlob.Metadata.Remove(MetadataNameDeleteFlag);
+                }
+            }
         }
     }
 }

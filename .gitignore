@@ -13,3 +13,4 @@ packages/
 bin/
 obj/
 *.user
+/TestResults

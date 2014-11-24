@@ -87,7 +87,7 @@ namespace Microsoft.Dash.Server.Handlers
             //create an namespace blob with hardcoded metadata
             var namespaceBlob = await FetchNamespaceBlobAsync(container, blob);
             bool exists = await namespaceBlob.ExistsAsync();
-            if (exists && !String.IsNullOrWhiteSpace(namespaceBlob.BlobName))
+            if (exists && !namespaceBlob.IsMarkedForDeletion && !String.IsNullOrWhiteSpace(namespaceBlob.BlobName))
             {
                 return namespaceBlob;
             }
@@ -100,6 +100,7 @@ namespace Microsoft.Dash.Server.Handlers
             namespaceBlob.AccountName = dataAccount.Credentials.AccountName;
             namespaceBlob.Container = container;
             namespaceBlob.BlobName = blob;
+            namespaceBlob.IsMarkedForDeletion = false;
             await namespaceBlob.SaveAsync();
 
             return namespaceBlob;
