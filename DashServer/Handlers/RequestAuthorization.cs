@@ -9,6 +9,7 @@ using System.Text;
 using System.Web;
 using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage.Blob;
+using System.Threading.Tasks;
 
 namespace Microsoft.Dash.Server.Handlers
 {
@@ -20,15 +21,15 @@ namespace Microsoft.Dash.Server.Handlers
         const string AlgorithmSharedKey     = "SharedKey";
         const string AlgorithmSharedKeyLite = "SharedKeyLite";
 
-        public static bool IsRequestAuthorized(IHttpRequestWrapper request, bool ignoreRequestAge = false)
+        public static async Task<bool> IsRequestAuthorizedAsync(IHttpRequestWrapper request, bool ignoreRequestAge = false)
         {
-            var headers = RequestHeaders.Create(request.Headers);
-            var queryParams = RequestQueryParameters.Create(request.Url.Query);
+            var headers = request.Headers;
+            var queryParams = request.QueryParameters;
             // See if this is an anonymous request
             var authHeader = headers.Value<string>("Authorization");
             if (String.IsNullOrWhiteSpace(authHeader))
             {
-                return IsAnonymousAccessAllowed(request);
+                return await IsAnonymousAccessAllowedAsync(request);
             }
             // Quick request age check
             string requestDateHeader = headers.Value<string>("x-ms-date");
@@ -68,7 +69,7 @@ namespace Microsoft.Dash.Server.Handlers
             var signature = parts[2];
 
             // Pull out the MVC controller part of the path
-            var requestUriParts = RequestUriParts.Create(request.Url);
+            var requestUriParts = request.UriParts;
             string uriPath = requestUriParts.PublicUriPath;
             var uriUnencodedPath = uriPath.Replace(":", "%3A").Replace("@", "%40");
             bool runUnencodedComparison = uriPath != uriUnencodedPath;
@@ -164,17 +165,17 @@ namespace Microsoft.Dash.Server.Handlers
                     .OrderBy(value => value, StringComparer.OrdinalIgnoreCase));
         }
 
-        static bool IsAnonymousAccessAllowed(IHttpRequestWrapper request)
+        static async Task<bool> IsAnonymousAccessAllowedAsync(IHttpRequestWrapper request)
         {
             bool retval = false;
-            var requestUriParts = RequestUriParts.Create(request.Url);
-            var requestOperation = StorageOperations.GetBlobOperation(request.HttpMethod, requestUriParts, RequestQueryParameters.Create(request.QueryParameters), RequestHeaders.Create(request.Headers));
+            var requestUriParts = request.UriParts;
+            var requestOperation = StorageOperations.GetBlobOperation(request.HttpMethod, requestUriParts, request.QueryParameters, request.Headers);
             switch (requestOperation)
             {
                 case StorageOperationTypes.GetContainerProperties:
                 case StorageOperationTypes.GetContainerMetadata:
                 case StorageOperationTypes.ListBlobs:
-                    retval = GetContainerPublicAccess(requestUriParts.Container) == BlobContainerPublicAccessType.Container;
+                    retval = await GetContainerPublicAccessAsync(requestUriParts.Container) == BlobContainerPublicAccessType.Container;
                     break;
 
                 case StorageOperationTypes.PutBlob:
@@ -191,17 +192,17 @@ namespace Microsoft.Dash.Server.Handlers
                 case StorageOperationTypes.PutBlock:
                 case StorageOperationTypes.PutBlockList:
                 case StorageOperationTypes.GetBlockList:
-                    retval = GetContainerPublicAccess(requestUriParts.Container) != BlobContainerPublicAccessType.Off;
+                    retval = await GetContainerPublicAccessAsync(requestUriParts.Container) != BlobContainerPublicAccessType.Off;
                     break;
             }
             return retval;
         }
 
-        static BlobContainerPublicAccessType GetContainerPublicAccess(string container)
+        static async Task<BlobContainerPublicAccessType> GetContainerPublicAccessAsync(string container)
         {
             // TODO: Plug this potential DoS vector - spurious anonymous requests could drown us here...
             var containerObject = ControllerOperations.GetContainerByName(DashConfiguration.NamespaceAccount, container);
-            var permissions = containerObject.GetPermissions();
+            var permissions = await containerObject.GetPermissionsAsync();
             return permissions.PublicAccess;
         }
 

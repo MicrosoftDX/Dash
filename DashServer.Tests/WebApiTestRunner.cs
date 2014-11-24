@@ -14,7 +14,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Microsoft.Tests
 {
-    class WebApiTestRunner
+    class WebApiTestRunner 
     {
         HttpClient _requestClient;
 
@@ -33,27 +33,10 @@ namespace Microsoft.Tests
 
         public static void InitializeConfig(IDictionary<string, string> config)
         {
-            AzureUtils.ConfigProvider = new TestConfigurationProvider(config);
+            DashConfiguration.ConfigurationSource = new TestConfigurationProvider(config);
         }
 
-        class TestConfigurationProvider : IConfigurationProvider
-        {
-            IDictionary<string, string> _testConfig;
-
-            public TestConfigurationProvider(IDictionary<string, string> config)
-            {
-                _testConfig = config;
-            }
-
-            public string GetSetting(string name)
-            {
-                string retval = String.Empty;
-                _testConfig.TryGetValue(name, out retval);
-                return retval;
-            }
-        }
-
-        public void SetupRequest(string uri, string method)
+        public static void SetupRequest(string uri, string method)
         {
             var requestUri = new Uri(uri);
             var request = new HttpRequest("", requestUri.GetLeftPart(UriPartial.Path), requestUri.Query);

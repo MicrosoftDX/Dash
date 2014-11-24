@@ -19,7 +19,7 @@ using Microsoft.Dash.Server;
 namespace Microsoft.Tests
 {
     [TestClass]
-    public class BlobTests
+    public class BlobControllerTests
     {
         WebApiTestRunner _runner;
 
@@ -28,21 +28,21 @@ namespace Microsoft.Tests
         {
             _runner = new WebApiTestRunner(new Dictionary<string, string>()
                 {
-                    { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=http;AccountName=dashstorage0;AccountKey=uCNvIdXcltACBiDUMyO0BflZpKmjseplqOlzE62tx87qnkwpUMBV/GQhrscW9lmdZVT0x8DilYqUoHMNBlVIGg==" },
-                    { "ScaleoutStorage0", "DefaultEndpointsProtocol=http;AccountName=dashstorage1;AccountKey=8jqRVtXUWiEthgIhR+dFwrB8gh3lFuquvJQ1v4eabObIj7okI1cZIuzY8zZHmEdpcC0f+XlUkbFwAhjTfyrLIg==" },
-                    { "ScaleoutStorage1", "DefaultEndpointsProtocol=http;AccountName=dashstorage2;AccountKey=YI0BDhckKp+6uBsu4OAAeVvUyOuMvimqo9BSz197lR14x9vWE+tuwqOr0U1asNWpkdZs4z8wcnu9pZNYDqdRPA==" },
+                    { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=https;AccountName=dashtestnamespace;AccountKey=N+BMOAp/bswfqp4dxoQYLLwmYnERysm1Xxv3qSf5H9RVhQ0q+f/QKNHhXX4Z/P67mZ+5QwT6RZv9qKV834pOqQ==" },
+                    { "ScaleoutStorage0", "DefaultEndpointsProtocol=https;AccountName=dashtestdata1;AccountKey=IatOQyIdf8x3HcCZuhtGGLv/nS0v/SwXu2vBS6E9/5/+GYllhdmFFX6YqMXmR7U6UyFYQt4pdZnlLCM+bPcJ4A==" },
+                    { "ScaleoutStorage1", "DefaultEndpointsProtocol=https;AccountName=dashtestdata2;AccountKey=OOXSVWWpImRf79sbiEtpIwFsggv7VAhdjtKdt7o0gOLr2krzVXwZ+cb/gJeMqZRlXHTniRN6vnKKjs1glijihA==" },
                     { "ScaleoutNumberOfAccounts", "2"},
                 });
         }
 
         [TestMethod]
-        public void GetBlobTest()
+        public void GetBlobControllerTest()
         {
             var response = _runner.ExecuteRequest("http://localhost/blob/test/test.txt", 
                 "GET",
                 expectedStatusCode: HttpStatusCode.Redirect);
             Assert.IsNotNull(response.Headers.Location);
-            Assert.AreEqual("http://dashstorage1.blob.core.windows.net/test/test.txt", response.Headers.Location.GetLeftPart(UriPartial.Path));
+            Assert.AreEqual("http://dashtestdata1.blob.core.windows.net/test/test.txt", response.Headers.Location.GetLeftPart(UriPartial.Path));
             var redirectQueryParams = HttpUtility.ParseQueryString(response.Headers.Location.Query);
             Assert.AreEqual("2014-02-14", redirectQueryParams["sv"]);
             Assert.IsNotNull(redirectQueryParams["sig"]);
@@ -50,7 +50,7 @@ namespace Microsoft.Tests
         }
 
         [TestMethod]
-        public void PutExistingBlobTest()
+        public void PutExistingBlobControllerTest()
         {
             var content = new StringContent("hello world", System.Text.Encoding.UTF8, "text/plain");
             content.Headers.Add("x-ms-version", "2013-08-15");
@@ -65,11 +65,11 @@ namespace Microsoft.Tests
                 content,
                 HttpStatusCode.Redirect);
             Assert.IsNotNull(response.Headers.Location);
-            Assert.AreEqual("http://dashstorage1.blob.core.windows.net/test/test.txt", response.Headers.Location.GetLeftPart(UriPartial.Path));
+            Assert.AreEqual("http://dashtestdata1.blob.core.windows.net/test/test.txt", response.Headers.Location.GetLeftPart(UriPartial.Path));
         }
 
         [TestMethod]
-        public void PutNonExistingBlobTest()
+        public void PutNonExistingBlobControllerTest()
         {
             var content = new StringContent("hello world", System.Text.Encoding.UTF8, "text/plain");
             content.Headers.Add("x-ms-version", "2013-08-15");
@@ -99,7 +99,7 @@ namespace Microsoft.Tests
         }
 
         [TestMethod]
-        public void BlobPropertiesAndMetadataTest()
+        public void BlobPropertiesAndMetadataControllerTest()
         {
             string blobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString();
             string metadataUri = blobUri + "?comp=metadata";
@@ -164,7 +164,7 @@ namespace Microsoft.Tests
         }
 
         [TestMethod]
-        public void PutBlobBlockTest()
+        public void PutBlobBlockControllerTest()
         {
             string blobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString();
             string blockBlobUri = blobUri + "?comp=block&blockid=";

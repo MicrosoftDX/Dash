@@ -36,7 +36,7 @@ namespace Microsoft.Dash.Server.Controllers
         public async Task<HttpResponseMessage> DeleteBlob(string container, string blob, string snapshot = null)
         {
             //We only need to delete the actual blob. We are leaving the namespace entry alone as a sort of cache.
-            var namespaceBlob = new NamespaceBlob(ControllerOperations.GetBlobByName(DashConfiguration.NamespaceAccount, container, blob));
+            var namespaceBlob = await ControllerOperations.FetchNamespaceBlobAsync(container, blob);
             if (!await namespaceBlob.ExistsAsync())
             {
                 return new HttpResponseMessage(HttpStatusCode.NotFound);
@@ -158,25 +158,30 @@ namespace Microsoft.Dash.Server.Controllers
         /// </summary>
         private async Task<IHttpActionResult> BasicBlobHandler(string container, string blob)
         {
-            var namespaceBlob = await ControllerOperations.FetchNamespaceBlobAsync(container, blob);
-            if (!await namespaceBlob.ExistsAsync())
-            {
-                return NotFound();
-            }
-            HttpRequestBase request = RequestFromContext(HttpContextFactory.Current);
-            return Redirect(ControllerOperations.GetRedirectUri(request,
-                DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName),
-                namespaceBlob.Container,
-                namespaceBlob.BlobName));
+            var result = await BlobHandler.BasicBlobAsync(container, blob);
+            return ProcessHandlerResult(result);
         }
 
         private async Task<IHttpActionResult> PutBlobHandler(string container, string blob)
         {
-            HttpRequestBase request = RequestFromContext(HttpContextFactory.Current);
-            var namespaceBlob = await ControllerOperations.CreateNamespaceBlobAsync(container, blob);
-            //redirection code
-            Uri redirect = ControllerOperations.GetRedirectUri(request, DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName), container, blob);
-            return Redirect(redirect);
+            var result = await BlobHandler.PutBlobAsync(container, blob);
+            return ProcessHandlerResult(result);
+        }
+
+        private IHttpActionResult ProcessHandlerResult(HandlerResult result)
+        {
+            switch (result.StatusCode)
+            {
+                case HttpStatusCode.NotFound:
+                    return NotFound();
+
+                case HttpStatusCode.Redirect:
+                    return Redirect(result.Location);
+
+                default:
+                    System.Diagnostics.Debug.Assert(false);
+                    return StatusCode(result.StatusCode);
+            }
         }
 
     }

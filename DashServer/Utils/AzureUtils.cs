@@ -8,19 +8,11 @@ using Microsoft.WindowsAzure;
 
 namespace Microsoft.Dash.Server.Utils
 {
-    // Factored out to allow test mocking
-    public interface IConfigurationProvider
-    {
-        string GetSetting(string name);
-    }
-
     public static class AzureUtils
     {
-        static public IConfigurationProvider ConfigProvider = new AzureConfigProvider();
-
         public static T GetConfigSetting<T>(string settingName, T defaultValue)
         {
-            string configValue = ConfigProvider.GetSetting(settingName);
+            string configValue = CloudConfigurationManager.GetSetting(settingName);
             if (!String.IsNullOrWhiteSpace(configValue))
             {
                 try
@@ -47,14 +39,6 @@ namespace Microsoft.Dash.Server.Utils
             }
             config.AppSettings.Settings.Add(settingName, value.ToString());
             config.Save(ConfigurationSaveMode.Modified);
-        }
-
-        class AzureConfigProvider : IConfigurationProvider
-        {
-            public string GetSetting(string name)
-            {
- 	            return CloudConfigurationManager.GetSetting(name);
-            }
         }
     }
 }

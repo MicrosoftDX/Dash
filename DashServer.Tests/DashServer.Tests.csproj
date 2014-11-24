@@ -90,9 +90,12 @@
     <Compile Include="RequestAuthTests.cs" />
     <Compile Include="SignatureValidationTests.cs" />
     <Compile Include="StorageOperationTests.cs" />
+    <Compile Include="BlobPipelineTests.cs" />
+    <Compile Include="BlobListingTests.cs" />
+    <Compile Include="TestConfigProvider.cs" />
     <Compile Include="WebApiTestRunner.cs" />
     <Compile Include="ContainerTests.cs" />
-    <Compile Include="BlobTests.cs" />
+    <Compile Include="BlobControllerTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DashServer\DashServer.csproj">

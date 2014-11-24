@@ -20,8 +20,8 @@ namespace Microsoft.Tests
                 {
                     { "AccountName", "dashstorage1" },
                     { "AccountKey", "8jqRVtXUWiEthgIhR+dFwrB8gh3lFuquvJQ1v4eabObIj7okI1cZIuzY8zZHmEdpcC0f+XlUkbFwAhjTfyrLIg==" },
-                    { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=http;AccountName=dashstorage0;AccountKey=uCNvIdXcltACBiDUMyO0BflZpKmjseplqOlzE62tx87qnkwpUMBV/GQhrscW9lmdZVT0x8DilYqUoHMNBlVIGg==" },
-                    { "ScaleoutStorage0", "DefaultEndpointsProtocol=http;AccountName=dashstorage1;AccountKey=8jqRVtXUWiEthgIhR+dFwrB8gh3lFuquvJQ1v4eabObIj7okI1cZIuzY8zZHmEdpcC0f+XlUkbFwAhjTfyrLIg==" },
+                    { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=https;AccountName=dashtestnamespace;AccountKey=N+BMOAp/bswfqp4dxoQYLLwmYnERysm1Xxv3qSf5H9RVhQ0q+f/QKNHhXX4Z/P67mZ+5QwT6RZv9qKV834pOqQ==" },
+                    { "ScaleoutStorage0", "DefaultEndpointsProtocol=https;AccountName=dashtestdata1;AccountKey=IatOQyIdf8x3HcCZuhtGGLv/nS0v/SwXu2vBS6E9/5/+GYllhdmFFX6YqMXmR7U6UyFYQt4pdZnlLCM+bPcJ4A==" },
                     { "ScaleoutNumberOfAccounts", "1"},
                 });
         }
@@ -100,7 +100,7 @@ namespace Microsoft.Tests
 
         static bool IsRequestAuthorized(string method, string uri, IEnumerable<Tuple<string, string>> headers = null)
         {
-            return RequestAuthorization.IsRequestAuthorized(new MockHttpRequestWrapper(method, uri, headers), true);
+            return RequestAuthorization.IsRequestAuthorizedAsync(new MockHttpRequestWrapper(method, uri, headers), true).Result;
         }
 
         static void EvaluateAnonymousContainerAccess(ContainerAccess expectedAccess, string method, string blob, string uriSuffix, IEnumerable<Tuple<string, string>> headers = null)

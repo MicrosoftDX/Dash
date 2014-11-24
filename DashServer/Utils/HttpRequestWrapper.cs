@@ -13,8 +13,9 @@ namespace Microsoft.Dash.Server.Utils
     /// </summary>
     public interface IHttpRequestWrapper
     {
-        NameValueCollection Headers { get; }
-        NameValueCollection QueryParameters { get; }
+        RequestUriParts UriParts { get; }
+        RequestHeaders Headers { get; }
+        RequestQueryParameters QueryParameters { get; }
         Uri Url { get; }
         string HttpMethod { get; }
     }
@@ -31,14 +32,19 @@ namespace Microsoft.Dash.Server.Utils
             _request = request;
         }
 
-        public NameValueCollection Headers
+        public RequestUriParts UriParts
         {
-            get { return _request.Headers; }
+            get { return GetCachedObject<RequestUriParts>("Dash_RequestUriParts", () => RequestUriParts.Create(this._request.Url)); }
         }
 
-        public NameValueCollection QueryParameters
+        public RequestHeaders Headers
         {
-            get { return _request.QueryString; }
+            get { return GetCachedObject<RequestHeaders>("Dash_RequestHeaders", () => RequestHeaders.Create(this._request.Headers)); }
+        }
+
+        public RequestQueryParameters QueryParameters
+        {
+            get { return GetCachedObject<RequestQueryParameters>("Dash_QueryParameters", () => RequestQueryParameters.Create(this._request.QueryString)); }
         }
 
         public Uri Url
@@ -49,6 +55,19 @@ namespace Microsoft.Dash.Server.Utils
         public string HttpMethod
         {
             get { return _request.HttpMethod; }
+        }
+
+        T GetCachedObject<T>(string key, Func<T> creator)
+        {
+            // We're reasonably thread safe here because we're affinitized to a single request, so we omit locking
+            var ctx = HttpContextFactory.Current;
+            if (ctx.Items.Contains(key))
+            {
+                return (T)ctx.Items[key];
+            }
+            T newObject = creator();
+            ctx.Items[key] = newObject;
+            return newObject;
         }
     }
 }

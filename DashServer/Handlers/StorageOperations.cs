@@ -138,7 +138,7 @@ namespace Microsoft.Dash.Server.Handlers
 
         public static StorageOperationTypes GetBlobOperation(IHttpRequestWrapper request)
         {
-            return GetBlobOperation(request.HttpMethod, RequestUriParts.Create(request.Url), RequestQueryParameters.Create(request.QueryParameters), RequestHeaders.Create(request.Headers));
+            return GetBlobOperation(request.HttpMethod, request.UriParts, request.QueryParameters, request.Headers);
         }
 
         public static StorageOperationTypes GetBlobOperation(string requestMethod, RequestUriParts requestUriParts, RequestQueryParameters queryParams, RequestHeaders headers)

@@ -34,7 +34,7 @@ namespace Microsoft.Dash.Server.Utils
                 .Select(header => new KeyValuePair<string, IEnumerable<string>>(header.Key, header)));
         }
 
-        private RequestHeaders(IEnumerable<KeyValuePair<string, string>> headers) 
+        public RequestHeaders(IEnumerable<KeyValuePair<string, string>> headers) 
             : base(headers)
         {
         }

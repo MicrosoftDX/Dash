@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Web;
 using Microsoft.Dash.Server.Utils;
+using System.Linq;
 
 namespace Microsoft.Tests
 {
@@ -12,29 +13,35 @@ namespace Microsoft.Tests
     {
         public MockHttpRequestWrapper()
         {
-            this.Headers = new NameValueCollection();
+            this.Headers = new RequestHeaders(Enumerable.Empty<KeyValuePair<string, string>>());
         }
 
         public MockHttpRequestWrapper(string method, string uri, IEnumerable<Tuple<string, string>> headers)
         {
             this.HttpMethod = method;
             this.Url = new Uri(uri);
-            this.Headers = new NameValueCollection();
             if (headers != null)
             {
-                foreach (var header in headers)
-                {
-                    this.Headers.Add(header.Item1, header.Item2);
-                }
+                this.Headers = new RequestHeaders(headers
+                    .Select(header => new KeyValuePair<string, string>(header.Item1, header.Item2)));
+            }
+            else
+            {
+                this.Headers = new RequestHeaders(Enumerable.Empty<KeyValuePair<string, string>>());
             }
         }
 
-        public NameValueCollection Headers { get; set; }
+        public RequestHeaders Headers { get; set; }
         public Uri Url { get; set; }
         public string HttpMethod { get; set; }
-        public NameValueCollection QueryParameters 
+        public RequestQueryParameters QueryParameters 
         {
-            get { return HttpUtility.ParseQueryString(this.Url.Query); }
+            get { return RequestQueryParameters.Create(this.Url.Query); }
         }
+        public RequestUriParts UriParts 
+        {
+            get { return RequestUriParts.Create(this.Url); }
+        }
+
     }
 }

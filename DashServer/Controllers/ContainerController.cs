@@ -147,7 +147,8 @@ namespace Microsoft.Dash.Server.Controllers
             var blobs = await Task.WhenAll(blobTasks);
             var sortedBlobs = blobs
                 .SelectMany(blobList => blobList)
-                .OrderBy(blob => blob.Uri.AbsolutePath, StringComparer.Ordinal)                           
+                .OrderBy(blob => blob.Uri.AbsolutePath, StringComparer.Ordinal)  
+                .Distinct(new BlobComparer())
                 .SkipWhile(blob => !String.IsNullOrWhiteSpace(marker) && GetMarkerForBlob(blob) != marker)
                 .Take(maxResults + 1);                  // Get an extra listing so that we can generate the nextMarker
             var blobResults = new EnumerationResults
@@ -192,6 +193,50 @@ namespace Microsoft.Dash.Server.Controllers
 
             return results
                 .SelectMany(segmentResults => segmentResults);
+        }
+
+        class BlobComparer : IEqualityComparer<IListBlobItem>
+        {
+            public bool Equals(IListBlobItem lhs, IListBlobItem rhs)
+            {
+                if (lhs == null && rhs == null)
+                {
+                    return true;
+                }
+                else if (lhs == null)
+                {
+                    return false;
+                }
+                else if (!String.Equals(lhs.Uri.AbsolutePath, rhs.Uri.AbsolutePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+                var lhsBlob = lhs as ICloudBlob;
+                var rhsBlob = rhs as ICloudBlob;
+                if (lhsBlob == null && rhsBlob == null)
+                {
+                    return true;
+                }
+                else if (lhsBlob == null)
+                {
+                    return false;
+                }
+                else if (lhsBlob.SnapshotTime != rhsBlob.SnapshotTime)
+                {
+                    return false;
+                }
+                return true;
+            }
+
+            public int GetHashCode(IListBlobItem obj)
+            {
+                var hash = obj.Uri.AbsolutePath.ToLowerInvariant().GetHashCode();
+                if (obj is ICloudBlob)
+                {
+                    hash ^= ((ICloudBlob)obj).SnapshotTime.GetHashCode();
+                }
+                return hash;
+            }
         }
 
         class EnumerationResults

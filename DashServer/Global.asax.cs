@@ -10,20 +10,29 @@ using System.Web.Http;
 using System.Web.Routing;
 using Microsoft.Dash.Server.Handlers;
 using Microsoft.Dash.Server.Utils;
+using System.Threading.Tasks;
 
 namespace Microsoft.Dash.Server
 {
     public class WebApiApplication : System.Web.HttpApplication
     {
+        public WebApiApplication()
+        {
+            var asyncHandler = new EventHandlerTaskAsyncHelper(AuthorizeRequestAsync);
+            AddOnAuthorizeRequestAsync(asyncHandler.BeginEventHandler, asyncHandler.EndEventHandler);
+
+            asyncHandler = new EventHandlerTaskAsyncHelper(PreRequestHandlerExecuteAsync);
+            AddOnPreRequestHandlerExecuteAsync(asyncHandler.BeginEventHandler, asyncHandler.EndEventHandler);
+        }
 
         protected void Application_Start()
         {
             GlobalConfiguration.Configure(WebApiConfig.Register);
         }
 
-        void Application_AuthorizeRequest()
+        async Task AuthorizeRequestAsync(Object sender, EventArgs e)
         {
-            if (!RequestAuthorization.IsRequestAuthorized(new DashHttpRequestWrapper(this.Request)))
+            if (!await RequestAuthorization.IsRequestAuthorizedAsync(new DashHttpRequestWrapper(this.Request)))
             {
                 this.Response.StatusCode = (int)HttpStatusCode.Forbidden;
                 // Details lifted directly from Storage Service auth failure responses
@@ -39,43 +48,39 @@ namespace Microsoft.Dash.Server
             }
         }
 
-        void Application_PreRequestHandlerExecute()
+        async Task PreRequestHandlerExecuteAsync(Object sender, EventArgs e)
         {
             // Insert handling here for any requests which can potentially contain a body and that we intend to redirect. We must 
             // process the request here because if the client is using the Expect: 100-Continue header, then we should issue our 
             // final (redirect) status BEFORE IIS sends the 100 Continue response. This way the blob content is never sent to us.
-            if (this.Request.HttpMethod == HttpMethod.Put.Method)
+            var result = await StorageOperationsHandler.HandlePrePileOperationAsync(new DashHttpRequestWrapper(this.Request));
+            if (result != null)
             {
-                string redirectUri = String.Empty;
-                var requestUriParts = RequestUriParts.Create(this.Request.Url);
-                if (requestUriParts.IsAccountRequest)
+                switch (result.StatusCode)
                 {
-                    // TODO: Take appropriate pre-body action for account PUT operations
+                    case HttpStatusCode.Redirect:
+                        this.Response.Redirect(result.Location, false);
+                        break;
+
+                    case HttpStatusCode.NotFound:
+                        this.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                        this.Response.StatusDescription = "The specified blob does not exist.";
+                        this.Response.ContentType = "application/xml";
+                        this.Response.Write(String.Format(@"
+<?xml version='1.0' encoding='utf-8'?>
+<Error>
+  <Code>BlobNotFound</Code>
+  <Message>The specified blob does not exist.\n Time:{0:o}</Message>
+</Error>", DateTime.UtcNow));
+                        break;
+
+                    default:
+                        System.Diagnostics.Debug.Assert(false);
+                        this.Response.StatusCode = (int)result.StatusCode;
+                        break;
                 }
-                else if (requestUriParts.IsContainerRequest)
-                {
-                    // TODO: Take appropriate pre-body action for container PUT operations
-                }
-                else if (requestUriParts.IsBlobRequest)
-                { 
-                    //switch (StorageOperations.GetBlobOperationFromCompParam(this.Request.QueryString["comp"], this.Request.GetHeaders()))
-                    //{
-                    //    case StorageOperationTypes.GetPutBlob:
-                    //        // TODO: Insert call to common function to lookup blob in namespace account & generate redirect SAS URI
-                    //        redirectUri = "http://dashstorage2.blob.core.windows.net/test/test.txt?sv=2014-02-14&sr=c&sig=AGw1j7kMvb41HuXZo6TX2Z%2BpJntlMqWfhmU6cw491zU%3D&se=2014-10-29T05%3A24%3A30Z&sp=rwdl";
-                    //        break;
-                    //}
-                }
-                else
-                {
-                    // Incorrectly formed URI
-                    System.Diagnostics.Debug.Assert(false);
-                }
-                if (!String.IsNullOrWhiteSpace(redirectUri))
-                {
-                    this.Response.Redirect(redirectUri, false);
-                    this.CompleteRequest();
-                }
+
+                this.CompleteRequest();
             }
         }
     }

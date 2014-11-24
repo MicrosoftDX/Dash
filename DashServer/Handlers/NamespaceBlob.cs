@@ -13,8 +13,9 @@ namespace Microsoft.Dash.Server.Handlers
     public class NamespaceBlob
     {
         CloudBlockBlob _namespaceBlob;
+        bool _blobExists;
 
-        public NamespaceBlob(CloudBlockBlob namespaceBlob)
+        private NamespaceBlob(CloudBlockBlob namespaceBlob)
         {
             _namespaceBlob = namespaceBlob;
         }
@@ -28,10 +29,8 @@ namespace Microsoft.Dash.Server.Handlers
 
         public async Task RefreshAsync()
         { 
-            if (await _namespaceBlob.ExistsAsync())
-            {
-                await _namespaceBlob.FetchAttributesAsync();
-            }
+            // Exists() populates attributes
+            _blobExists = await _namespaceBlob.ExistsAsync();
         }
 
         public async Task SaveAsync()
@@ -46,9 +45,13 @@ namespace Microsoft.Dash.Server.Handlers
             await SaveAsync();
         }
 
-        public async Task<bool> ExistsAsync()
+        public async Task<bool> ExistsAsync(bool forceRefresh = false)
         {
-            return await _namespaceBlob.ExistsAsync();
+            if (forceRefresh)
+            {
+                _blobExists = await _namespaceBlob.ExistsAsync();
+            }
+            return _blobExists;
         }
 
         public async Task CreateAsync()
