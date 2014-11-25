@@ -2,15 +2,16 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Net;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
 using Microsoft.Dash.Server.Handlers;
+using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
-using Microsoft.Dash.Server.Utils;
 
 namespace Microsoft.Dash.Server.Controllers
 {
@@ -28,7 +29,15 @@ namespace Microsoft.Dash.Server.Controllers
         [HttpPut]
         public async Task<IHttpActionResult> PutBlob(string container, string blob)
         {
-            return await PutBlobHandler(container, blob);
+            var requestWrapper = DashHttpRequestWrapper.Create(this.Request);
+            if (requestWrapper.Headers.Contains("x-ms-copy-source"))
+            {
+                return ProcessHandlerResult(await BlobHandler.CopyBlobAsync(requestWrapper, container, blob, requestWrapper.Headers.Value<string>("x-ms-copy-source")));
+            }
+            else
+            {
+                return await PutBlobHandler(container, blob);
+            }
         }
 
         /// Delete Blob - http://msdn.microsoft.com/en-us/library/azure/dd179413.aspx
@@ -167,22 +176,5 @@ namespace Microsoft.Dash.Server.Controllers
             var result = await BlobHandler.PutBlobAsync(container, blob);
             return ProcessHandlerResult(result);
         }
-
-        private IHttpActionResult ProcessHandlerResult(HandlerResult result)
-        {
-            switch (result.StatusCode)
-            {
-                case HttpStatusCode.NotFound:
-                    return NotFound();
-
-                case HttpStatusCode.Redirect:
-                    return Redirect(result.Location);
-
-                default:
-                    System.Diagnostics.Debug.Assert(false);
-                    return StatusCode(result.StatusCode);
-            }
-        }
-
     }
 }

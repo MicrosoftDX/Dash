@@ -31,22 +31,29 @@ namespace Microsoft.Dash.Server.Handlers
 
         public static Uri GetRedirectUri(HttpRequestBase request, CloudStorageAccount account, string containerName, string blobName)
         {
-            CloudBlobContainer container = GetContainerByName(account, containerName);
-            UriBuilder forwardUri = new UriBuilder()
+            var redirectUri = GetRedirectUriBuilder(request.HttpMethod, request.Url.Scheme, account, containerName, blobName, true);
+            // creating redirection Uri
+            if (!String.IsNullOrWhiteSpace(request.Url.Query))
             {
-                Scheme = request.Url.Scheme,
-                Host = account.BlobEndpoint.Host,
-                Path = containerName + "/" + blobName.TrimStart('/'),
-                Query = CalculateSASStringForContainer(request, container).TrimStart('?'),
-            };
+                var queryParams = HttpUtility.ParseQueryString(redirectUri.Query);
+                queryParams.Add(HttpUtility.ParseQueryString(request.Url.Query));
 
-            //creating redirection Uri
-            if (!string.IsNullOrWhiteSpace(request.Url.Query))
-            {
-                forwardUri.Query += "&" + request.Url.Query.Substring(1);
+                redirectUri.Query = queryParams.ToString();
             }
 
-            return forwardUri.Uri;
+            return redirectUri.Uri;
+        }
+
+        public static UriBuilder GetRedirectUriBuilder(string method, string scheme, CloudStorageAccount account, string containerName, string blobName, bool useSas)
+        {
+            CloudBlobContainer container = GetContainerByName(account, containerName);
+            return new UriBuilder
+            {
+                Scheme = scheme,
+                Host = account.BlobEndpoint.Host,
+                Path = containerName + "/" + blobName.TrimStart('/'),
+                Query = useSas ? CalculateSASStringForContainer(method, container).TrimStart('?') : String.Empty,
+            };
         }
 
         public static Uri ForwardUriToNamespace(HttpRequestBase request)
@@ -63,13 +70,23 @@ namespace Microsoft.Dash.Server.Handlers
         //calculates Shared Access Signature (SAS) string based on type of request (GET, HEAD, DELETE, PUT)
         static SharedAccessBlobPolicy GetSasPolicy(HttpRequestBase request)
         {
+            return GetSasPolicy(request.HttpMethod);
+        }
+
+        static SharedAccessBlobPolicy GetSasPolicy(string method)
+        {
+            return GetSasPolicy(new HttpMethod(method));
+        }
+
+        static SharedAccessBlobPolicy GetSasPolicy(HttpMethod httpMethod)
+        {
             //Default to read only
             SharedAccessBlobPermissions permission = SharedAccessBlobPermissions.Read;
-            if (request.HttpMethod == HttpMethod.Delete.ToString())
+            if (httpMethod == HttpMethod.Delete)
             {
                 permission = SharedAccessBlobPermissions.Delete;
             }
-            else if (request.HttpMethod == HttpMethod.Put.ToString())
+            else if (httpMethod == HttpMethod.Put)
             {
                 permission = SharedAccessBlobPermissions.Write;
             }
@@ -127,16 +144,16 @@ namespace Microsoft.Dash.Server.Handlers
         }
 
         //calculates SAS string to have access to a container
-        public static string CalculateSASStringForContainer(HttpRequestBase request, CloudBlobContainer container)
+        public static string CalculateSASStringForContainer(string method, CloudBlobContainer container)
         {
-            SharedAccessBlobPolicy sasConstraints = GetSasPolicy(request);
+            SharedAccessBlobPolicy sasConstraints = GetSasPolicy(method);
             //Generate the shared access signature on the container, setting the constraints directly on the signature.
             return container.GetSharedAccessSignature(sasConstraints);
         }
 
-        public static async Task<NamespaceBlob> FetchNamespaceBlobAsync(string container, string blobName)
+        public static async Task<NamespaceBlob> FetchNamespaceBlobAsync(string container, string blobName, string snapshot = null)
         {
-            return await NamespaceBlob.FetchForBlobAsync(GetBlobByName(DashConfiguration.NamespaceAccount, container, blobName));
+            return await NamespaceBlob.FetchForBlobAsync(GetBlobByName(DashConfiguration.NamespaceAccount, container, blobName, snapshot));
         }
 
         public static CloudBlobContainer GetContainerByName(CloudStorageAccount account, string containerName)
@@ -145,9 +162,14 @@ namespace Microsoft.Dash.Server.Handlers
             return client.GetContainerReference(containerName);
         }
 
-        public static CloudBlockBlob GetBlobByName(CloudStorageAccount account, string containerName, string blobName)
+        public static CloudBlockBlob GetBlobByName(CloudStorageAccount account, string containerName, string blobName, string snapshot = null)
         {
             CloudBlobContainer container = GetContainerByName(account, containerName);
+            DateTimeOffset snapshotDateTime;
+            if (DateTimeOffset.TryParse(snapshot, out snapshotDateTime))
+            {
+                return container.GetBlockBlobReference(blobName, snapshotDateTime);
+            }
             return container.GetBlockBlobReference(blobName);
         }
 

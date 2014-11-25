@@ -98,9 +98,9 @@ namespace Microsoft.Dash.Server.Handlers
             }
             else
             {
-                var contentLength = headers.Value("Content-Length", "0");
+                var contentLength = headers.Value("Content-Length", "");
                 int length;
-                if (!int.TryParse(contentLength, out length) || length <= 0)
+                if (!int.TryParse(contentLength, out length) || length < 0)
                 {
                     contentLength = String.Empty;
                 }

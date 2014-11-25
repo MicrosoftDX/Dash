@@ -8,17 +8,17 @@ using System.Web;
 
 namespace Microsoft.Dash.Server.Utils
 {
-    public class RequestItems : ILookup<string, string>, IEnumerable<IGrouping<string, string>>
+    public abstract class RequestResponseItems : ILookup<string, string>, IEnumerable<IGrouping<string, string>>
     {
         ILookup<string, string> _items;
 
-        protected RequestItems(IEnumerable<KeyValuePair<string, string>> items)
+        protected RequestResponseItems(IEnumerable<KeyValuePair<string, string>> items)
         {
             _items = items
                 .ToLookup(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase);
         }
 
-        protected RequestItems(IEnumerable<KeyValuePair<string, IEnumerable<string>>> items)
+        protected RequestResponseItems(IEnumerable<KeyValuePair<string, IEnumerable<string>>> items)
         {
             _items = items
                 .SelectMany(item => item.Value
@@ -51,12 +51,12 @@ namespace Microsoft.Dash.Server.Utils
             return _items.GetEnumerator();
         }
 
-        public T Value<T>(string itemName)
+        public T Value<T>(string itemName) where T: IConvertible
         {
             return Value(itemName, default(T));
         }
 
-        public T Value<T>(string itemName, T defaultValue)
+        public T Value<T>(string itemName, T defaultValue) where T : IConvertible
         {
             var values = Values<T>(itemName);
             if (values != null && values.Any())
@@ -66,7 +66,7 @@ namespace Microsoft.Dash.Server.Utils
             return defaultValue;
         }
 
-        public IEnumerable<T> Values<T>(string itemName)
+        public IEnumerable<T> Values<T>(string itemName) where T : IConvertible
         {
             var values = _items[itemName];
             if (values != null)

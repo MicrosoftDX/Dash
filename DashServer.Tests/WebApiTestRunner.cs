@@ -50,6 +50,11 @@ namespace Microsoft.Tests
 
         public HttpResponseMessage ExecuteRequest(string uri, string method, HttpContent content, HttpStatusCode expectedStatusCode = HttpStatusCode.Unused)
         {
+            return ExecuteRequestWithHeaders(uri, method, content, null, expectedStatusCode);
+        }
+
+        public HttpResponseMessage ExecuteRequestWithHeaders(string uri, string method, HttpContent content, IEnumerable<Tuple<string, string>> headers, HttpStatusCode expectedStatusCode = HttpStatusCode.Unused)
+        {
             HttpResponseMessage retval = null;
             SetupRequest(uri, method);
             switch (method)
@@ -67,6 +72,16 @@ namespace Microsoft.Tests
                     if (content != null)
                     {
                         request.Content = content;
+                    }
+                    if (headers != null)
+                    {
+                        foreach (var header in headers)
+                        {
+                            if (!request.Headers.TryAddWithoutValidation(header.Item1, header.Item2) && request.Content != null)
+                            {
+                                request.Content.Headers.TryAddWithoutValidation(header.Item1, header.Item2);
+                            }
+                        }
                     }
                     retval = _requestClient.SendAsync(request).Result;
                     break;

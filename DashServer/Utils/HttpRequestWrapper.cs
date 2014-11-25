@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Net.Http;
 using System.Web;
 
 namespace Microsoft.Dash.Server.Utils
@@ -23,38 +24,50 @@ namespace Microsoft.Dash.Server.Utils
     /// <summary>
     /// Implementation for real request
     /// </summary>
-    public class DashHttpRequestWrapper : IHttpRequestWrapper
+    public abstract class DashHttpRequestWrapper : IHttpRequestWrapper
     {
-        HttpRequest _request;
-
-        public DashHttpRequestWrapper(HttpRequest request)
+        protected DashHttpRequestWrapper()
         {
-            _request = request;
+        }
+
+        public static IHttpRequestWrapper Create(HttpRequest request)
+        {
+            return new HttpRequestBaseWrapper(new HttpRequestWrapper(request));
+        }
+
+        public static IHttpRequestWrapper Create(HttpRequestMessage request)
+        {
+            return new WebApiRequestWrapper(request);
         }
 
         public RequestUriParts UriParts
         {
-            get { return GetCachedObject<RequestUriParts>("Dash_RequestUriParts", () => RequestUriParts.Create(this._request.Url)); }
+            get { return GetCachedObject<RequestUriParts>("Dash_RequestUriParts", () => RequestUriParts.Create(GetRequestUri())); }
         }
 
         public RequestHeaders Headers
         {
-            get { return GetCachedObject<RequestHeaders>("Dash_RequestHeaders", () => RequestHeaders.Create(this._request.Headers)); }
+            get { return GetCachedObject<RequestHeaders>("Dash_RequestHeaders", () => GetRequestHeaders()); }
         }
 
         public RequestQueryParameters QueryParameters
         {
-            get { return GetCachedObject<RequestQueryParameters>("Dash_QueryParameters", () => RequestQueryParameters.Create(this._request.QueryString)); }
+            get { return GetCachedObject<RequestQueryParameters>("Dash_QueryParameters", () => GetQueryParameters()); }
         }
+
+        protected abstract string GetHttpMethod();
+        protected abstract Uri GetRequestUri();
+        protected abstract RequestHeaders GetRequestHeaders();
+        protected abstract RequestQueryParameters GetQueryParameters();
 
         public Uri Url
         {
-            get { return _request.Url; }
+            get { return GetRequestUri(); }
         }
 
         public string HttpMethod
         {
-            get { return _request.HttpMethod; }
+            get { return GetHttpMethod(); }
         }
 
         T GetCachedObject<T>(string key, Func<T> creator)

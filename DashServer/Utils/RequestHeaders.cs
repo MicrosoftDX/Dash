@@ -9,11 +9,14 @@ using System.Web;
 
 namespace Microsoft.Dash.Server.Utils
 {
-    public class RequestHeaders : RequestItems
+    public class RequestHeaders : RequestResponseItems
     {
         public static RequestHeaders Create(HttpRequestMessage request)
         {
-            return new RequestHeaders(request.Headers);
+            return new RequestHeaders(request.Headers
+                .Concat(request.Content != null && request.Content.Headers != null ? 
+                    request.Content.Headers : 
+                    Enumerable.Empty<KeyValuePair<string, IEnumerable<string>>>()));
         }
 
         public static RequestHeaders Create(HttpRequestBase request)

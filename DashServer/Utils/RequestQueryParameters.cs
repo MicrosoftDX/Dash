@@ -9,7 +9,7 @@ using System.Web;
 
 namespace Microsoft.Dash.Server.Utils
 {
-    public class RequestQueryParameters : RequestItems
+    public class RequestQueryParameters : RequestResponseItems
     {
         public static RequestQueryParameters Create(HttpRequestMessage request)
         {
