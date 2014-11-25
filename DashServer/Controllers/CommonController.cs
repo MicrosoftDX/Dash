@@ -1,11 +1,11 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
-using Microsoft.Dash.Server.Utils;
 using System;
 using System.Net;
 using System.Net.Http;
 using System.Web;
 using System.Web.Http;
+using Microsoft.Dash.Server.Utils;
 
 namespace Microsoft.Dash.Server.Controllers
 {
