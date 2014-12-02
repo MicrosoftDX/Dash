@@ -125,7 +125,7 @@ namespace Microsoft.Tests
                 Tuple.Create("include", "snapshots"),
                 Tuple.Create("INCLUDE", "uncommittedblobs,metadata,copy"),
             };
-            Assert.AreEqual("9+EBruVLik8QOotWkS6syroWgMq073P1thvZx0zietI=",
+            Assert.AreEqual("C0mPsPAiMs+4qlDQXGXMXpRGUkQgyMLzOHBiCmoC4LE=",
                 RequestAuthorization.SharedKeySignature(false, 
                     "GET", 
                     "/test", 

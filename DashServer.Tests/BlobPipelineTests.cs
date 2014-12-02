@@ -151,7 +151,7 @@ namespace Microsoft.Tests
         HandlerResult BlobRequest(string method, string uri, IEnumerable<Tuple<string, string>> headers = null)
         {
             WebApiTestRunner.SetupRequest(uri, method);
-            return StorageOperationsHandler.HandlePrePileOperationAsync(
+            return StorageOperationsHandler.HandlePrePipelineOperationAsync(
                 new MockHttpRequestWrapper(method, uri, headers)).Result;
         }
     }

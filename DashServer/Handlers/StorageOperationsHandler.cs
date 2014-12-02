@@ -12,7 +12,7 @@ namespace Microsoft.Dash.Server.Handlers
 {
     public class StorageOperationsHandler
     {
-        public static async Task<HandlerResult> HandlePrePileOperationAsync(IHttpRequestWrapper requestWrapper)
+        public static async Task<HandlerResult> HandlePrePipelineOperationAsync(IHttpRequestWrapper requestWrapper)
         {
             string containerName = requestWrapper.UriParts.Container;
             string blobName = requestWrapper.UriParts.BlobName;

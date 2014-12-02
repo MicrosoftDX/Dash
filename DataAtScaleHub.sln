@@ -1,11 +1,19 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.30723.0
+VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DashServer", "DashServer\DashServer.csproj", "{7E4CA414-B46A-49CA-922F-FE00D69C23CA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DashServer.Tests", "DashServer.Tests\DashServer.Tests.csproj", "{98DFBF47-6F1E-4BB1-910B-88DFF5ABABED}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LoadTestDotNet", "LoadTestDotNet\LoadTestDotNet.csproj", "{4A63F369-57F6-4997-929D-1151B2567DE5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{E18EA06E-979A-4675-87BC-65E3238EA56F}"
+	ProjectSection(SolutionItems) = preProject
+		HostedLoad.testsettings = HostedLoad.testsettings
+		Local.testsettings = Local.testsettings
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +29,10 @@ Global
 		{98DFBF47-6F1E-4BB1-910B-88DFF5ABABED}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{98DFBF47-6F1E-4BB1-910B-88DFF5ABABED}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{98DFBF47-6F1E-4BB1-910B-88DFF5ABABED}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4A63F369-57F6-4997-929D-1151B2567DE5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4A63F369-57F6-4997-929D-1151B2567DE5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4A63F369-57F6-4997-929D-1151B2567DE5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4A63F369-57F6-4997-929D-1151B2567DE5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -4,12 +4,13 @@ using System;
 using System.Collections.Specialized;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 using System.Web;
 using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage.Blob;
-using System.Threading.Tasks;
 
 namespace Microsoft.Dash.Server.Handlers
 {
@@ -100,9 +101,13 @@ namespace Microsoft.Dash.Server.Handlers
             {
                 var contentLength = headers.Value("Content-Length", "");
                 int length;
-                if (!int.TryParse(contentLength, out length) || length < 0)
+                if (!int.TryParse(contentLength, out length) || length <= 0)
                 {
-                    contentLength = String.Empty;
+                    // Preserve a Content-Length: 0 header for PUT methods
+                    if (!method.Equals(WebRequestMethods.Http.Put, StringComparison.OrdinalIgnoreCase))
+                    {
+                        contentLength = String.Empty;
+                    }
                 }
                 stringToSign = String.Format("{0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}\n{8}\n{9}\n{10}\n{11}\n{12}\n{13}",
                                                     method,
