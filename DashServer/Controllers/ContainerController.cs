@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Data.Services.Client;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -27,6 +28,7 @@ namespace Microsoft.Dash.Server.Controllers
             var xmlFormatter = GlobalConfiguration.Configuration.Formatters.XmlFormatter;
             xmlFormatter.WriterSettings.OmitXmlDeclaration = false;
             xmlFormatter.SetSerializer<EnumerationResults>(new ObjectSerializer<EnumerationResults>(ContainerController.SerializeBlobListing));
+            xmlFormatter.SetSerializer<SharedAccessBlobPolicies>(new ObjectSerializer<SharedAccessBlobPolicies>(ContainerController.SerializeAccessPolicies, ContainerController.DeserializeAccessPolicies, ContainerController.IsSharedAccessPolicyXML));
         }
 
         /// Put Container - http://msdn.microsoft.com/en-us/library/azure/dd179468.aspx
@@ -38,23 +40,24 @@ namespace Microsoft.Dash.Server.Controllers
 
         // Put Container operations, with 'comp' parameter'
         [HttpPut]
-        public async Task<IHttpActionResult> PutContainerComp(string container, string comp)
+        public async Task<HttpResponseMessage> PutContainerComp(string container, string comp)
         {
             CloudBlobContainer containerObj = ControllerOperations.GetContainerByName(DashConfiguration.NamespaceAccount, container);
-            if (!containerObj.Exists())
+            HttpResponseMessage errorResponse = await ValidatePreconditions(containerObj);
+            if (errorResponse != null)
             {
-                return NotFound();
+                return errorResponse;
             }
-            Uri forwardUri = ControllerOperations.GetForwardingUri(RequestFromContext(HttpContextFactory.Current), DashConfiguration.NamespaceAccount, container);
-            string compvar = comp == null ? "" : comp;
-            switch (compvar.ToLower())
+            switch (comp.ToLower())
             {
                 case "lease":
-                    return Redirect(forwardUri);
+                    return await SetContainerLease(containerObj);
                 case "metadata":
-                    return Redirect(forwardUri);
+                    return await SetContainerMetadata(containerObj);
+                case "acl":
+                    return await SetContainerAcl(containerObj);
                 default:
-                    return BadRequest();
+                    return new HttpResponseMessage(HttpStatusCode.BadRequest);
             }
         }
 
@@ -67,11 +70,21 @@ namespace Microsoft.Dash.Server.Controllers
 
         async Task<DelegatedResponse> DoForAllContainersAsync(string container, HttpStatusCode successStatus, Func<CloudBlobContainer, Task> action)
         {
+            return await DoForContainersAsync(container, successStatus, action, DashConfiguration.AllAccounts);
+        }
+
+        async Task<DelegatedResponse> DoForDataContainersAsync(string container, HttpStatusCode successStatus, Func<CloudBlobContainer, Task> action)
+        {
+            return await DoForContainersAsync(container, successStatus, action, DashConfiguration.DataAccounts);
+        }
+
+        async Task<DelegatedResponse> DoForContainersAsync(string container, HttpStatusCode successStatus, Func<CloudBlobContainer, Task> action, IEnumerable<CloudStorageAccount> accounts)
+        {
             DelegatedResponse retval = new DelegatedResponse
             {
                 StatusCode = successStatus,
             };
-            foreach (var account in DashConfiguration.AllAccounts)
+            foreach (var account in accounts)
             {
                 var containerObj = ControllerOperations.GetContainerByName(account, container);
                 try
@@ -91,11 +104,22 @@ namespace Microsoft.Dash.Server.Controllers
         public async Task<HttpResponseMessage> GetContainerProperties(string container)
         {
             CloudBlobContainer containerObj = ControllerOperations.GetContainerByName(DashConfiguration.NamespaceAccount, container);
-            if (!await containerObj.ExistsAsync())
+            HttpResponseMessage errorResponse = await ValidatePreconditions(containerObj);
+            if (errorResponse != null)
             {
-                return new HttpResponseMessage(HttpStatusCode.NotFound);
+                return errorResponse;
             }
-            return RedirectContainerRequest(container);
+            HttpResponseMessage response = await FormContainerMetadataResponse(containerObj);
+
+            response.Headers.Add("x-ms-lease-status", containerObj.Properties.LeaseStatus.ToString().ToLower());
+            response.Headers.Add("x-ms-lease-state", containerObj.Properties.LeaseState.ToString().ToLower());
+            //Only add Lease Duration information if the container is leased
+            if (containerObj.Properties.LeaseState == LeaseState.Leased)
+            {
+                response.Headers.Add("x-ms-lease-duration", containerObj.Properties.LeaseDuration.ToString().ToLower());
+            }
+
+            return response;
         }
 
         [AcceptVerbs("GET", "HEAD")]
@@ -103,18 +127,19 @@ namespace Microsoft.Dash.Server.Controllers
         public async Task<HttpResponseMessage> GetContainerData(string container, string comp)
         {
             CloudBlobContainer containerObj = ControllerOperations.GetContainerByName(DashConfiguration.NamespaceAccount, container);
-            if (!await containerObj.ExistsAsync())
+            HttpResponseMessage errorResponse = await ValidatePreconditions(containerObj);
+            if (errorResponse != null)
             {
-                return new HttpResponseMessage(HttpStatusCode.NotFound);
+                return errorResponse;
             }
             switch (comp.ToLower())
             {
                 case "list":
                     return await GetBlobList(container);
                 case "acl":
-                    return RedirectContainerRequest(container);
+                    return await FormContainerAclResponse(containerObj);
                 case "metadata":
-                    return RedirectContainerRequest(container);
+                    return await FormContainerMetadataResponse(containerObj);
 
                 default:
                     return new HttpResponseMessage(HttpStatusCode.BadRequest);
@@ -122,13 +147,228 @@ namespace Microsoft.Dash.Server.Controllers
             
         }
 
-        private HttpResponseMessage RedirectContainerRequest(string container)
+        private async Task<HttpResponseMessage> SetContainerAcl(CloudBlobContainer container)
         {
-            Uri forwardUri = ControllerOperations.GetForwardingUri(RequestFromContext(HttpContextFactory.Current), DashConfiguration.NamespaceAccount, container);
-            HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.Redirect);
-            response.Headers.Location = forwardUri;
+            var formatter = GlobalConfiguration.Configuration.Formatters.XmlFormatter;
+            var stream = await Request.Content.ReadAsStreamAsync();
+            SharedAccessBlobPolicies policies = (SharedAccessBlobPolicies)await formatter.ReadFromStreamAsync(typeof(SharedAccessBlobPolicies), stream, null, null);
+            string accessLevel = Request.Headers.GetValues("x-ms-blob-public-access").FirstOrDefault();
+            BlobContainerPublicAccessType access = BlobContainerPublicAccessType.Off;
+            if (!String.IsNullOrWhiteSpace(accessLevel))
+            {
+                if (accessLevel.ToLower() == "blob")
+                {
+                    access = BlobContainerPublicAccessType.Blob;
+                }
+                else if (accessLevel.ToLower() == "container")
+                {
+                    access = BlobContainerPublicAccessType.Container;
+                }
+            }
+            BlobContainerPermissions perms = new BlobContainerPermissions()
+            {
+                PublicAccess = access
+            };
+            foreach (var policy in policies)
+            {
+                perms.SharedAccessPolicies.Add(policy);
+            }
+
+            var status = await DoForAllContainersAsync(container.Name, HttpStatusCode.OK, async containerObj => await containerObj.SetPermissionsAsync(perms));
+            
+            HttpResponseMessage response = new HttpResponseMessage(status.StatusCode);
+            await AddBasicContainerHeaders(response, container);
+            return response;
+        }
+
+        private async Task<HttpResponseMessage> ValidatePreconditions(CloudBlobContainer container)
+        {
+            if (!await container.ExistsAsync())
+            {
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            }
+            IEnumerable<string> leaseID;
+            if (Request.Headers.TryGetValues("x-ms-lease-id", out leaseID))
+            {
+                AccessCondition condition = new AccessCondition()
+                {
+                    LeaseId = leaseID.First()
+                };
+                //Try fetching the attributes to force validation of the leaseID
+                try
+                {
+                    await container.FetchAttributesAsync(condition, null, null);
+                }
+                catch (StorageException ex)
+                {
+                    if (ex.RequestInformation.HttpStatusCode == 412)
+                    {
+                        var response = new HttpResponseMessage(HttpStatusCode.PreconditionFailed);
+                        response.Content = new StringContent(ex.Message);
+                        return response;
+                    }
+                    throw ex;
+                }
+            }
+            // If we don't find any errors, just return null to indicate that everything is A-OK.
+            return null;
+        }
+
+        private async Task<HttpResponseMessage> SetContainerMetadata(CloudBlobContainer container)
+        {
+            const string MetadataPrefix = "x-ms-meta-";
+            HttpRequestBase request = RequestFromContext(HttpContextFactory.Current);
+            IEnumerable<KeyValuePair<string, IEnumerable<string>>> metadata = Request.Headers.Where(header => header.Key.StartsWith(MetadataPrefix));
+            foreach (var metadatum in metadata)
+            {
+                string key = metadatum.Key.Replace(MetadataPrefix, "");
+                string value = metadatum.Value.First();
+                container.Metadata.Add(new KeyValuePair<string, string>(key, value));
+            }
+            await container.SetMetadataAsync();
+            HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.OK);
+            await AddBasicContainerHeaders(response, container);
+            return response;
+        }
+
+        private async Task<HttpResponseMessage> SetContainerLease(CloudBlobContainer container)
+        {
+            IEnumerable<string> action;
+            string leaseId = null;
+            string proposedLeaseId = null;
+            HttpResponseMessage response = new HttpResponseMessage();
+            AccessCondition condition;
+            string serverLeaseId;
+            await AddBasicContainerHeaders(response, container);
+            //If an action is not provided, it's not a valid call.
+            if (!Request.Headers.TryGetValues("x-ms-lease-action", out action))
+            {
+                response.StatusCode = HttpStatusCode.BadRequest;
+                return response;
+            }
+            if (Request.Headers.Contains("x-ms-lease-id"))
+            {
+                leaseId = Request.Headers.GetValues("x-ms-lease-id").FirstOrDefault();
+            }
+            if (Request.Headers.Contains("x-ms-proposed-lease-id"))
+            {
+                proposedLeaseId = Request.Headers.GetValues("x-ms-proposed-lease-id").FirstOrDefault();
+            }
+            
+            switch (action.First().ToLower())
+            {
+                case "acquire":
+                    int leaseDuration = Int32.Parse(Request.Headers.GetValues("x-ms-lease-duration").First());
+                    TimeSpan? leaseDurationSpan;
+                    if (leaseDuration == -1)
+                    {
+                        leaseDurationSpan = null;
+                    }
+                    else if (leaseDuration >= 15 && leaseDuration <= 60)
+                    {
+                        leaseDurationSpan = new TimeSpan(0, 0, leaseDuration);
+                    }
+                    else
+                    {
+                        response.StatusCode = HttpStatusCode.BadRequest;
+                        return response;
+                    }
+                    serverLeaseId = await container.AcquireLeaseAsync(leaseDurationSpan, proposedLeaseId);
+                    response = (await DoForDataContainersAsync(container.Name, HttpStatusCode.Created, async containerObj => await containerObj.AcquireLeaseAsync(leaseDurationSpan, serverLeaseId))).CreateResponse();
+                    await AddBasicContainerHeaders(response, container);
+                    response.Headers.Add("x-ms-lease-id", serverLeaseId);
+                    return response;
+                case "renew":
+                    condition = new AccessCondition()
+                    {
+                        LeaseId = leaseId
+                    };
+                    response = (await DoForAllContainersAsync(container.Name, HttpStatusCode.OK, async containerObj => await containerObj.RenewLeaseAsync(condition))).CreateResponse();
+                    await AddBasicContainerHeaders(response, container);
+                    response.Headers.Add("x-ms-lease-id", leaseId);
+                    return response;
+                case "change":
+                    condition = new AccessCondition()
+                    {
+                        LeaseId = leaseId
+                    };
+                    serverLeaseId = await container.ChangeLeaseAsync(proposedLeaseId, condition);
+                    response = (await DoForDataContainersAsync(container.Name, HttpStatusCode.OK, async containerObj => await containerObj.ChangeLeaseAsync(proposedLeaseId, condition))).CreateResponse();
+                    await AddBasicContainerHeaders(response, container);
+                    response.Headers.Add("x-ms-lease-id", container.ChangeLease(proposedLeaseId, condition));
+                    return response;
+                case "release":
+                    condition = new AccessCondition()
+                    {
+                        LeaseId = leaseId
+                    };
+                    response = (await DoForAllContainersAsync(container.Name, HttpStatusCode.OK, async containerObj => await containerObj.ReleaseLeaseAsync(condition))).CreateResponse();
+                    await AddBasicContainerHeaders(response, container);
+                    return response;
+                case "break":
+                    int breakDuration = 0;
+                    if (Request.Headers.Contains("x-ms-lease-break-period"))
+                    {
+                        breakDuration = Int32.Parse(Request.Headers.GetValues("x-ms-lease-break-period").FirstOrDefault());
+                    }
+                    TimeSpan breakDurationSpan = new TimeSpan(0, 0, breakDuration);
+                    TimeSpan remainingTime = await container.BreakLeaseAsync(breakDurationSpan);
+                    response = (await DoForDataContainersAsync(container.Name, HttpStatusCode.Accepted, async containerObj => await containerObj.BreakLeaseAsync(breakDurationSpan))).CreateResponse();
+                    await AddBasicContainerHeaders(response, container);
+                    response.Headers.Add("x-ms-lease-time", remainingTime.Seconds.ToString());
+                    return response;
+                default:
+                    //Not a recognized action
+                    response.StatusCode = HttpStatusCode.BadRequest;
+                    return response;
+            }
+        }
+
+        private async Task<HttpResponseMessage> FormContainerAclResponse(CloudBlobContainer container)
+        {
+            BlobContainerPermissions permissions = await container.GetPermissionsAsync();
+            HttpResponseMessage response = CreateResponse(permissions.SharedAccessPolicies);
+            await AddBasicContainerHeaders(response, container);
+
+            //Only add this header if some form of public access is permitted.
+            if (permissions.PublicAccess != BlobContainerPublicAccessType.Off)
+            {
+                response.Headers.Add("x-ms-blob-public-access", permissions.PublicAccess.ToString().ToLower());
+            }
 
             return response;
+        }
+
+        private async Task<HttpResponseMessage> FormContainerMetadataResponse(CloudBlobContainer container)
+        {
+            HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.OK);
+            await AddBasicContainerHeaders(response, container);
+
+            foreach (KeyValuePair<string, string> pair in container.Metadata)
+            {
+                response.Headers.Add("x-ms-meta-" + pair.Key, pair.Value);
+            }
+
+            return response;
+        }
+
+        private async Task AddBasicContainerHeaders(HttpResponseMessage response, CloudBlobContainer container)
+        {
+            await container.FetchAttributesAsync();
+            response.Headers.ETag = new EntityTagHeaderValue(container.Properties.ETag);
+            if (container.Properties.LastModified.HasValue)
+            {
+                if (response.Content == null)
+                {
+                    response.Content = new StringContent("");
+                }
+                response.Content.Headers.LastModified = container.Properties.LastModified.Value.UtcDateTime;
+            }
+            //Right now we are just parroting back the values sent by the client. Might need to generate our
+            //own values for these if none are provided.
+            response.Headers.Add("x-ms-request-id", Request.Headers.GetValues("x-ms-client-request-id"));
+            response.Headers.Add("x-ms-version", Request.Headers.GetValues("x-ms-version"));
+            response.Headers.Date = DateTimeOffset.UtcNow;
         }
 
         private async Task<HttpResponseMessage> GetBlobList(string container)
@@ -347,6 +587,123 @@ namespace Microsoft.Dash.Server.Controllers
                 markerValue = blob.Uri.AbsolutePath + "|";
             }
             return Convert.ToBase64String(Encoding.UTF8.GetBytes(markerValue));
+        }
+
+
+        static void SerializeAccessPolicies(XmlWriter writer, SharedAccessBlobPolicies policies)
+        {
+            writer.WriteStartElement("SignedIdentifiers");
+            foreach (KeyValuePair<string, SharedAccessBlobPolicy> pair in policies)
+            {
+                writer.WriteStartElement("SignedIdentifier");
+                writer.WriteElementString("Id", pair.Key);
+                writer.WriteStartElement("AccessPolicy");
+                writer.WriteElementString("Start", pair.Value.SharedAccessStartTime);
+                writer.WriteElementString("End", pair.Value.SharedAccessExpiryTime);
+                writer.WriteElementString("Permission", pair.Value.Permissions.ToString().ToLower());
+                writer.WriteEndElement(); // AccessPolicy
+                writer.WriteEndElement(); // SignedIdentifier
+            }
+            writer.WriteEndElement(); // SignedIdentifiers
+        }
+
+        static bool IsSharedAccessPolicyXML(XmlDictionaryReader reader)
+        {
+            reader.Read();
+            return reader.Name == "SignedIdentifiers";
+        }
+
+        static SharedAccessBlobPolicies DeserializeAccessPolicies(XmlReader reader)
+        {
+            SharedAccessBlobPolicies ret = new SharedAccessBlobPolicies();
+            string signedIdentifier = "SignedIdentifier";
+            string accessPolicy = "AccessPolicy";
+            string wrapper = "SignedIdentifiers";
+            reader.Read(); //Advance past xml declaration element
+            reader.Read();
+            while (!reader.EOF)
+            {
+                if (reader.Name == wrapper && !reader.IsStartElement())
+                {
+                    break; //Reached the end of the file
+                }
+                while (reader.Name != signedIdentifier)
+                {
+                    reader.Read(); //Advance to the next policy
+                }
+                string id = "";
+                DateTimeOffset start = new DateTimeOffset();
+                DateTimeOffset expiry = new DateTimeOffset();
+                //Set permissions to None by default
+                SharedAccessBlobPermissions permissionObj = 0;
+                reader.Read(); //Go past start tag.
+                // Keep reading until we reach the end of the identifier
+                while (reader.Name != signedIdentifier)
+                {
+                    if (reader.Name == "Id")
+                    {
+                        reader.Read(); //Get to the value.
+                        id = reader.Value;
+                        reader.Read();
+                    }
+                    else if (reader.Name == accessPolicy)
+                    {
+                        reader.Read();
+                        while (reader.Name != accessPolicy)
+                        {
+                            if (reader.Name == "Start")
+                            {
+                                reader.Read();
+                                start = DateTimeOffset.Parse(reader.Value);
+                                reader.Read();
+                            }
+                            else if (reader.Name == "Expiry")
+                            {
+                                reader.Read();
+                                expiry = DateTimeOffset.Parse(reader.Value);
+                                reader.Read();
+                            }
+                            else if (reader.Name == "Permission")
+                            {
+                                reader.Read();
+                                string permissions = reader.Value;
+
+                                if (permissions.Contains('r'))
+                                {
+                                    permissionObj |= SharedAccessBlobPermissions.Read;
+                                }
+                                if (permissions.Contains('w'))
+                                {
+                                    permissionObj |= SharedAccessBlobPermissions.Write;
+                                }
+                                if (permissions.Contains('d'))
+                                {
+                                    permissionObj |= SharedAccessBlobPermissions.Delete;
+                                }
+                                if (permissions.Contains('l'))
+                                {
+                                    permissionObj |= SharedAccessBlobPermissions.List;
+                                }
+
+                                reader.Read();
+                            }
+                            reader.Read();
+                        }
+                    }
+                    reader.Read();
+                }
+                SharedAccessBlobPolicy policy = new SharedAccessBlobPolicy()
+                {
+                    SharedAccessStartTime = start,
+                    SharedAccessExpiryTime = expiry,
+                    Permissions = permissionObj
+                };
+
+                ret.Add(new KeyValuePair<string, SharedAccessBlobPolicy>(id, policy));
+                reader.Read();
+            }
+
+            return ret;
         }
     }
 }

@@ -57,31 +57,36 @@ namespace Microsoft.Tests
         {
             HttpResponseMessage retval = null;
             SetupRequest(uri, method);
+            HttpRequestMessage request;
             switch (method)
             {
                 case "GET":
-                    retval = _requestClient.GetAsync(uri).Result;
+                    request = new HttpRequestMessage(HttpMethod.Get, uri);
+                    if (headers != null)
+                    {
+                        AddHeaders(request, headers);
+                    }
+                    retval = _requestClient.SendAsync(request).Result;
                     break;
 
                 case "HEAD":
-                    retval = _requestClient.SendAsync(new HttpRequestMessage(HttpMethod.Head, uri)).Result;
+                    request = new HttpRequestMessage(HttpMethod.Head, uri);
+                    if (headers != null)
+                    {
+                        AddHeaders(request, headers);
+                    }
+                    retval = _requestClient.SendAsync(request).Result;
                     break;
 
                 case "PUT":
-                    var request = new HttpRequestMessage(HttpMethod.Put, uri);
+                    request = new HttpRequestMessage(HttpMethod.Put, uri);
                     if (content != null)
                     {
                         request.Content = content;
                     }
                     if (headers != null)
                     {
-                        foreach (var header in headers)
-                        {
-                            if (!request.Headers.TryAddWithoutValidation(header.Item1, header.Item2) && request.Content != null)
-                            {
-                                request.Content.Headers.TryAddWithoutValidation(header.Item1, header.Item2);
-                            }
-                        }
+                        AddHeaders(request, headers);
                     }
                     retval = _requestClient.SendAsync(request).Result;
                     break;
@@ -100,6 +105,17 @@ namespace Microsoft.Tests
                 Assert.AreEqual(expectedStatusCode, retval.StatusCode);
             }
             return retval;
+        }
+
+        public void AddHeaders(HttpRequestMessage request, IEnumerable<Tuple<string, string>> headers)
+        {
+            foreach (var header in headers)
+            {
+                if (!request.Headers.TryAddWithoutValidation(header.Item1, header.Item2) && request.Content != null)
+                {
+                    request.Content.Headers.TryAddWithoutValidation(header.Item1, header.Item2);
+                }
+            }
         }
 
         public HttpResponseMessage ExecuteRequest(string uri, string method, XDocument body = null, HttpStatusCode expectedStatusCode = HttpStatusCode.Unused)
