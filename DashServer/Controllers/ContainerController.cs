@@ -183,6 +183,7 @@ namespace Microsoft.Dash.Server.Controllers
 
         private async Task<HttpResponseMessage> ValidatePreconditions(CloudBlobContainer container)
         {
+            // TODO: Ensure that all preconditions are validated
             if (!await container.ExistsAsync())
             {
                 return new HttpResponseMessage(HttpStatusCode.NotFound);
@@ -201,7 +202,7 @@ namespace Microsoft.Dash.Server.Controllers
                 }
                 catch (StorageException ex)
                 {
-                    if (ex.RequestInformation.HttpStatusCode == 412)
+                    if (ex.RequestInformation.HttpStatusCode == (int)HttpStatusCode.PreconditionFailed)
                     {
                         var response = new HttpResponseMessage(HttpStatusCode.PreconditionFailed);
                         response.Content = new StringContent(ex.Message);
@@ -609,8 +610,7 @@ namespace Microsoft.Dash.Server.Controllers
 
         static bool IsSharedAccessPolicyXML(XmlDictionaryReader reader)
         {
-            reader.Read();
-            return reader.Name == "SignedIdentifiers";
+            return reader.IsStartElement("SignedIdentifiers");
         }
 
         static SharedAccessBlobPolicies DeserializeAccessPolicies(XmlReader reader)
