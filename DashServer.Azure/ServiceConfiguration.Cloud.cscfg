@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ServiceConfiguration serviceName="DashServer.Azure" xmlns="http://schemas.microsoft.com/ServiceHosting/2008/10/ServiceConfiguration" osFamily="4" osVersion="*" schemaVersion="2014-06.2.4">
+  <Role name="DashServer">
+    <Instances count="2" />
+    <ConfigurationSettings>
+      <Setting name="Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString" value="DefaultEndpointsProtocol=https;AccountName=dashdeployment;AccountKey=uuEc6YFOVVS1YXplaQiMOO/F5BoQn/Phdce10dofYcQl0JnhDwA5rlz1BilyUjTIMLvmYXv+1YhybXLfKhGcAg==" />
+      <Setting name="Microsoft.WindowsAzure.Plugins.RemoteAccess.Enabled" value="true" />
+      <Setting name="Microsoft.WindowsAzure.Plugins.RemoteAccess.AccountUsername" value="dash" />
+      <Setting name="Microsoft.WindowsAzure.Plugins.RemoteAccess.AccountEncryptedPassword" value="MIIBnQYJKoZIhvcNAQcDoIIBjjCCAYoCAQAxggFOMIIBSgIBADAyMB4xHDAaBgNVBAMME1dpbmRvd3MgQXp1cmUgVG9vbHMCECr/FNyPZNKORZdw43PuffAwDQYJKoZIhvcNAQEBBQAEggEAKAFuiXU7p92Y4ygC4ud+7LYuCj07O8AI+Jt4ZcXBE9zdRzqx4mz5ZarLSvC2JdBadgDepQjA/W2z1UKzOR6lyzCwGxJDxAC4TuKFeB/HqoMUOwvfZCuwToD93BOqaD8KbCnX9JbCMSxWvJsYngAzppXZDp2cTZQ+IAhffJt9Z8/uoKZXDxs2TZ2uzTbLburDZy55mvYMbTrHCiqpo92U9KpLefs94YRenjONBwtWN25mnigno1UQhqKFHoGDIBHWCD4ClAIzr+VJDojOnHV/9Cu6v7nFIDGV48YdkmCGPIcvqn6EOwWHr3NSXMVhBE7pdoPwKWddwyPbBrdljSVdzzAzBgkqhkiG9w0BBwEwFAYIKoZIhvcNAwcECMdS8sRtJKW3gBCgEhgcorbYxuS2buEVqkmh" />
+      <Setting name="Microsoft.WindowsAzure.Plugins.RemoteAccess.AccountExpiration" value="2015-12-01T23:59:59.0000000-08:00" />
+      <Setting name="Microsoft.WindowsAzure.Plugins.RemoteForwarder.Enabled" value="true" />
+      <Setting name="AccountName" value="dashlocal" />
+      <Setting name="AccountKey" value="wCNvIdXcltACBiDUMyO0BflZpKmjseplqOlzE62tx87qnkwpUMBV/GQhrscW9lmdZVT0x8DilYqUoHMNBlVIGg==" />
+      <Setting name="StorageConnectionStringMaster" value="DefaultEndpointsProtocol=http;AccountName=dashstorage0;AccountKey=uCNvIdXcltACBiDUMyO0BflZpKmjseplqOlzE62tx87qnkwpUMBV/GQhrscW9lmdZVT0x8DilYqUoHMNBlVIGg==" />
+      <Setting name="ScaleoutStorage0" value="DefaultEndpointsProtocol=http;AccountName=dashstorage1;AccountKey=8jqRVtXUWiEthgIhR+dFwrB8gh3lFuquvJQ1v4eabObIj7okI1cZIuzY8zZHmEdpcC0f+XlUkbFwAhjTfyrLIg==" />
+      <Setting name="ScaleoutStorage1" value="DefaultEndpointsProtocol=http;AccountName=dashstorage2;AccountKey=YI0BDhckKp+6uBsu4OAAeVvUyOuMvimqo9BSz197lR14x9vWE+tuwqOr0U1asNWpkdZs4z8wcnu9pZNYDqdRPA==" />
+      <Setting name="ScaleoutStorage2" value="DefaultEndpointsProtocol=http;AccountName=dashstorage4;AccountKey=/9xfNbmYy/k7DQzO12XEbEeMsy+z/ogkekHltikmCNXVNwPnW/O95d+FZTkfDDLo+s1LMLhXeCQFVDCDuo5DWQ==" />
+      <Setting name="ScaleoutStorage3" value="DefaultEndpointsProtocol=http;AccountName=dashstorage5;AccountKey=FEZZeywk/TOJTqtYzIeHAF9TcpGzT3KC/RtSOPTgZwfnGTa3mJ1YXxfkWhx2x/znjmZNgfRKCAr8t49WIstkow==" />
+      <Setting name="ScaleoutStorage4" value="DefaultEndpointsProtocol=http;AccountName=dashstorage6;AccountKey=KrWsmLTOMAkC5TbVImd+EzmS93VUxSkOSOEBJHwZLJSSair7oHk3xYndHad3WVN7mY1uMtd3ViV2WH8fWv42uw==" />
+      <Setting name="ScaleoutStorage5" value="DefaultEndpointsProtocol=http;AccountName=dashstorage7;AccountKey=+ubFW3Re21GceKcaWOW6T0zgRu8Y4Ge4+DEJPRz4O/eAW0ZRss8VQs/HMSeh75MVGrThJKhk8r3cKsUtxiUGiQ==" />
+      <Setting name="ScaleoutStorage6" value="DefaultEndpointsProtocol=http;AccountName=dashstorage8;AccountKey=PPOU9HFNFHGGzaictahid+zJH+Li79Ih3iJl2TDnoU/341gTGqBUC7erb60LFZFfUbxKnqZYBLBIAosSAHTCEA==" />
+      <Setting name="ScaleoutStorage7" value="DefaultEndpointsProtocol=http;AccountName=dashstorage9;AccountKey=gnUJPJGxMa83azmx5KNGr7BTWvPFE93+I3s6rDgcYGaUe6L8XjH4/GNc3kyV/E36HlBSVbK77KiphHRw5neiNA==" />
+      <Setting name="ScaleoutStorage8" value="" />
+      <Setting name="ScaleoutStorage9" value="" />
+      <Setting name="ScaleoutNumberOfAccounts" value="8" />
+    </ConfigurationSettings>
+    <Certificates>
+      <Certificate name="Microsoft.WindowsAzure.Plugins.RemoteAccess.PasswordEncryption" thumbprint="99D74314AD995313DFB247B992479D0772CE872C" thumbprintAlgorithm="sha1" />
+    </Certificates>
+  </Role>
+</ServiceConfiguration>

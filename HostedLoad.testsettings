@@ -1,6 +1,8 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
 <TestSettings name="Hosted Loadtest Controller" id="cc9b4774-f0c9-4a21-b1c3-21ab10bc4e80" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
-  <Deployment enabled="false" />
+  <Deployment>
+    <DeploymentItem filename="LoadTestDotNet\Artifacts\testblob" />
+  </Deployment>
   <Execution hostProcessPlatform="MSIL">
     <TestTypeSpecific>
       <UnitTestRunConfig testTypeId="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b">

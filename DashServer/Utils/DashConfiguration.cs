@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Web;
 using Microsoft.WindowsAzure.Storage;
@@ -39,6 +40,7 @@ namespace Microsoft.Dash.Server.Utils
                         if (CloudStorageAccount.TryParse(connectString, out account))
                         {
                             accountsArray[accountIndex] = account;
+                            ServicePointManager.FindServicePoint(account.BlobEndpoint).ConnectionLimit = int.MaxValue;
                         }
                         else
                         {
@@ -59,6 +61,7 @@ namespace Microsoft.Dash.Server.Utils
                     {
                         // TODO: Trace failure warning when we have logging infrastructure
                     }
+                    ServicePointManager.FindServicePoint(account.BlobEndpoint).ConnectionLimit = int.MaxValue;
                     return account;
                 }, LazyThreadSafetyMode.PublicationOnly);
             }

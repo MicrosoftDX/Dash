@@ -82,19 +82,19 @@ namespace Microsoft.Tests
             EvaluateAnonymousContainerAccess(ContainerAccess.None, "PUT", "", "restype=container&comp=lease");
             EvaluateAnonymousContainerAccess(ContainerAccess.None, "DELETE", "", "restype=container");
             EvaluateAnonymousContainerAccess(ContainerAccess.Container, "GET", "", "restype=container&comp=list");
-            EvaluateAnonymousContainerAccess(ContainerAccess.Container | ContainerAccess.Blob, "PUT",  "test.txt", "");
+            EvaluateAnonymousContainerAccess(ContainerAccess.None, "PUT", "test.txt", "");
             EvaluateAnonymousContainerAccess(ContainerAccess.Container | ContainerAccess.Blob, "GET",  "test.txt", "");
             EvaluateAnonymousContainerAccess(ContainerAccess.Container | ContainerAccess.Blob, "HEAD", "test.txt", "");
-            EvaluateAnonymousContainerAccess(ContainerAccess.Container | ContainerAccess.Blob, "PUT", "test.txt", "comp=properties");
+            EvaluateAnonymousContainerAccess(ContainerAccess.None, "PUT", "test.txt", "comp=properties");
             EvaluateAnonymousContainerAccess(ContainerAccess.Container | ContainerAccess.Blob, "GET", "test.txt", "comp=metadata");
             EvaluateAnonymousContainerAccess(ContainerAccess.Container | ContainerAccess.Blob, "HEAD", "test.txt", "comp=metadata");
-            EvaluateAnonymousContainerAccess(ContainerAccess.Container | ContainerAccess.Blob, "PUT", "test.txt", "comp=metadata");
-            EvaluateAnonymousContainerAccess(ContainerAccess.Container | ContainerAccess.Blob, "DELETE","test.txt", "");
-            EvaluateAnonymousContainerAccess(ContainerAccess.Container | ContainerAccess.Blob, "PUT", "test.txt", "comp=lease");
-            EvaluateAnonymousContainerAccess(ContainerAccess.Container | ContainerAccess.Blob, "PUT", "test.txt", "", new[] { Tuple.Create("x-ms-copy-source", "http://localhost/blob/myblob/myblob2") });
-            EvaluateAnonymousContainerAccess(ContainerAccess.Container | ContainerAccess.Blob, "PUT", "test.txt", "comp=copy");
-            EvaluateAnonymousContainerAccess(ContainerAccess.Container | ContainerAccess.Blob, "PUT", "test.txt", "comp=block");
-            EvaluateAnonymousContainerAccess(ContainerAccess.Container | ContainerAccess.Blob, "PUT", "test.txt", "comp=blocklist");
+            EvaluateAnonymousContainerAccess(ContainerAccess.None, "PUT", "test.txt", "comp=metadata");
+            EvaluateAnonymousContainerAccess(ContainerAccess.None, "DELETE", "test.txt", "");
+            EvaluateAnonymousContainerAccess(ContainerAccess.None, "PUT", "test.txt", "comp=lease");
+            EvaluateAnonymousContainerAccess(ContainerAccess.None, "PUT", "test.txt", "", new[] { Tuple.Create("x-ms-copy-source", "http://localhost/blob/myblob/myblob2") });
+            EvaluateAnonymousContainerAccess(ContainerAccess.None, "PUT", "test.txt", "comp=copy");
+            EvaluateAnonymousContainerAccess(ContainerAccess.None, "PUT", "test.txt", "comp=block");
+            EvaluateAnonymousContainerAccess(ContainerAccess.None, "PUT", "test.txt", "comp=blocklist");
             EvaluateAnonymousContainerAccess(ContainerAccess.Container | ContainerAccess.Blob, "GET", "test.txt", "comp=blocklist");
         }
 

@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ServiceDefinition name="DashServer.Azure" xmlns="http://schemas.microsoft.com/ServiceHosting/2008/10/ServiceDefinition" schemaVersion="2014-06.2.4">
+  <WebRole name="DashServer" vmsize="A7">
+    <Sites>
+      <Site name="Web">
+        <Bindings>
+          <Binding name="Endpoint1" endpointName="Endpoint1" />
+        </Bindings>
+      </Site>
+    </Sites>
+    <Endpoints>
+      <InputEndpoint name="Endpoint1" protocol="http" port="80" />
+    </Endpoints>
+    <Imports>
+      <Import moduleName="Diagnostics" />
+      <Import moduleName="RemoteAccess" />
+      <Import moduleName="RemoteForwarder" />
+    </Imports>
+    <ConfigurationSettings>
+      <Setting name="AccountName" />
+      <Setting name="AccountKey" />
+      <Setting name="StorageConnectionStringMaster" />
+      <Setting name="ScaleoutStorage0" />
+      <Setting name="ScaleoutStorage1" />
+      <Setting name="ScaleoutStorage2" />
+      <Setting name="ScaleoutStorage3" />
+      <Setting name="ScaleoutStorage4" />
+      <Setting name="ScaleoutStorage5" />
+      <Setting name="ScaleoutStorage6" />
+      <Setting name="ScaleoutStorage7" />
+      <Setting name="ScaleoutStorage8" />
+      <Setting name="ScaleoutStorage9" />
+      <Setting name="ScaleoutNumberOfAccounts" />
+    </ConfigurationSettings>
+  </WebRole>
+</ServiceDefinition>

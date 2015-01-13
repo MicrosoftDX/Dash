@@ -183,19 +183,9 @@ namespace Microsoft.Dash.Server.Handlers
                     retval = await GetContainerPublicAccessAsync(requestUriParts.Container) == BlobContainerPublicAccessType.Container;
                     break;
 
-                case StorageOperationTypes.PutBlob:
                 case StorageOperationTypes.GetBlob:
                 case StorageOperationTypes.GetBlobProperties:
-                case StorageOperationTypes.SetBlobProperties:
                 case StorageOperationTypes.GetBlobMetadata:
-                case StorageOperationTypes.SetBlobMetadata:
-                case StorageOperationTypes.LeaseBlob:
-                case StorageOperationTypes.SnapshotBlob:
-                case StorageOperationTypes.CopyBlob:
-                case StorageOperationTypes.AbortCopyBlob:
-                case StorageOperationTypes.DeleteBlob:
-                case StorageOperationTypes.PutBlock:
-                case StorageOperationTypes.PutBlockList:
                 case StorageOperationTypes.GetBlockList:
                     retval = await GetContainerPublicAccessAsync(requestUriParts.Container) != BlobContainerPublicAccessType.Off;
                     break;
