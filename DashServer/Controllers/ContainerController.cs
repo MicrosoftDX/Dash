@@ -599,9 +599,43 @@ namespace Microsoft.Dash.Server.Controllers
                 writer.WriteStartElement("SignedIdentifier");
                 writer.WriteElementString("Id", pair.Key);
                 writer.WriteStartElement("AccessPolicy");
-                writer.WriteElementString("Start", pair.Value.SharedAccessStartTime);
-                writer.WriteElementString("End", pair.Value.SharedAccessExpiryTime);
-                writer.WriteElementString("Permission", pair.Value.Permissions.ToString().ToLower());
+                if (pair.Value.SharedAccessStartTime != null)
+                {
+                    DateTimeOffset start = (DateTimeOffset)pair.Value.SharedAccessStartTime;
+                    writer.WriteElementString("Start", start.ToString("s") + "Z");
+                }
+                else
+                {
+                    writer.WriteElementString("Start", "");
+                }
+                if (pair.Value.SharedAccessExpiryTime != null)
+                {
+                    DateTimeOffset expiry = (DateTimeOffset)pair.Value.SharedAccessExpiryTime;
+                    writer.WriteElementString("Expiry", expiry.ToString("s") + "Z");
+                }
+                else
+                {
+                    writer.WriteElementString("Expiry", "");
+                }
+                var permissions = pair.Value.Permissions;
+                string permString = "";
+                if (permissions.HasFlag(SharedAccessBlobPermissions.Delete))
+                {
+                    permString += "d";
+                }
+                if (permissions.HasFlag(SharedAccessBlobPermissions.List))
+                {
+                    permString += "l";
+                }
+                if (permissions.HasFlag(SharedAccessBlobPermissions.Read))
+                {
+                    permString += "r";
+                }
+                if (permissions.HasFlag(SharedAccessBlobPermissions.Write))
+                {
+                    permString += "w";
+                }
+                writer.WriteElementString("Permission", permString);
                 writer.WriteEndElement(); // AccessPolicy
                 writer.WriteEndElement(); // SignedIdentifier
             }
@@ -627,13 +661,17 @@ namespace Microsoft.Dash.Server.Controllers
                 {
                     break; //Reached the end of the file
                 }
-                while (reader.Name != signedIdentifier)
+                while (reader.Name != signedIdentifier && !reader.EOF)
                 {
                     reader.Read(); //Advance to the next policy
                 }
+                if (reader.EOF)
+                {
+                    break;
+                }
                 string id = "";
-                DateTimeOffset start = new DateTimeOffset();
-                DateTimeOffset expiry = new DateTimeOffset();
+                DateTimeOffset? start = new DateTimeOffset();
+                DateTimeOffset? expiry = new DateTimeOffset();
                 //Set permissions to None by default
                 SharedAccessBlobPermissions permissionObj = 0;
                 reader.Read(); //Go past start tag.
@@ -654,13 +692,28 @@ namespace Microsoft.Dash.Server.Controllers
                             if (reader.Name == "Start")
                             {
                                 reader.Read();
-                                start = DateTimeOffset.Parse(reader.Value);
+                                if (!string.IsNullOrWhiteSpace(reader.Value))
+                                {
+                                    start = DateTimeOffset.Parse(reader.Value);
+                                }
+                                else
+                                {
+                                    start = null;
+                                }
+                                
                                 reader.Read();
                             }
                             else if (reader.Name == "Expiry")
                             {
                                 reader.Read();
-                                expiry = DateTimeOffset.Parse(reader.Value);
+                                if (!string.IsNullOrWhiteSpace(reader.Value))
+                                {
+                                    expiry = DateTimeOffset.Parse(reader.Value);
+                                }
+                                else
+                                {
+                                    expiry = null;
+                                }
                                 reader.Read();
                             }
                             else if (reader.Name == "Permission")

@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Web;
 using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage.Blob;
+using System.Net.Http;
 
 namespace Microsoft.Dash.Server.Handlers
 {
@@ -175,6 +176,10 @@ namespace Microsoft.Dash.Server.Handlers
             bool retval = false;
             var requestUriParts = request.UriParts;
             var requestOperation = StorageOperations.GetBlobOperation(request.HttpMethod, requestUriParts, request.QueryParameters, request.Headers);
+            if (request.HttpMethod == HttpMethod.Options.ToString())
+            {
+                return true;
+            }
             switch (requestOperation)
             {
                 case StorageOperationTypes.GetContainerProperties:

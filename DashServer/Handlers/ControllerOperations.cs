@@ -62,7 +62,8 @@ namespace Microsoft.Dash.Server.Handlers
             {
                 Scheme = request.Url.Scheme,
                 Host = DashConfiguration.NamespaceAccount.BlobEndpoint.Host,
-                Query = request.Url.Query
+                Path = request.Path,
+                Query = HttpUtility.ParseQueryString(request.Url.Query).ToString()
             };
             return forwardUri.Uri;
         }
