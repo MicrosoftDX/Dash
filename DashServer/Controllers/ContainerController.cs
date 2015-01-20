@@ -530,7 +530,7 @@ namespace Microsoft.Dash.Server.Controllers
                     writer.WriteElementString("Content-Language", realBlob.Properties.ContentLanguage);
                     writer.WriteElementString("Content-MD5", realBlob.Properties.ContentMD5);
                     writer.WriteElementString("Cache-Control", realBlob.Properties.CacheControl);
-                    writer.WriteElementString("Cache-Disposition", realBlob.Properties.ContentDisposition);
+                    writer.WriteElementString("Content-Disposition", realBlob.Properties.ContentDisposition);
                     writer.WriteElementStringIfNotNull("x-ms-blob-sequence-number", realBlob.Properties.PageBlobSequenceNumber);
                     writer.WriteElementStringIfNotEnumValue("BlobType", realBlob.Properties.BlobType, BlobType.Unspecified, false);
                     writer.WriteElementStringIfNotEnumValue("LeaseStatus", realBlob.Properties.LeaseStatus, LeaseStatus.Unspecified);
