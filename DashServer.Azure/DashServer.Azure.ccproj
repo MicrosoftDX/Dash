@@ -34,6 +34,7 @@
   <!-- Items for the project -->
   <ItemGroup>
     <ServiceDefinition Include="ServiceDefinition.csdef" />
+    <ServiceConfiguration Include="ServiceConfiguration.Cloud - East.cscfg" />
     <ServiceConfiguration Include="ServiceConfiguration.Local.cscfg" />
     <ServiceConfiguration Include="ServiceConfiguration.Cloud.cscfg" />
   </ItemGroup>
@@ -49,12 +50,17 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="DashServerContent\" />
-    <Folder Include="Profiles" />
+    <Folder Include="Profiles">
+    </Folder>
   </ItemGroup>
   <ItemGroup>
     <Content Include="DashServerContent\diagnostics.wadcfg">
       <SubType>Content</SubType>
     </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <PublishProfile Include="Profiles\DashJbTestProduction.azurePubxml" />
+    <PublishProfile Include="Profiles\DashTestEastProduction.azurePubxml" />
   </ItemGroup>
   <!-- Import the target files for this project template -->
   <PropertyGroup>

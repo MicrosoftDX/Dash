@@ -11,5 +11,6 @@ namespace Microsoft.Dash.Server.Utils
     {
         public static readonly DateTimeOffset Version_2009_09_19 = DateTimeOffset.Parse("2009-09-19 +0:00");
         public static readonly DateTimeOffset Version_2012_02_12 = DateTimeOffset.Parse("2012-02-12 +0:00");
+        public static readonly DateTimeOffset Version_2013_08_15 = DateTimeOffset.Parse("2013-08-15 +0:00");
     }
 }

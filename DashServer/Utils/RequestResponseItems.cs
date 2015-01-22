@@ -66,6 +66,16 @@ namespace Microsoft.Dash.Server.Utils
             return defaultValue;
         }
 
+        public Nullable<T> ValueOrNull<T>(string itemName) where T : struct, IConvertible
+        {
+            var values = Values<T>(itemName);
+            if (values != null && values.Any())
+            {
+                return values.First();
+            }
+            return null;
+        }
+
         public IEnumerable<T> Values<T>(string itemName) where T : IConvertible
         {
             var values = _items[itemName];

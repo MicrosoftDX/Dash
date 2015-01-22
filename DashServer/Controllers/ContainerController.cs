@@ -367,7 +367,11 @@ namespace Microsoft.Dash.Server.Controllers
             }
             //Right now we are just parroting back the values sent by the client. Might need to generate our
             //own values for these if none are provided.
-            response.Headers.Add("x-ms-request-id", Request.Headers.GetValues("x-ms-client-request-id"));
+            IEnumerable<string> headerValues;
+            if (Request.Headers.TryGetValues("x-ms-client-request-id", out headerValues))
+            {
+                response.Headers.Add("x-ms-request-id", headerValues);
+            }
             response.Headers.Add("x-ms-version", Request.Headers.GetValues("x-ms-version"));
             response.Headers.Date = DateTimeOffset.UtcNow;
         }
@@ -394,6 +398,7 @@ namespace Microsoft.Dash.Server.Controllers
                 .Take(maxResults + 1);                  // Get an extra listing so that we can generate the nextMarker
             var blobResults = new EnumerationResults
             {
+                RequestVersion = new DateTimeOffset(this.Request.GetHeaders().Value("x-ms-version", StorageServiceVersions.Version_2009_09_19.UtcDateTime), TimeSpan.FromHours(0)),
                 ServiceEndpoint = this.Request.RequestUri.GetComponents(UriComponents.SchemeAndServer, UriFormat.Unescaped),
                 ContainerName = container,
                 MaxResults = maxResults,
@@ -414,23 +419,31 @@ namespace Microsoft.Dash.Server.Controllers
             BlobListingDetails listDetails;
             Enum.TryParse(includeFlags, true, out listDetails);
             string nextMarker = null;
-            do
+            try
             {
-                var continuationToken = new BlobContinuationToken
+                do
                 {
-                    NextMarker = nextMarker,
-                };
-                var blobResults = await containerObj.ListBlobsSegmentedAsync(prefix, useFlatListing, listDetails, null, continuationToken, null, null);
-                results.Add(blobResults.Results);
-                if (blobResults.ContinuationToken != null)
-                {
-                    nextMarker = blobResults.ContinuationToken.NextMarker;
-                }
-                else
-                {
-                    nextMarker = null;
-                }
-            } while (!String.IsNullOrWhiteSpace(nextMarker));
+                    var continuationToken = new BlobContinuationToken
+                    {
+                        NextMarker = nextMarker,
+                    };
+                    var blobResults = await containerObj.ListBlobsSegmentedAsync(prefix, useFlatListing, listDetails, null, continuationToken, null, null);
+                    results.Add(blobResults.Results);
+                    if (blobResults.ContinuationToken != null)
+                    {
+                        nextMarker = blobResults.ContinuationToken.NextMarker;
+                    }
+                    else
+                    {
+                        nextMarker = null;
+                    }
+                } while (!String.IsNullOrWhiteSpace(nextMarker));
+            }
+            catch (StorageException)
+            {
+                // Silently swallow the exception if we're missing the container for this account
+                
+            }
 
             return results
                 .SelectMany(segmentResults => segmentResults);
@@ -482,6 +495,7 @@ namespace Microsoft.Dash.Server.Controllers
 
         class EnumerationResults
         {
+            public DateTimeOffset RequestVersion { get; set; }
             public string ServiceEndpoint { get; set; }
             public string ContainerName { get; set; }
             public string Prefix { get; set; }
@@ -496,9 +510,18 @@ namespace Microsoft.Dash.Server.Controllers
 
         static void SerializeBlobListing(XmlWriter writer, EnumerationResults results)
         {
+            var uri = new UriBuilder(results.ServiceEndpoint);
             writer.WriteStartElement("EnumerationResults");
-            writer.WriteAttributeString("ServiceEndpoint", results.ServiceEndpoint);
-            writer.WriteAttributeString("ContainerName", results.ContainerName);
+            if (results.RequestVersion >= StorageServiceVersions.Version_2013_08_15)
+            {
+                writer.WriteAttributeString("ServiceEndpoint", results.ServiceEndpoint);
+                writer.WriteAttributeString("ContainerName", results.ContainerName);
+            }
+            else
+            {
+                uri = uri.AddPathSegment(results.ContainerName);
+                writer.WriteAttributeString("ContainerName", uri.Uri.ToString());
+            }
             writer.WriteElementStringIfNotNull("Prefix", results.Prefix);
             writer.WriteElementStringIfNotNull("Marker", results.Marker);
             writer.WriteElementStringIfNotNull("MaxResults", results.IndicatedMaxResults);
@@ -517,6 +540,10 @@ namespace Microsoft.Dash.Server.Controllers
                     var realBlob = (ICloudBlob)blob;
                     writer.WriteStartElement("Blob");
                     writer.WriteElementString("Name", realBlob.Name);
+                    if (results.RequestVersion < StorageServiceVersions.Version_2013_08_15)
+                    {
+                        writer.WriteElementString("Url", uri.AddPathSegment(realBlob.Name).Uri.ToString());
+                    }
                     if (realBlob.IsSnapshot && results.IncludeDetails.IsFlagSet(BlobListingDetails.Snapshots))
                     {
                         writer.WriteElementString("Snapshot", realBlob.SnapshotTime);
@@ -533,9 +560,12 @@ namespace Microsoft.Dash.Server.Controllers
                     writer.WriteElementString("Content-Disposition", realBlob.Properties.ContentDisposition);
                     writer.WriteElementStringIfNotNull("x-ms-blob-sequence-number", realBlob.Properties.PageBlobSequenceNumber);
                     writer.WriteElementStringIfNotEnumValue("BlobType", realBlob.Properties.BlobType, BlobType.Unspecified, false);
-                    writer.WriteElementStringIfNotEnumValue("LeaseStatus", realBlob.Properties.LeaseStatus, LeaseStatus.Unspecified);
-                    writer.WriteElementStringIfNotEnumValue("LeaseState", realBlob.Properties.LeaseState, LeaseState.Unspecified);
-                    writer.WriteElementStringIfNotEnumValue("LeaseDuration", realBlob.Properties.LeaseDuration, LeaseDuration.Unspecified);
+                    if (results.RequestVersion >= StorageServiceVersions.Version_2012_02_12)
+                    {
+                        writer.WriteElementStringIfNotEnumValue("LeaseStatus", realBlob.Properties.LeaseStatus, LeaseStatus.Unspecified);
+                        writer.WriteElementStringIfNotEnumValue("LeaseState", realBlob.Properties.LeaseState, LeaseState.Unspecified);
+                        writer.WriteElementStringIfNotEnumValue("LeaseDuration", realBlob.Properties.LeaseDuration, LeaseDuration.Unspecified);
+                    }
                     if (results.IncludeDetails.IsFlagSet(BlobListingDetails.Copy) && realBlob.CopyState != null)
                     {
                         writer.WriteElementStringIfNotNull("CopyId", realBlob.CopyState.CopyId);

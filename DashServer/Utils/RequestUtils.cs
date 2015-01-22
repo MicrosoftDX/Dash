@@ -93,6 +93,18 @@ namespace Microsoft.Dash.Server.Utils
             }
             return (lhs & rhs) != 0;
         }
+
+        public static UriBuilder AddPathSegment(this UriBuilder baseUri, string pathToAdd)
+        {
+            var retval = new UriBuilder(baseUri.Uri);
+            var segments = retval.Uri.Segments
+                .Select(segment => segment.Trim('/'))
+                .Where(segment => !String.IsNullOrWhiteSpace(segment))
+                .ToList();
+            segments.Add(pathToAdd);
+            retval.Path = String.Join("/", segments);
+            return retval;
+        }
     }
 
 }

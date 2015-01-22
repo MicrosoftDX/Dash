@@ -51,7 +51,7 @@ namespace Microsoft.Dash.Server.Controllers
             }
         }
 
-        private HttpResponseMessage ProcessResultResponse(HandlerResult result)
+        protected HttpResponseMessage ProcessResultResponse(HandlerResult result)
         {
             var response = new HttpResponseMessage(result.StatusCode);
             if (result.Headers != null)
