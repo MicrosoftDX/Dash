@@ -43,6 +43,7 @@ namespace Microsoft.Dash.Server.Controllers
                 case HttpStatusCode.Created:
                 case HttpStatusCode.InternalServerError:
                 case HttpStatusCode.BadRequest:
+                case HttpStatusCode.Conflict:
                     return ResponseMessage(ProcessResultResponse(result));
 
                 default:

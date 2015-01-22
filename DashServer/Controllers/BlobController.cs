@@ -107,6 +107,9 @@ namespace Microsoft.Dash.Server.Controllers
                 case "blocklist":
                     return await PutBlobBlockList(container, blob);
 
+                case "copy":
+                    return await AbortCopyBlob(container, blob);
+
                 default:
                     return BadRequest();
             }
@@ -142,6 +145,13 @@ namespace Microsoft.Dash.Server.Controllers
             // This will need to be some variation of copy. May need to replicate snapshotting logic in case
             // original server is out of space.
             return await BasicBlobHandler(container, blob);
+        }
+
+        /// Abort Copy Blob - http://msdn.microsoft.com/en-us/library/azure/jj159098.aspx
+        private async Task<IHttpActionResult> AbortCopyBlob(string container, string blob)
+        {
+            var requestWrapper = DashHttpRequestWrapper.Create(this.Request);
+            return ProcessHandlerResult(await BlobHandler.AbortCopyBlobAsync(requestWrapper, container, blob, requestWrapper.QueryParameters.Value<string>("copyid")));
         }
 
         /// Get Block List - http://msdn.microsoft.com/en-us/library/azure/dd179400.aspx

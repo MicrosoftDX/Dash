@@ -191,5 +191,25 @@ namespace Microsoft.Dash.Server.Handlers
                 StatusCode = HttpStatusCode.BadRequest,
             };
         }
+
+        public static async Task<HandlerResult> AbortCopyBlobAsync(IHttpRequestWrapper requestWrapper, string destContainer, string destBlob, string copyId)
+        {
+            var destNamespaceBlob = await ControllerOperations.FetchNamespaceBlobAsync(destContainer, destBlob);
+
+            var destCloudContainer = ControllerOperations.GetContainerByName(DashConfiguration.GetDataAccountByAccountName(destNamespaceBlob.AccountName), destContainer);
+            var destCloudBlob = destCloudContainer.GetBlockBlobReference(destBlob);
+            try
+            {
+                await destCloudBlob.AbortCopyAsync(copyId);
+            }
+            catch (StorageException ex)
+            {
+                return HandlerResult.FromException(ex);
+            }
+            return new HandlerResult
+            {
+                StatusCode = HttpStatusCode.NoContent,
+            };
+        }
     }
 }
