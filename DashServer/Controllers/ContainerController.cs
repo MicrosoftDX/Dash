@@ -35,7 +35,10 @@ namespace Microsoft.Dash.Server.Controllers
         [HttpPut]
         public async Task<HttpResponseMessage> CreateContainer(string container)
         {
-            return (await DoForAllContainersAsync(container, HttpStatusCode.Created, async containerObj => await containerObj.CreateAsync())).CreateResponse();
+            return (await DoForAllContainersAsync(container, 
+                HttpStatusCode.Created, 
+                async containerObj => await containerObj.CreateAsync(),
+                false)).CreateResponse();
         }
 
         // Put Container operations, with 'comp' parameter'
@@ -65,20 +68,27 @@ namespace Microsoft.Dash.Server.Controllers
         [HttpDelete]
         public async Task<HttpResponseMessage> DeleteContainer(string container)
         {
-            return (await DoForAllContainersAsync(container, HttpStatusCode.Accepted, async containerObj => await containerObj.DeleteAsync())).CreateResponse();
+            return (await DoForAllContainersAsync(container, 
+                HttpStatusCode.Accepted, 
+                async containerObj => await containerObj.DeleteAsync(),
+                true)).CreateResponse();
         }
 
-        async Task<DelegatedResponse> DoForAllContainersAsync(string container, HttpStatusCode successStatus, Func<CloudBlobContainer, Task> action)
+        async Task<DelegatedResponse> DoForAllContainersAsync(string container, HttpStatusCode successStatus, Func<CloudBlobContainer, Task> action, bool ignoreNotFound)
         {
-            return await DoForContainersAsync(container, successStatus, action, DashConfiguration.AllAccounts);
+            return await DoForContainersAsync(container, successStatus, action, DashConfiguration.AllAccounts, ignoreNotFound);
         }
 
-        async Task<DelegatedResponse> DoForDataContainersAsync(string container, HttpStatusCode successStatus, Func<CloudBlobContainer, Task> action)
+        async Task<DelegatedResponse> DoForDataContainersAsync(string container, HttpStatusCode successStatus, Func<CloudBlobContainer, Task> action, bool ignoreNotFound)
         {
-            return await DoForContainersAsync(container, successStatus, action, DashConfiguration.DataAccounts);
+            return await DoForContainersAsync(container, successStatus, action, DashConfiguration.DataAccounts, ignoreNotFound);
         }
 
-        async Task<DelegatedResponse> DoForContainersAsync(string container, HttpStatusCode successStatus, Func<CloudBlobContainer, Task> action, IEnumerable<CloudStorageAccount> accounts)
+        async Task<DelegatedResponse> DoForContainersAsync(string container, 
+            HttpStatusCode successStatus, 
+            Func<CloudBlobContainer, Task> action, 
+            IEnumerable<CloudStorageAccount> accounts,
+            bool ignoreNotFound)
         {
             DelegatedResponse retval = new DelegatedResponse
             {
@@ -93,8 +103,11 @@ namespace Microsoft.Dash.Server.Controllers
                 }
                 catch (StorageException ex)
                 {
-                    retval.StatusCode = (HttpStatusCode)ex.RequestInformation.HttpStatusCode;
-                    retval.ReasonPhrase = ex.RequestInformation.HttpStatusMessage;
+                    if (!ignoreNotFound || ex.RequestInformation.HttpStatusCode != (int)HttpStatusCode.NotFound)
+                    {
+                        retval.StatusCode = (HttpStatusCode)ex.RequestInformation.HttpStatusCode;
+                        retval.ReasonPhrase = ex.RequestInformation.HttpStatusMessage;
+                    }
                 }
             }
             return retval;
@@ -174,7 +187,10 @@ namespace Microsoft.Dash.Server.Controllers
                 perms.SharedAccessPolicies.Add(policy);
             }
 
-            var status = await DoForAllContainersAsync(container.Name, HttpStatusCode.OK, async containerObj => await containerObj.SetPermissionsAsync(perms));
+            var status = await DoForAllContainersAsync(container.Name, 
+                HttpStatusCode.OK, 
+                async containerObj => await containerObj.SetPermissionsAsync(perms),
+                true);
             
             HttpResponseMessage response = new HttpResponseMessage(status.StatusCode);
             await AddBasicContainerHeaders(response, container);
@@ -275,37 +291,53 @@ namespace Microsoft.Dash.Server.Controllers
                         return response;
                     }
                     serverLeaseId = await container.AcquireLeaseAsync(leaseDurationSpan, proposedLeaseId);
-                    response = (await DoForDataContainersAsync(container.Name, HttpStatusCode.Created, async containerObj => await containerObj.AcquireLeaseAsync(leaseDurationSpan, serverLeaseId))).CreateResponse();
+                    response = (await DoForDataContainersAsync(container.Name, 
+                        HttpStatusCode.Created, 
+                        async containerObj => await containerObj.AcquireLeaseAsync(leaseDurationSpan, serverLeaseId),
+                        true)).CreateResponse();
                     await AddBasicContainerHeaders(response, container);
                     response.Headers.Add("x-ms-lease-id", serverLeaseId);
                     return response;
+
                 case "renew":
                     condition = new AccessCondition()
                     {
                         LeaseId = leaseId
                     };
-                    response = (await DoForAllContainersAsync(container.Name, HttpStatusCode.OK, async containerObj => await containerObj.RenewLeaseAsync(condition))).CreateResponse();
+                    response = (await DoForAllContainersAsync(container.Name, 
+                        HttpStatusCode.OK, 
+                        async containerObj => await containerObj.RenewLeaseAsync(condition),
+                        true)).CreateResponse();
                     await AddBasicContainerHeaders(response, container);
                     response.Headers.Add("x-ms-lease-id", leaseId);
                     return response;
+
                 case "change":
                     condition = new AccessCondition()
                     {
                         LeaseId = leaseId
                     };
                     serverLeaseId = await container.ChangeLeaseAsync(proposedLeaseId, condition);
-                    response = (await DoForDataContainersAsync(container.Name, HttpStatusCode.OK, async containerObj => await containerObj.ChangeLeaseAsync(proposedLeaseId, condition))).CreateResponse();
+                    response = (await DoForDataContainersAsync(container.Name, 
+                        HttpStatusCode.OK, 
+                        async containerObj => await containerObj.ChangeLeaseAsync(proposedLeaseId, condition),
+                        true)).CreateResponse();
                     await AddBasicContainerHeaders(response, container);
                     response.Headers.Add("x-ms-lease-id", container.ChangeLease(proposedLeaseId, condition));
                     return response;
+
                 case "release":
                     condition = new AccessCondition()
                     {
                         LeaseId = leaseId
                     };
-                    response = (await DoForAllContainersAsync(container.Name, HttpStatusCode.OK, async containerObj => await containerObj.ReleaseLeaseAsync(condition))).CreateResponse();
+                    response = (await DoForAllContainersAsync(container.Name, 
+                        HttpStatusCode.OK, 
+                        async containerObj => await containerObj.ReleaseLeaseAsync(condition),
+                        true)).CreateResponse();
                     await AddBasicContainerHeaders(response, container);
                     return response;
+
                 case "break":
                     int breakDuration = 0;
                     if (Request.Headers.Contains("x-ms-lease-break-period"))
@@ -314,10 +346,14 @@ namespace Microsoft.Dash.Server.Controllers
                     }
                     TimeSpan breakDurationSpan = new TimeSpan(0, 0, breakDuration);
                     TimeSpan remainingTime = await container.BreakLeaseAsync(breakDurationSpan);
-                    response = (await DoForDataContainersAsync(container.Name, HttpStatusCode.Accepted, async containerObj => await containerObj.BreakLeaseAsync(breakDurationSpan))).CreateResponse();
+                    response = (await DoForDataContainersAsync(container.Name, 
+                        HttpStatusCode.Accepted, 
+                        async containerObj => await containerObj.BreakLeaseAsync(breakDurationSpan),
+                        true)).CreateResponse();
                     await AddBasicContainerHeaders(response, container);
                     response.Headers.Add("x-ms-lease-time", remainingTime.Seconds.ToString());
                     return response;
+
                 default:
                     //Not a recognized action
                     response.StatusCode = HttpStatusCode.BadRequest;
