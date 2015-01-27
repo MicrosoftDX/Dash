@@ -36,10 +36,15 @@ namespace Microsoft.Tests
         [TestMethod]
         public void BlobListFlatAllIncludeTest()
         {
-            var doc = _runner.ExecuteRequestResponse(
+            var response = _runner.ExecuteRequestWithHeaders(
                 "http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&include=uncommittedblobs&include=metadata%2Ccopy",
                 "GET",
+                null,
+                new [] {
+                    Tuple.Create("x-ms-version", "2013-08-15")
+                },
                 expectedStatusCode: HttpStatusCode.OK);
+            var doc = XDocument.Load(response.Content.ReadAsStreamAsync().Result);
             var enumerationResults = doc.Root;
             Assert.AreEqual("http://mydashserver", enumerationResults.Attribute("ServiceEndpoint").Value);
             Assert.AreEqual("test", enumerationResults.Attribute("ContainerName").Value);
