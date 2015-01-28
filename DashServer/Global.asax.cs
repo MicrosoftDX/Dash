@@ -32,7 +32,7 @@ namespace Microsoft.Dash.Server
 
         async Task AuthorizeRequestAsync(Object sender, EventArgs e)
         {
-            if (!await RequestAuthorization.IsRequestAuthorizedAsync(DashHttpRequestWrapper.Create(this.Request)))
+            if (!await RequestAuthorization.IsRequestAuthorizedAsync(DashHttpRequestWrapper.Create(this.Request, true)))
             {
                 this.Response.StatusCode = (int)HttpStatusCode.Forbidden;
                 // Details lifted directly from Storage Service auth failure responses
@@ -53,7 +53,7 @@ namespace Microsoft.Dash.Server
             // Insert handling here for any requests which can potentially contain a body and that we intend to redirect. We must 
             // process the request here because if the client is using the Expect: 100-Continue header, then we should issue our 
             // final (redirect) status BEFORE IIS sends the 100 Continue response. This way the blob content is never sent to us.
-            var result = await StorageOperationsHandler.HandlePrePipelineOperationAsync(DashHttpRequestWrapper.Create(this.Request));
+            var result = await StorageOperationsHandler.HandlePrePipelineOperationAsync(DashHttpRequestWrapper.Create(this.Request, true));
             if (result != null)
             {
                 switch (result.StatusCode)
