@@ -236,6 +236,20 @@ namespace Microsoft.Tests
                 HttpStatusCode.Accepted);
             response = _runner.ExecuteRequest(destBlobUri, "GET", expectedStatusCode: HttpStatusCode.Redirect);
             Assert.AreEqual(redirectUrl, response.Headers.Location.GetLeftPart(UriPartial.Path));
+
+            // Copy a different source to the same destination & verify that destination moves to the same account as the new source
+            response = _runner.ExecuteRequest("http://localhost/blob/test/test_in_different_data_account.txt", "GET", expectedStatusCode: HttpStatusCode.Redirect);
+            var newSourceAccount = response.Headers.Location.Host;
+            response = _runner.ExecuteRequestWithHeaders(destBlobUri,
+                "PUT",
+                null,
+                new[] {
+                    Tuple.Create("x-ms-version", "2013-08-15"),
+                    Tuple.Create("x-ms-copy-source", "http://localhost/test/test_in_different_data_account.txt"),
+                },
+                HttpStatusCode.Accepted);
+            response = _runner.ExecuteRequest(destBlobUri, "GET", expectedStatusCode: HttpStatusCode.Redirect);
+            Assert.AreEqual(newSourceAccount, response.Headers.Location.Host);
         }
 
         [TestMethod]

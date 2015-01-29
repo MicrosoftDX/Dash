@@ -129,8 +129,7 @@ namespace Microsoft.Dash.Server.Handlers
                     }
                     // This is effectively an intra-account copy which is expected to be atomic. Therefore, even if the destination already
                     // exists, we need to place the destination in the same data account as the source.
-                    // TODO: This is a potential move operation. The namespace will be moved, but we will be left with an orphaned blob -
-                    // there is no data loss as it was about to be copied over anyway, but the orphan will been to be cleaned (perhaps async).
+                    // If the destination blob already exists, we delete it below to prevent an orphaned data blob
                     destAccount = sourceNamespaceBlob.AccountName;
                     var sourceUriBuilder = ControllerOperations.GetRedirectUriBuilder("GET", 
                         requestWrapper.Url.Scheme, 
@@ -151,6 +150,12 @@ namespace Microsoft.Dash.Server.Handlers
                 if (!await destNamespaceBlob.ExistsAsync())
                 {
                     await destNamespaceBlob.CreateAsync();
+                }
+                else if (destNamespaceBlob.AccountName != destAccount)
+                {
+                    // Delete the existing blob to prevent orphaning it
+                    var dataBlob = ControllerOperations.GetBlobByName(DashConfiguration.GetDataAccountByAccountName(destNamespaceBlob.AccountName), destContainer, destBlob);
+                    await dataBlob.DeleteIfExistsAsync();
                 }
                 destNamespaceBlob.AccountName = destAccount;
                 destNamespaceBlob.Container = destContainer;
