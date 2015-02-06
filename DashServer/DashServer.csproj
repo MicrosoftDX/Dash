@@ -56,6 +56,10 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\Microsoft.WindowsAzure.ConfigurationManager.2.0.3\lib\net40\Microsoft.WindowsAzure.Configuration.dll</HintPath>
     </Reference>
+    <Reference Include="Microsoft.WindowsAzure.Diagnostics, Version=2.4.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\Program Files\Microsoft SDKs\Azure\.NET SDK\v2.4\ref\Microsoft.WindowsAzure.Diagnostics.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.WindowsAzure.ServiceRuntime, Version=2.4.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\Program Files\Microsoft SDKs\Azure\.NET SDK\v2.4\ref\Microsoft.WindowsAzure.ServiceRuntime.dll</HintPath>
@@ -112,6 +116,10 @@
     <Compile Include="Controllers\AccountController.cs" />
     <Compile Include="Controllers\BlobController.cs" />
     <Compile Include="Controllers\CommonController.cs" />
+    <Compile Include="Diagnostics\DashErrorInformation.cs" />
+    <Compile Include="Diagnostics\DashTrace.cs" />
+    <Compile Include="Diagnostics\OperationRunner.cs" />
+    <Compile Include="Diagnostics\TraceMessage.cs" />
     <Compile Include="Handlers\BlobHandler.cs" />
     <Compile Include="Handlers\ControllerOperations.cs" />
     <Compile Include="Controllers\ContainerController.cs" />

@@ -1,16 +1,13 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Net.Http;
+using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
-using System.Web.Routing;
+using Microsoft.Dash.Server.Diagnostics;
 using Microsoft.Dash.Server.Handlers;
 using Microsoft.Dash.Server.Utils;
-using System.Threading.Tasks;
 
 namespace Microsoft.Dash.Server
 {
@@ -27,12 +24,15 @@ namespace Microsoft.Dash.Server
 
         protected void Application_Start()
         {
+            AzureUtils.AddAzureDiagnosticsListener();
+            DashTrace.TraceInformation("Starting application instance");
             GlobalConfiguration.Configure(WebApiConfig.Register);
         }
 
         async Task AuthorizeRequestAsync(Object sender, EventArgs e)
         {
-            if (!await RequestAuthorization.IsRequestAuthorizedAsync(DashHttpRequestWrapper.Create(this.Request, true)))
+            if (!await OperationRunner.DoActionAsync("App.AuthorizeRequestAsync",
+                async () => await RequestAuthorization.IsRequestAuthorizedAsync(DashHttpRequestWrapper.Create(this.Request, true))))
             {
                 this.Response.StatusCode = (int)HttpStatusCode.Forbidden;
                 // Details lifted directly from Storage Service auth failure responses
@@ -53,7 +53,8 @@ namespace Microsoft.Dash.Server
             // Insert handling here for any requests which can potentially contain a body and that we intend to redirect. We must 
             // process the request here because if the client is using the Expect: 100-Continue header, then we should issue our 
             // final (redirect) status BEFORE IIS sends the 100 Continue response. This way the blob content is never sent to us.
-            var result = await StorageOperationsHandler.HandlePrePipelineOperationAsync(DashHttpRequestWrapper.Create(this.Request, true));
+            var result = await OperationRunner.DoHandlerAsync("App.PreRequestHandlerExecuteAsync", 
+                async () => await StorageOperationsHandler.HandlePrePipelineOperationAsync(DashHttpRequestWrapper.Create(this.Request, true)));
             if (result != null)
             {
                 switch (result.StatusCode)

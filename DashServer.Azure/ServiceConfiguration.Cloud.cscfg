@@ -22,7 +22,13 @@
       <Setting name="ScaleoutStorage7" value="DefaultEndpointsProtocol=http;AccountName=dashstorage9;AccountKey=gnUJPJGxMa83azmx5KNGr7BTWvPFE93+I3s6rDgcYGaUe6L8XjH4/GNc3kyV/E36HlBSVbK77KiphHRw5neiNA==" />
       <Setting name="ScaleoutStorage8" value="" />
       <Setting name="ScaleoutStorage9" value="" />
-      <Setting name="ScaleoutNumberOfAccounts" value="8" />
+      <Setting name="ScaleoutStorage10" value="" />
+      <Setting name="ScaleoutStorage11" value="" />
+      <Setting name="ScaleoutStorage12" value="" />
+      <Setting name="ScaleoutStorage13" value="" />
+      <Setting name="ScaleoutStorage14" value="" />
+      <Setting name="ScaleoutStorage15" value="" />
+      <Setting name="LogNormalOperations" value="true" />
     </ConfigurationSettings>
     <Certificates>
       <Certificate name="Microsoft.WindowsAzure.Plugins.RemoteAccess.PasswordEncryption" thumbprint="99D74314AD995313DFB247B992479D0772CE872C" thumbprintAlgorithm="sha1" />

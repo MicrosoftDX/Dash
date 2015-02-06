@@ -5,6 +5,9 @@ using System.Configuration;
 using System.Linq;
 using System.Web.Configuration;
 using Microsoft.WindowsAzure;
+using System.Reflection;
+using System.Diagnostics;
+using Microsoft.WindowsAzure.Diagnostics;
 
 namespace Microsoft.Dash.Server.Utils
 {
@@ -39,6 +42,37 @@ namespace Microsoft.Dash.Server.Utils
             }
             config.AppSettings.Settings.Add(settingName, value.ToString());
             config.Save(ConfigurationSaveMode.Modified);
+        }
+
+        public static bool IsRunningInAzureWebRole()
+        {
+            bool retval = false;
+            try
+            {
+                var serviceRuntime = Assembly.Load("Microsoft.WindowsAzure.ServiceRuntime, Version=2.4.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL");
+                var roleEnvironment = serviceRuntime.GetType("Microsoft.WindowsAzure.ServiceRuntime.RoleEnvironment");
+                var isAvailable = roleEnvironment.GetProperty("IsAvailable", BindingFlags.Static | BindingFlags.GetProperty | BindingFlags.Public);
+                return (bool)isAvailable.GetMethod.Invoke(null, null);
+            }
+            catch
+            {
+            }
+            return retval;
+        }
+
+        public static void AddAzureDiagnosticsListener()
+        {
+            try
+            {
+                if (IsRunningInAzureWebRole())
+                {
+                    Trace.Listeners.Add(new DiagnosticMonitorTraceListener());
+                }
+            }
+            catch (Exception e)
+            {
+                Trace.TraceWarning("Failed to load diagnostic listener: " + e.Message);
+            }
         }
     }
 }

@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Data.Services.Client;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -45,23 +44,26 @@ namespace Microsoft.Dash.Server.Controllers
         [HttpPut]
         public async Task<HttpResponseMessage> PutContainerComp(string container, string comp)
         {
-            CloudBlobContainer containerObj = ControllerOperations.GetContainerByName(DashConfiguration.NamespaceAccount, container);
-            HttpResponseMessage errorResponse = await ValidatePreconditions(containerObj);
-            if (errorResponse != null)
-            {
-                return errorResponse;
-            }
-            switch (comp.ToLower())
-            {
-                case "lease":
-                    return await SetContainerLease(containerObj);
-                case "metadata":
-                    return await SetContainerMetadata(containerObj);
-                case "acl":
-                    return await SetContainerAcl(containerObj);
-                default:
-                    return new HttpResponseMessage(HttpStatusCode.BadRequest);
-            }
+            return await DoHandlerAsync(String.Format("ContainerController.PutContainerComp: {0}", comp), async () =>
+                {
+                    CloudBlobContainer containerObj = ControllerOperations.GetContainerByName(DashConfiguration.NamespaceAccount, container);
+                    HttpResponseMessage errorResponse = await ValidatePreconditions(containerObj);
+                    if (errorResponse != null)
+                    {
+                        return errorResponse;
+                    }
+                    switch (comp.ToLower())
+                    {
+                        case "lease":
+                            return await SetContainerLease(containerObj);
+                        case "metadata":
+                            return await SetContainerMetadata(containerObj);
+                        case "acl":
+                            return await SetContainerAcl(containerObj);
+                        default:
+                            return new HttpResponseMessage(HttpStatusCode.BadRequest);
+                    }
+                });
         }
 
         /// Delete Container - http://msdn.microsoft.com/en-us/library/azure/dd179408.aspx
@@ -116,47 +118,53 @@ namespace Microsoft.Dash.Server.Controllers
         [AcceptVerbs("GET", "HEAD")]
         public async Task<HttpResponseMessage> GetContainerProperties(string container)
         {
-            CloudBlobContainer containerObj = ControllerOperations.GetContainerByName(DashConfiguration.NamespaceAccount, container);
-            HttpResponseMessage errorResponse = await ValidatePreconditions(containerObj);
-            if (errorResponse != null)
-            {
-                return errorResponse;
-            }
-            HttpResponseMessage response = await FormContainerMetadataResponse(containerObj);
+            return await DoHandlerAsync("ContainerController.GetContainerProperties", async () =>
+                {
+                    CloudBlobContainer containerObj = ControllerOperations.GetContainerByName(DashConfiguration.NamespaceAccount, container);
+                    HttpResponseMessage errorResponse = await ValidatePreconditions(containerObj);
+                    if (errorResponse != null)
+                    {
+                        return errorResponse;
+                    }
+                    HttpResponseMessage response = await FormContainerMetadataResponse(containerObj);
 
-            response.Headers.Add("x-ms-lease-status", containerObj.Properties.LeaseStatus.ToString().ToLower());
-            response.Headers.Add("x-ms-lease-state", containerObj.Properties.LeaseState.ToString().ToLower());
-            //Only add Lease Duration information if the container is leased
-            if (containerObj.Properties.LeaseState == LeaseState.Leased)
-            {
-                response.Headers.Add("x-ms-lease-duration", containerObj.Properties.LeaseDuration.ToString().ToLower());
-            }
+                    response.Headers.Add("x-ms-lease-status", containerObj.Properties.LeaseStatus.ToString().ToLower());
+                    response.Headers.Add("x-ms-lease-state", containerObj.Properties.LeaseState.ToString().ToLower());
+                    //Only add Lease Duration information if the container is leased
+                    if (containerObj.Properties.LeaseState == LeaseState.Leased)
+                    {
+                        response.Headers.Add("x-ms-lease-duration", containerObj.Properties.LeaseDuration.ToString().ToLower());
+                    }
 
-            return response;
+                    return response;
+                });
         }
 
         [AcceptVerbs("GET", "HEAD")]
         //Get Container operations, with optional 'comp' parameter
         public async Task<HttpResponseMessage> GetContainerData(string container, string comp)
         {
-            CloudBlobContainer containerObj = ControllerOperations.GetContainerByName(DashConfiguration.NamespaceAccount, container);
-            HttpResponseMessage errorResponse = await ValidatePreconditions(containerObj);
-            if (errorResponse != null)
-            {
-                return errorResponse;
-            }
-            switch (comp.ToLower())
-            {
-                case "list":
-                    return await GetBlobList(container);
-                case "acl":
-                    return await FormContainerAclResponse(containerObj);
-                case "metadata":
-                    return await FormContainerMetadataResponse(containerObj);
+            return await DoHandlerAsync(String.Format("ContainerController.GetContainerData: {0}", comp), async () =>
+                {
+                    CloudBlobContainer containerObj = ControllerOperations.GetContainerByName(DashConfiguration.NamespaceAccount, container);
+                    HttpResponseMessage errorResponse = await ValidatePreconditions(containerObj);
+                    if (errorResponse != null)
+                    {
+                        return errorResponse;
+                    }
+                    switch (comp.ToLower())
+                    {
+                        case "list":
+                            return await GetBlobList(container);
+                        case "acl":
+                            return await FormContainerAclResponse(containerObj);
+                        case "metadata":
+                            return await FormContainerMetadataResponse(containerObj);
 
-                default:
-                    return new HttpResponseMessage(HttpStatusCode.BadRequest);
-            }
+                        default:
+                            return new HttpResponseMessage(HttpStatusCode.BadRequest);
+                    }
+                });
             
         }
 
@@ -212,20 +220,7 @@ namespace Microsoft.Dash.Server.Controllers
                     LeaseId = leaseID.First()
                 };
                 //Try fetching the attributes to force validation of the leaseID
-                try
-                {
-                    await container.FetchAttributesAsync(condition, null, null);
-                }
-                catch (StorageException ex)
-                {
-                    if (ex.RequestInformation.HttpStatusCode == (int)HttpStatusCode.PreconditionFailed)
-                    {
-                        var response = new HttpResponseMessage(HttpStatusCode.PreconditionFailed);
-                        response.Content = new StringContent(ex.Message);
-                        return response;
-                    }
-                    throw ex;
-                }
+                await container.FetchAttributesAsync(condition, null, null);
             }
             // If we don't find any errors, just return null to indicate that everything is A-OK.
             return null;
@@ -660,7 +655,6 @@ namespace Microsoft.Dash.Server.Controllers
             }
             return Convert.ToBase64String(Encoding.UTF8.GetBytes(markerValue));
         }
-
 
         static void SerializeAccessPolicies(XmlWriter writer, SharedAccessBlobPolicies policies)
         {

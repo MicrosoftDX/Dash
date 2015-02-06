@@ -30,7 +30,13 @@
       <Setting name="ScaleoutStorage7" />
       <Setting name="ScaleoutStorage8" />
       <Setting name="ScaleoutStorage9" />
-      <Setting name="ScaleoutNumberOfAccounts" />
+      <Setting name="ScaleoutStorage10" />
+      <Setting name="ScaleoutStorage11" />
+      <Setting name="ScaleoutStorage12" />
+      <Setting name="ScaleoutStorage13" />
+      <Setting name="ScaleoutStorage14" />
+      <Setting name="ScaleoutStorage15" />
+      <Setting name="LogNormalOperations" />
     </ConfigurationSettings>
   </WebRole>
 </ServiceDefinition>

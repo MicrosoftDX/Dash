@@ -10,6 +10,7 @@ using System.Xml;
 using Microsoft.Dash.Server.Handlers;
 using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage.Blob;
+using Microsoft.Dash.Server.Diagnostics;
 
 namespace Microsoft.Dash.Server.Controllers
 {
@@ -26,37 +27,51 @@ namespace Microsoft.Dash.Server.Controllers
         [HttpGet]
         public async Task<HttpResponseMessage> GetBlobServiceComp(string comp)
         {
-            switch (comp.ToLower())
-            {
-                case "list":
-                    return await ListContainersAsync();
+            return await DoHandlerAsync(String.Format("AccountController.GetBlobServiceComp: {0}", comp), async () =>
+                {
+                    switch (comp.ToLower())
+                    {
+                        case "list":
+                            return await ListContainersAsync();
 
-                default:
-                    return ProcessResultResponse(new HandlerResult
-                        {
-                            StatusCode = HttpStatusCode.BadRequest,
-                        });
-            }
+                        default:
+                            return ProcessResultResponse(new HandlerResult
+                                {
+                                    StatusCode = HttpStatusCode.BadRequest,
+                                });
+                    }
+                });
         }
+
+        static readonly string[] _corsOptionsHeaders = new[] { "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers" };
 
         [HttpOptions]
         public async Task<HttpResponseMessage> OptionsCallAsync()
         {
-            var request = HttpContextFactory.Current.Request;
-            Uri forwardUri = ControllerOperations.ForwardUriToNamespace(request);
-            HttpRequestMessage opRequest = new HttpRequestMessage(HttpMethod.Options, forwardUri);
-            List<string> keysToCopy = new List<string>();
-            keysToCopy.Add("Origin");
-            keysToCopy.Add("Access-Control-Request-Method");
-            keysToCopy.Add("Access-Control-Request-Headers");
-            foreach (string key in keysToCopy)
-            {
-                opRequest.Headers.TryAddWithoutValidation(key, request.Headers.Get(key));
-            }
-            HttpClient client = new HttpClient();
-            HttpResponseMessage opResponse = await client.SendAsync(opRequest);
-            opResponse.Headers.Add("x-ms-dash-client", "true");
-            return opResponse;
+            return await DoHandlerAsync("AccountController.OptionsCallAsync", async () =>
+                {
+                    var request = HttpContextFactory.Current.Request;
+                    HttpResponseMessage response;
+                    if (request.Headers["Origin"] != null)
+                    {
+                        DashTrace.TraceInformation("Forwarding real CORS OPTIONS request");
+                        Uri forwardUri = ControllerOperations.ForwardUriToNamespace(request);
+                        var forwardRequest = new HttpRequestMessage(HttpMethod.Options, forwardUri);
+                        foreach (string key in _corsOptionsHeaders)
+                        {
+                            forwardRequest.Headers.TryAddWithoutValidation(key, request.Headers[key]);
+                        }
+                        HttpClient client = new HttpClient();
+                        response = await client.SendAsync(forwardRequest);
+                        DashTrace.TraceInformation("CORS OPTIONS response: {0}, {1}", response.StatusCode, response.ReasonPhrase);
+                    }
+                    else
+                    {
+                        response = this.Request.CreateResponse(HttpStatusCode.OK);
+                    }
+                    response.Headers.Add("x-ms-dash-client", "true");
+                    return response;
+                });
         }
 
         private async Task<HttpResponseMessage> ListContainersAsync()

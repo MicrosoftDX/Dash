@@ -1,14 +1,15 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
-using System.Security.Cryptography;
 
 namespace Microsoft.Dash.Server.Handlers
 {
@@ -103,25 +104,40 @@ namespace Microsoft.Dash.Server.Handlers
         public static async Task<NamespaceBlob> CreateNamespaceBlobAsync(string container, string blob)
         {
             //create an namespace blob with hardcoded metadata
-            var namespaceBlob = await FetchNamespaceBlobAsync(container, blob);
-            bool exists = await namespaceBlob.ExistsAsync();
-            if (exists && !namespaceBlob.IsMarkedForDeletion && !String.IsNullOrWhiteSpace(namespaceBlob.BlobName))
+            for (int retry = 0; retry < 3; retry++)
             {
-                return namespaceBlob;
-            }
-            else if (!exists)
-            {
-                await namespaceBlob.CreateAsync();
-            }
-            //getting storage account name and account key from file account, by using simple hashing algorithm to choose account storage
-            var dataAccount = GetDataStorageAccountForBlob(blob);
-            namespaceBlob.AccountName = dataAccount.Credentials.AccountName;
-            namespaceBlob.Container = container;
-            namespaceBlob.BlobName = blob;
-            namespaceBlob.IsMarkedForDeletion = false;
-            await namespaceBlob.SaveAsync();
+                try
+                {
+                    var namespaceBlob = await FetchNamespaceBlobAsync(container, blob);
+                    bool exists = await namespaceBlob.ExistsAsync();
+                    if (exists && !namespaceBlob.IsMarkedForDeletion && !String.IsNullOrWhiteSpace(namespaceBlob.BlobName))
+                    {
+                        return namespaceBlob;
+                    }
+                    else if (!exists)
+                    {
+                        await namespaceBlob.CreateAsync();
+                    }
+                    //getting storage account name and account key from file account, by using simple hashing algorithm to choose account storage
+                    var dataAccount = GetDataStorageAccountForBlob(blob);
+                    namespaceBlob.AccountName = dataAccount.Credentials.AccountName;
+                    namespaceBlob.Container = container;
+                    namespaceBlob.BlobName = blob;
+                    namespaceBlob.IsMarkedForDeletion = false;
+                    await namespaceBlob.SaveAsync();
 
-            return namespaceBlob;
+                    return namespaceBlob;
+                }
+                catch (StorageException ex)
+                {
+                    if (ex.RequestInformation.HttpStatusCode != (int)HttpStatusCode.PreconditionFailed || retry >= 2)
+                    {
+                        throw;
+                    }
+                }
+            }
+            // Never get here
+            return null;
         }
 
         //getting storage account name and account key from file account, by using simple hashing algorithm to choose account storage
