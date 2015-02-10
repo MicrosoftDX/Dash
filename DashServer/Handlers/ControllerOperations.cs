@@ -103,41 +103,24 @@ namespace Microsoft.Dash.Server.Handlers
 
         public static async Task<NamespaceBlob> CreateNamespaceBlobAsync(string container, string blob)
         {
-            //create an namespace blob with hardcoded metadata
-            for (int retry = 0; retry < 3; retry++)
+            // create an namespace blob with hardcoded metadata
+            return await PerformNamespaceOperation(container, blob, async (namespaceBlob) =>
             {
-                try
+                bool exists = await namespaceBlob.ExistsAsync();
+                if (exists && !namespaceBlob.IsMarkedForDeletion && !String.IsNullOrWhiteSpace(namespaceBlob.BlobName))
                 {
-                    var namespaceBlob = await FetchNamespaceBlobAsync(container, blob);
-                    bool exists = await namespaceBlob.ExistsAsync();
-                    if (exists && !namespaceBlob.IsMarkedForDeletion && !String.IsNullOrWhiteSpace(namespaceBlob.BlobName))
-                    {
-                        return namespaceBlob;
-                    }
-                    else if (!exists)
-                    {
-                        await namespaceBlob.CreateAsync();
-                    }
-                    //getting storage account name and account key from file account, by using simple hashing algorithm to choose account storage
-                    var dataAccount = GetDataStorageAccountForBlob(blob);
-                    namespaceBlob.AccountName = dataAccount.Credentials.AccountName;
-                    namespaceBlob.Container = container;
-                    namespaceBlob.BlobName = blob;
-                    namespaceBlob.IsMarkedForDeletion = false;
-                    await namespaceBlob.SaveAsync();
-
                     return namespaceBlob;
                 }
-                catch (StorageException ex)
-                {
-                    if (ex.RequestInformation.HttpStatusCode != (int)HttpStatusCode.PreconditionFailed || retry >= 2)
-                    {
-                        throw;
-                    }
-                }
-            }
-            // Never get here
-            return null;
+                //getting storage account name and account key from file account, by using simple hashing algorithm to choose account storage
+                var dataAccount = GetDataStorageAccountForBlob(blob);
+                namespaceBlob.AccountName = dataAccount.Credentials.AccountName;
+                namespaceBlob.Container = container;
+                namespaceBlob.BlobName = blob;
+                namespaceBlob.IsMarkedForDeletion = false;
+                await namespaceBlob.SaveAsync();
+
+                return namespaceBlob;
+            });
         }
 
         //getting storage account name and account key from file account, by using simple hashing algorithm to choose account storage
@@ -171,6 +154,32 @@ namespace Microsoft.Dash.Server.Handlers
         public static async Task<NamespaceBlob> FetchNamespaceBlobAsync(string container, string blobName, string snapshot = null)
         {
             return await NamespaceBlob.FetchForBlobAsync(GetBlobByName(DashConfiguration.NamespaceAccount, container, blobName, snapshot));
+        }
+
+        const int CreateRetryCount = 3;
+        public static async Task<T> PerformNamespaceOperation<T>(string container, string blobName, Func<NamespaceBlob, Task<T>> operation)
+        {
+            // Allow namespace operations to be retried. Update operations (via NamespaceBlob.SaveAsync()) use pre-conditions to
+            // resolve race conditions on the same namespace blob
+            for (int retry = 0; retry < CreateRetryCount; retry++)
+            {
+                try
+                {
+                    var namespaceBlob = await FetchNamespaceBlobAsync(container, blobName);
+                    return await operation(namespaceBlob);
+                }
+                catch (StorageException ex)
+                {
+                    if ((ex.RequestInformation.HttpStatusCode != (int)HttpStatusCode.PreconditionFailed &&
+                        ex.RequestInformation.HttpStatusCode != (int)HttpStatusCode.Conflict) ||
+                        retry >= CreateRetryCount - 1)
+                    {
+                        throw;
+                    }
+                }
+            }
+            // Never get here
+            return default(T);
         }
 
         public static CloudBlobContainer GetContainerByName(CloudStorageAccount account, string containerName)

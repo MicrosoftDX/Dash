@@ -1,12 +1,10 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Web;
-using Microsoft.WindowsAzure.Storage.Blob;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace Microsoft.Dash.Server.Handlers
 {
@@ -40,7 +38,14 @@ namespace Microsoft.Dash.Server.Handlers
 
         public async Task SaveAsync()
         {
-            await _namespaceBlob.SetMetadataAsync(AccessCondition.GenerateIfMatchCondition(_namespaceBlob.Properties.ETag), null, null);
+            if (!_blobExists)
+            {
+                await _namespaceBlob.UploadTextAsync("", Encoding.UTF8, AccessCondition.GenerateIfNoneMatchCondition("*"), null, null);
+            }
+            else
+            {
+                await _namespaceBlob.SetMetadataAsync(AccessCondition.GenerateIfMatchCondition(_namespaceBlob.Properties.ETag), null, null);
+            }
         }
 
         public async Task MarkForDeletionAsync()
@@ -59,26 +64,28 @@ namespace Microsoft.Dash.Server.Handlers
             return _blobExists;
         }
 
-        public async Task CreateAsync()
+        private string TryGetMetadataValue(string metadataName)
         {
-            await _namespaceBlob.UploadTextAsync("");
+            string retval = String.Empty;
+            _namespaceBlob.Metadata.TryGetValue(metadataName, out retval);
+            return retval;
         }
 
         public string AccountName
         {
-            get { return _namespaceBlob.Metadata[MetadataNameAccount]; }
+            get { return TryGetMetadataValue(MetadataNameAccount); }
             set { _namespaceBlob.Metadata[MetadataNameAccount] = value; }
         }
 
         public string Container
         {
-            get { return _namespaceBlob.Metadata[MetadataNameContainer]; }
+            get { return TryGetMetadataValue(MetadataNameContainer); }
             set { _namespaceBlob.Metadata[MetadataNameContainer] = value; }
         }
 
         public string BlobName
         {
-            get { return _namespaceBlob.Metadata[MetadataNameBlobName]; }
+            get { return TryGetMetadataValue(MetadataNameBlobName); }
             set { _namespaceBlob.Metadata[MetadataNameBlobName] = value; }
         }
 
@@ -87,11 +94,8 @@ namespace Microsoft.Dash.Server.Handlers
             get
             {
                 bool retval = false;
-                string deleteFlag = String.Empty;
-                if (_namespaceBlob.Metadata.TryGetValue(MetadataNameDeleteFlag, out deleteFlag))
-                {
-                    bool.TryParse(deleteFlag, out retval);
-                }
+                string deleteFlag = TryGetMetadataValue(MetadataNameDeleteFlag);
+                bool.TryParse(deleteFlag, out retval);
                 return retval;
             }
             set

@@ -44,11 +44,11 @@ namespace Microsoft.Dash.Server.Controllers
         [HttpDelete]
         public async Task<HttpResponseMessage> DeleteBlob(string container, string blob, string snapshot = null)
         {
-            return await DoHandlerAsync(String.Format("BlobController.DeleteBlob: {0}/{1}", container, blob), async () =>
+            return await DoHandlerAsync(String.Format("BlobController.DeleteBlob: {0}/{1}", container, blob),
+                async () => await ControllerOperations.PerformNamespaceOperation(container, blob, async (namespaceBlob) =>
                 {
                     //We only need to delete the actual blob. We are leaving the namespace entry alone as a sort of cache.
-                    var namespaceBlob = await ControllerOperations.FetchNamespaceBlobAsync(container, blob);
-                    if (!await namespaceBlob.ExistsAsync())
+                    if (!(await namespaceBlob.ExistsAsync()) || namespaceBlob.IsMarkedForDeletion)
                     {
                         return new HttpResponseMessage(HttpStatusCode.NotFound);
                     }
@@ -59,7 +59,7 @@ namespace Microsoft.Dash.Server.Controllers
                     await namespaceBlob.MarkForDeletionAsync();
 
                     return new HttpResponseMessage(HttpStatusCode.Accepted);
-                });
+                }));
         }
 
         /// Get Blob Properties - http://msdn.microsoft.com/en-us/library/azure/dd179394.aspx

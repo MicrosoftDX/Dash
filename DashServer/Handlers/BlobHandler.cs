@@ -156,11 +156,7 @@ namespace Microsoft.Dash.Server.Handlers
                         {
                             destAccount = ControllerOperations.GetDataStorageAccountForBlob(destBlob).Credentials.AccountName;
                         }
-                        if (!await destNamespaceBlob.ExistsAsync())
-                        {
-                            await destNamespaceBlob.CreateAsync();
-                        }
-                        else if (destNamespaceBlob.AccountName != destAccount)
+                        if (await destNamespaceBlob.ExistsAsync() && destNamespaceBlob.AccountName != destAccount)
                         {
                             // Delete the existing blob to prevent orphaning it
                             var dataBlob = ControllerOperations.GetBlobByName(DashConfiguration.GetDataAccountByAccountName(destNamespaceBlob.AccountName), destContainer, destBlob);
