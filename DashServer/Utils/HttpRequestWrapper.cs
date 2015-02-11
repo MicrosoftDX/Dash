@@ -30,9 +30,9 @@ namespace Microsoft.Dash.Server.Utils
         {
         }
 
-        public static IHttpRequestWrapper Create(HttpRequest request)
+        public static IHttpRequestWrapper Create(HttpRequest request, bool uriDecode)
         {
-            return new HttpRequestBaseWrapper(new HttpRequestWrapper(request));
+            return new HttpRequestBaseWrapper(new HttpRequestWrapper(request), uriDecode);
         }
 
         public static IHttpRequestWrapper Create(HttpRequestMessage request)

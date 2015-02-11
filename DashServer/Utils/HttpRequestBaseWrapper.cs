@@ -11,10 +11,19 @@ namespace Microsoft.Dash.Server.Utils
     public class HttpRequestBaseWrapper : DashHttpRequestWrapper
     {
         HttpRequestBase _request;
+        Uri _requestUri;
 
-        public HttpRequestBaseWrapper(HttpRequestBase request)
+        public HttpRequestBaseWrapper(HttpRequestBase request, bool uriDecode)
         {
             _request = request;
+            if (uriDecode)
+            {
+                _requestUri = new Uri(HttpUtility.UrlDecode(this._request.Url.ToString()));
+            }
+            else
+            {
+                _requestUri = this._request.Url;
+            }
         }
 
         protected override string GetHttpMethod()
@@ -24,7 +33,7 @@ namespace Microsoft.Dash.Server.Utils
 
         protected override Uri GetRequestUri()
         {
-            return this._request.Url;
+            return this._requestUri;
         }
 
         protected override RequestHeaders GetRequestHeaders()

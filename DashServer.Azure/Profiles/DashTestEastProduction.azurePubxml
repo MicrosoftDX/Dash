@@ -14,11 +14,11 @@
     <AzureEnableIntelliTrace>False</AzureEnableIntelliTrace>
     <AzureEnableProfiling>False</AzureEnableProfiling>
     <AzureServiceConfiguration>Cloud - East</AzureServiceConfiguration>
-    <AzureSolutionConfiguration>Debug</AzureSolutionConfiguration>
+    <AzureSolutionConfiguration>Release</AzureSolutionConfiguration>
     <AzureStorageAccountLabel>dashdeployment</AzureStorageAccountLabel>
     <AzureStorageAccountName>dashdeployment</AzureStorageAccountName>
     <AzureAppendTimestampToDeploymentLabel>True</AzureAppendTimestampToDeploymentLabel>
-    <EnableRemoteDebugger>True</EnableRemoteDebugger>
+    <EnableRemoteDebugger>False</EnableRemoteDebugger>
     <RemoteDebuggerConnectorCertificateThumbprint>F62526926A51272FBD799C664550E21EAB88C4DF</RemoteDebuggerConnectorCertificateThumbprint>
   </PropertyGroup>
 </Project>

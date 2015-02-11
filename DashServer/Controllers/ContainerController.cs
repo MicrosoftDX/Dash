@@ -424,7 +424,7 @@ namespace Microsoft.Dash.Server.Controllers
             var includedDataSets = String.Join(",", queryParams.Values<string>("include"));
 
             var blobTasks = DashConfiguration.DataAccounts
-                .Select(account => ChildBlobListAsync(account, container, prefix, String.IsNullOrWhiteSpace(delim), includedDataSets));
+                .Select(account => ChildBlobListAsync(account, container, prefix, delim, includedDataSets));
             var blobs = await Task.WhenAll(blobTasks);
             var sortedBlobs = blobs
                 .SelectMany(blobList => blobList)
@@ -448,9 +448,13 @@ namespace Microsoft.Dash.Server.Controllers
             return CreateResponse(blobResults);
         }
 
-        private async Task<IEnumerable<IListBlobItem>> ChildBlobListAsync(CloudStorageAccount dataAccount, string container, string prefix, bool useFlatListing, string includeFlags)
+        private async Task<IEnumerable<IListBlobItem>> ChildBlobListAsync(CloudStorageAccount dataAccount, string container, string prefix, string delimiter, string includeFlags)
         {
             CloudBlobContainer containerObj = ControllerOperations.GetContainerByName(dataAccount, container);
+            if (!String.IsNullOrWhiteSpace(delimiter))
+            {
+                containerObj.ServiceClient.DefaultDelimiter = delimiter;
+            }
             var results = new List<IEnumerable<IListBlobItem>>();
             BlobListingDetails listDetails;
             Enum.TryParse(includeFlags, true, out listDetails);
@@ -463,7 +467,7 @@ namespace Microsoft.Dash.Server.Controllers
                     {
                         NextMarker = nextMarker,
                     };
-                    var blobResults = await containerObj.ListBlobsSegmentedAsync(prefix, useFlatListing, listDetails, null, continuationToken, null, null);
+                    var blobResults = await containerObj.ListBlobsSegmentedAsync(prefix, String.IsNullOrWhiteSpace(delimiter), listDetails, null, continuationToken, null, null);
                     results.Add(blobResults.Results);
                     if (blobResults.ContinuationToken != null)
                     {
@@ -570,6 +574,7 @@ namespace Microsoft.Dash.Server.Controllers
                 if (++blobCount > results.MaxResults)
                 {
                     nextBlob = blob;
+                    break;
                 }
                 else if (blob is ICloudBlob)
                 {
