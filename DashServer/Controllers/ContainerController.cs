@@ -73,7 +73,7 @@ namespace Microsoft.Dash.Server.Controllers
             return (await DoForAllContainersAsync(container, 
                 HttpStatusCode.Accepted, 
                 async containerObj => await containerObj.DeleteAsync(),
-                true)).CreateResponse();
+                false)).CreateResponse();
         }
 
         async Task<DelegatedResponse> DoForAllContainersAsync(string container, HttpStatusCode successStatus, Func<CloudBlobContainer, Task> action, bool ignoreNotFound)

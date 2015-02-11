@@ -198,7 +198,7 @@ namespace Microsoft.Tests
             var firstPolicy = (XElement)enumerationResults.Element("SignedIdentifier");
             Assert.AreEqual(policyGuid, firstPolicy.Element("Id").Value);
             var accessPolicy = firstPolicy.Element("AccessPolicy");
-            Assert.AreEqual("read", accessPolicy.Element("Permission").Value);
+            Assert.AreEqual("r", accessPolicy.Element("Permission").Value);
 
             //Test deletion of container (and cleanup)
             results = _runner.ExecuteRequest(baseUri, "DELETE", expectedStatusCode: HttpStatusCode.Accepted);
