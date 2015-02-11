@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ServiceDefinition name="DashServer.Azure" xmlns="http://schemas.microsoft.com/ServiceHosting/2008/10/ServiceDefinition" schemaVersion="2014-06.2.4">
+  <WebRole name="DashServer" vmsize="A7">
+    <Sites>
+      <Site name="Web">
+        <Bindings>
+          <Binding name="Endpoint1" endpointName="Endpoint1" />
+          <Binding name="Endpoint2" endpointName="Endpoint2" />
+        </Bindings>
+      </Site>
+    </Sites>
+    <Endpoints>
+      <InputEndpoint name="Endpoint1" protocol="http" port="80" />
+      <InputEndpoint name="Endpoint2" protocol="https" port="443" certificate="TlsCertificate" />
+    </Endpoints>
+    <Imports>
+      <Import moduleName="Diagnostics" />
+    </Imports>
+    <ConfigurationSettings>
+      <Setting name="AccountName" />
+      <Setting name="AccountKey" />
+      <Setting name="StorageConnectionStringMaster" />
+      <Setting name="ScaleoutStorage0" />
+      <Setting name="ScaleoutStorage1" />
+      <Setting name="ScaleoutStorage2" />
+      <Setting name="ScaleoutStorage3" />
+      <Setting name="ScaleoutStorage4" />
+      <Setting name="ScaleoutStorage5" />
+      <Setting name="ScaleoutStorage6" />
+      <Setting name="ScaleoutStorage7" />
+      <Setting name="ScaleoutStorage8" />
+      <Setting name="ScaleoutStorage9" />
+      <Setting name="ScaleoutStorage10" />
+      <Setting name="ScaleoutStorage11" />
+      <Setting name="ScaleoutStorage12" />
+      <Setting name="ScaleoutStorage13" />
+      <Setting name="ScaleoutStorage14" />
+      <Setting name="ScaleoutStorage15" />
+      <Setting name="LogNormalOperations" />
+    </ConfigurationSettings>
+    <Certificates>
+      <Certificate name="TlsCertificate" storeLocation="LocalMachine" storeName="My" />
+    </Certificates>
+  </WebRole>
+</ServiceDefinition>

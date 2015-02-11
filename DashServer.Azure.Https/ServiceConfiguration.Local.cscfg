@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ServiceConfiguration serviceName="DashServer.Azure" xmlns="http://schemas.microsoft.com/ServiceHosting/2008/10/ServiceConfiguration" osFamily="4" osVersion="*" schemaVersion="2014-06.2.4">
+  <Role name="DashServer">
+    <Instances count="2" />
+    <ConfigurationSettings>
+      <Setting name="Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString" value="UseDevelopmentStorage=true" />
+      <Setting name="AccountName" value="dashlocal" />
+      <Setting name="AccountKey" value="wCNvIdXcltACBiDUMyO0BflZpKmjseplqOlzE62tx87qnkwpUMBV/GQhrscW9lmdZVT0x8DilYqUoHMNBlVIGg==" />
+      <Setting name="StorageConnectionStringMaster" value="DefaultEndpointsProtocol=http;AccountName=dashstorage0;AccountKey=uCNvIdXcltACBiDUMyO0BflZpKmjseplqOlzE62tx87qnkwpUMBV/GQhrscW9lmdZVT0x8DilYqUoHMNBlVIGg==" />
+      <Setting name="ScaleoutStorage0" value="DefaultEndpointsProtocol=http;AccountName=dashstorage1;AccountKey=8jqRVtXUWiEthgIhR+dFwrB8gh3lFuquvJQ1v4eabObIj7okI1cZIuzY8zZHmEdpcC0f+XlUkbFwAhjTfyrLIg==" />
+      <Setting name="ScaleoutStorage1" value="DefaultEndpointsProtocol=http;AccountName=dashstorage2;AccountKey=YI0BDhckKp+6uBsu4OAAeVvUyOuMvimqo9BSz197lR14x9vWE+tuwqOr0U1asNWpkdZs4z8wcnu9pZNYDqdRPA==" />
+      <Setting name="ScaleoutStorage2" value="DefaultEndpointsProtocol=http;AccountName=dashstorage4;AccountKey=/9xfNbmYy/k7DQzO12XEbEeMsy+z/ogkekHltikmCNXVNwPnW/O95d+FZTkfDDLo+s1LMLhXeCQFVDCDuo5DWQ==" />
+      <Setting name="ScaleoutStorage3" value="DefaultEndpointsProtocol=http;AccountName=dashstorage5;AccountKey=FEZZeywk/TOJTqtYzIeHAF9TcpGzT3KC/RtSOPTgZwfnGTa3mJ1YXxfkWhx2x/znjmZNgfRKCAr8t49WIstkow==" />
+      <Setting name="ScaleoutStorage4" value="" />
+      <Setting name="ScaleoutStorage5" value="" />
+      <Setting name="ScaleoutStorage6" value="" />
+      <Setting name="ScaleoutStorage7" value="" />
+      <Setting name="ScaleoutStorage8" value="" />
+      <Setting name="ScaleoutStorage9" value="" />
+      <Setting name="ScaleoutStorage10" value="" />
+      <Setting name="ScaleoutStorage11" value="" />
+      <Setting name="ScaleoutStorage12" value="" />
+      <Setting name="ScaleoutStorage13" value="" />
+      <Setting name="ScaleoutStorage14" value="" />
+      <Setting name="ScaleoutStorage15" value="" />
+      <Setting name="LogNormalOperations" value="true" />
+    </ConfigurationSettings>
+    <Certificates>
+      <Certificate name="TlsCertificate" thumbprint="0000000000000000000000000000000000000000" thumbprintAlgorithm="sha1" />
+    </Certificates>
+  </Role>
+</ServiceConfiguration>
