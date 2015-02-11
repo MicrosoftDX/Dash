@@ -1,17 +1,16 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
-using System.Collections.Specialized;
 using System.Globalization;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using System.Web;
+using Microsoft.Dash.Server.Diagnostics;
 using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage.Blob;
-using System.Net.Http;
 
 namespace Microsoft.Dash.Server.Handlers
 {
@@ -72,17 +71,57 @@ namespace Microsoft.Dash.Server.Handlers
 
             // Pull out the MVC controller part of the path
             var requestUriParts = request.UriParts;
-            string uriPath = requestUriParts.PublicUriPath;
-            var uriUnencodedPath = uriPath.Replace(":", "%3A").Replace("@", "%40");
+            string uriPath = requestUriParts.OriginalUriPath;
+            var uriUnencodedPath = requestUriParts.PublicUriPath;
             bool runUnencodedComparison = uriPath != uriUnencodedPath;
 
+            // For some verbs we can't tell if the Content-Length header was specified as 0 or that IIS/UrlRewrite/ASP.NET has constructed
+            // the header value for us. The difference is significant to the signature as content length is included for SharedKey
+            bool fullKeyAlgorithm = parts[0] == AlgorithmSharedKey;
+            bool runBlankContentLengthComparison = false;
+            string method = request.HttpMethod.ToUpper();
+            var contentLength = headers.Value("Content-Length", "");
+            if (fullKeyAlgorithm)
+            {
+                int length;
+                if (!int.TryParse(contentLength, out length) || length <= 0)
+                {
+                    // Preserve a Content-Length: 0 header for PUT methods
+                    runBlankContentLengthComparison = !method.Equals(WebRequestMethods.Http.Put, StringComparison.OrdinalIgnoreCase);
+                }
+            }
             // Both encoding schemes are valid for the signature
-            return String.Equals(account, AccountName, StringComparison.OrdinalIgnoreCase) &&
-                (signature == SharedKeySignature(parts[0] == AlgorithmSharedKeyLite, request.HttpMethod.ToUpper(), uriPath, headers, queryParams, dateHeader) ||
-                 (runUnencodedComparison && signature == SharedKeySignature(parts[0] == AlgorithmSharedKeyLite, request.HttpMethod.ToUpper(), uriUnencodedPath, headers, queryParams, dateHeader)));
+            // Evaluations are ordered by most likely match to least likely match to reduce # of hash calculations
+            if (!String.Equals(account, AccountName, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            else if (runBlankContentLengthComparison &&
+                signature == SharedKeySignature(!fullKeyAlgorithm, method, uriPath, headers, queryParams, dateHeader, String.Empty))
+            {
+                return true;
+            }
+            else if (signature == SharedKeySignature(!fullKeyAlgorithm, method, uriPath, headers, queryParams, dateHeader, contentLength))
+            {
+                return true;
+            }
+            else if (runBlankContentLengthComparison &&
+                runUnencodedComparison &&
+                signature == SharedKeySignature(!fullKeyAlgorithm, method, uriUnencodedPath, headers, queryParams, dateHeader, String.Empty))
+            {
+                return true;
+            }
+            else if (runUnencodedComparison && 
+                signature == SharedKeySignature(!fullKeyAlgorithm, method, uriUnencodedPath, headers, queryParams, dateHeader, contentLength))
+            {
+                return true;
+            }
+            DashTrace.TraceWarning("Failed to authenticate request: {0}:{1}:{2}:{3}", account, method, uriPath, signature);
+
+            return false;
         }
 
-        public static string SharedKeySignature(bool liteAlgorithm, string method, string uriPath, RequestHeaders headers, RequestQueryParameters queryParams, string requestDate)
+        public static string SharedKeySignature(bool liteAlgorithm, string method, string uriPath, RequestHeaders headers, RequestQueryParameters queryParams, string requestDate, string contentLength)
         {
             // Signature scheme is described at: http://msdn.microsoft.com/en-us/library/azure/dd179428.aspx
             // and the SDK implementation is at: https://github.com/Azure/azure-storage-net/tree/master/Lib/ClassLibraryCommon/Auth/Protocol
@@ -100,16 +139,6 @@ namespace Microsoft.Dash.Server.Handlers
             }
             else
             {
-                var contentLength = headers.Value("Content-Length", "");
-                int length;
-                if (!int.TryParse(contentLength, out length) || length <= 0)
-                {
-                    // Preserve a Content-Length: 0 header for PUT methods
-                    if (!method.Equals(WebRequestMethods.Http.Put, StringComparison.OrdinalIgnoreCase))
-                    {
-                        contentLength = String.Empty;
-                    }
-                }
                 stringToSign = String.Format("{0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}\n{8}\n{9}\n{10}\n{11}\n{12}\n{13}",
                                                     method,
                                                     headers.Value("Content-Encoding", String.Empty),
@@ -126,6 +155,7 @@ namespace Microsoft.Dash.Server.Handlers
                                                     GetCanonicalizedHeaders(headers),
                                                     GetCanonicalizedResource(liteAlgorithm, uriPath, queryParams, AccountName));
             }
+            DashTrace.TraceInformation("Authentication signing string: {0}", stringToSign);
 
             var bytesToSign = Encoding.UTF8.GetBytes(stringToSign);
             using (var hmac = new HMACSHA256(AccountKey))

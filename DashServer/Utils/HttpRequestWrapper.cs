@@ -42,7 +42,7 @@ namespace Microsoft.Dash.Server.Utils
 
         public RequestUriParts UriParts
         {
-            get { return GetCachedObject<RequestUriParts>("Dash_RequestUriParts", () => RequestUriParts.Create(GetRequestUri())); }
+            get { return GetCachedObject<RequestUriParts>("Dash_RequestUriParts", () => RequestUriParts.Create(GetPathSegments(), GetOriginalPathSegments())); }
         }
 
         public RequestHeaders Headers
@@ -59,6 +59,19 @@ namespace Microsoft.Dash.Server.Utils
         protected abstract Uri GetRequestUri();
         protected abstract RequestHeaders GetRequestHeaders();
         protected abstract RequestQueryParameters GetQueryParameters();
+        
+        protected virtual IEnumerable<string> GetPathSegments()
+        {
+            return this.Url.Segments
+                .Select(segment => segment.Trim('/'))
+                .Where(segment => !String.IsNullOrWhiteSpace(segment))
+                .ToArray();
+        }
+
+        protected virtual IEnumerable<string> GetOriginalPathSegments()
+        {
+            return GetPathSegments();
+        }
 
         public Uri Url
         {

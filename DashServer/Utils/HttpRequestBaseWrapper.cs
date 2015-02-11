@@ -12,6 +12,8 @@ namespace Microsoft.Dash.Server.Utils
     {
         HttpRequestBase _request;
         Uri _requestUri;
+        IEnumerable<string> _pathSegments;
+        IEnumerable<string> _originalSegments;
 
         public HttpRequestBaseWrapper(HttpRequestBase request, bool uriDecode)
         {
@@ -19,6 +21,15 @@ namespace Microsoft.Dash.Server.Utils
             if (uriDecode)
             {
                 _requestUri = new Uri(HttpUtility.UrlDecode(this._request.Url.ToString()));
+                _pathSegments = _requestUri.GetComponents(UriComponents.Path, UriFormat.SafeUnescaped)
+                    .Trim('/')
+                    .Split('/')
+                    .ToArray();
+                _originalSegments = this._request.Url.Segments
+                    .Select(segment => segment.Trim('/'))
+                    .Where(segment => !String.IsNullOrWhiteSpace(segment))
+                    .ToArray();
+
             }
             else
             {
@@ -44,6 +55,24 @@ namespace Microsoft.Dash.Server.Utils
         protected override RequestQueryParameters GetQueryParameters()
         {
             return RequestQueryParameters.Create(this._request.QueryString);
+        }
+
+        protected override IEnumerable<string> GetPathSegments()
+        {
+            if (_pathSegments != null)
+            {
+                return _pathSegments;
+            }
+            return base.GetPathSegments();
+        }
+
+        protected override IEnumerable<string> GetOriginalPathSegments()
+        {
+            if (_originalSegments != null)
+            {
+                return _originalSegments;
+            }
+            return base.GetOriginalPathSegments();
         }
     }
 }
