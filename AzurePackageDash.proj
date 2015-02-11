@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 
+Copyright (c) Microsoft Corporation.  All rights reserved. 
+Aggregation build project to create Azure deployment packages for Gateway service. 
+Also writes the required package.manifest to upload to the Update Service's storage account. 
+-->
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <SolutionDir Condition="'$(SolutionDir)' == ''">.</SolutionDir>
+    <OutDir Condition="'$(OutDir)' == ''">bin\</OutDir>
+    <PackageRoot Condition="'$(PackageRoot)' == ''">$([System.IO.Path]::GetFullPath($(OutDir)Package\))</PackageRoot>
+    <CloudServiceDir Condition="'$(CloudServiceDir)' == ''">DashServer.Azure</CloudServiceDir>
+    <CloudServiceHttpsDir Condition="'$(CloudServiceHttpsDir)' == ''">DashServer.Azure.Https</CloudServiceHttpsDir>
+  </PropertyGroup>
+  <Import Project=".\.build\PackageVersion.targets" />
+  <Target Name="Build" DependsOnTargets="GetPackageVersion">
+    <MakeDir Directories="$(PackageRoot)" />
+    <Message Text="Writing Azure packages to: $(PackageRoot))" />
+    <!-- Add package manifest generation here when required -->
+    <MSBuild Projects="DashServer.Azure\DashServer.Azure.ccproj" Targets="Publish" Properties="Configuration=Release;TargetProfile=Publish;PublishDir=$(PackageRoot)$(CloudServiceDir)/;" />
+    <MSBuild Projects="DashServer.Azure.Https\DashServer.Azure.Https.ccproj" Targets="Publish" Properties="Configuration=Release;TargetProfile=PublishHttps;PublishDir=$(PackageRoot)$(CloudServiceHttpsDir)/;" />
+  </Target>
+</Project>
+
+

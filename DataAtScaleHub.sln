@@ -3,6 +3,17 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
 VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{C52B256A-9914-4827-B360-39B25618E5C3}"
+	ProjectSection(SolutionItems) = preProject
+		.nuget\NuGet.Config = .nuget\NuGet.Config
+		.nuget\NuGet.exe = .nuget\NuGet.exe
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".build", ".build", "{EFB95C4B-A9DC-45AA-A217-B92B1E6060F8}"
+	ProjectSection(SolutionItems) = preProject
+		.build\PackageVersion.targets = .build\PackageVersion.targets
+	EndProjectSection
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DashServer", "DashServer\DashServer.csproj", "{7E4CA414-B46A-49CA-922F-FE00D69C23CA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DashServer.Tests", "DashServer.Tests\DashServer.Tests.csproj", "{98DFBF47-6F1E-4BB1-910B-88DFF5ABABED}"
