@@ -16,7 +16,27 @@ Also writes the required package.manifest to upload to the Update Service's stor
   <Target Name="Build" DependsOnTargets="GetPackageVersion">
     <MakeDir Directories="$(PackageRoot)" />
     <Message Text="Writing Azure packages to: $(PackageRoot))" />
-    <!-- Add package manifest generation here when required -->
+    <!-- Emit the package manifest file -->
+    <Message Text="Writing Gateway packages to: $(PackageRoot))" />
+    <WriteLinesToFile File="$(PackageRoot)package.manifest" Overwrite="true"
+                      Lines="
+{
+  'Version' : '$(PackageVersion)',
+  'Description' : '',
+  'Severity' : 'Important',
+  'AvailablePackages' : [
+    {
+      'PackageName' : 'HTTP',
+      'Description' : 'Dash Server with no HTTPS',
+      'StorageFileNames' : ['$(CloudServiceDir)/DashServer.Azure.cspkg', '$(CloudServiceDir)/ServiceConfiguration.Publish.cscfg']
+    },
+    {
+      'PackageName' : 'HTTPS',
+      'Description' : 'Gateway with HTTPS',
+      'StorageFileNames' : ['$(CloudServiceHttpsDir)/DashServer.Azure.Https.cspkg', '$(CloudServiceHttpsDir)/ServiceConfiguration.PublishHttps.cscfg']
+    }
+  ]
+}" />
     <MSBuild Projects="DashServer.Azure\DashServer.Azure.ccproj" Targets="Publish" Properties="Configuration=Release;TargetProfile=Publish;PublishDir=$(PackageRoot)$(CloudServiceDir)/;" />
     <MSBuild Projects="DashServer.Azure.Https\DashServer.Azure.Https.ccproj" Targets="Publish" Properties="Configuration=Release;TargetProfile=PublishHttps;PublishDir=$(PackageRoot)$(CloudServiceHttpsDir)/;" />
   </Target>
