@@ -3,8 +3,10 @@
 using System;
 using System.Net;
 using System.Net.Http;
+using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
+using Microsoft.Dash.Server.Diagnostics;
 using Microsoft.Dash.Server.Utils;
 
 namespace Microsoft.Dash.Server.Controllers
@@ -27,6 +29,11 @@ namespace Microsoft.Dash.Server.Controllers
             response.Headers.TryAddWithoutValidation("x-ms-version", "2014-02-14");
             response.Headers.TryAddWithoutValidation("x-ms-date", DateTimeOffset.UtcNow.ToString("r"));
             return response;
+        }
+
+        protected async Task<IHttpActionResult> DoHandlerAsync(string handlerName, Func<Task<HandlerResult>> handler)
+        {
+            return ProcessHandlerResult(await OperationRunner.DoHandlerAsync(handlerName, handler));
         }
 
         protected IHttpActionResult ProcessHandlerResult(HandlerResult result)
@@ -52,9 +59,21 @@ namespace Microsoft.Dash.Server.Controllers
             }
         }
 
+        protected async Task<HttpResponseMessage> DoHandlerAsync(string handlerName, Func<Task<HttpResponseMessage>> handler)
+        {
+            return await OperationRunner.DoActionAsync(handlerName, handler, (ex) =>
+                {
+                    return ProcessResultResponse(HandlerResult.FromException(ex));
+                });
+        }
+
         protected HttpResponseMessage ProcessResultResponse(HandlerResult result)
         {
             var response = new HttpResponseMessage(result.StatusCode);
+            if (!String.IsNullOrWhiteSpace(result.ReasonPhrase))
+            {
+                response.ReasonPhrase = result.ReasonPhrase;
+            }
             if (result.Headers != null)
             {
                 foreach (var header in result.Headers)
@@ -62,7 +81,7 @@ namespace Microsoft.Dash.Server.Controllers
                     response.Headers.TryAddWithoutValidation(header.Key, header);
                 }
             }
-            if (result.ErrorInformation != null)
+            if (result.ErrorInformation != null && !String.IsNullOrWhiteSpace(result.ErrorInformation.ErrorCode))
             {
                 var error = new HttpError
                 {

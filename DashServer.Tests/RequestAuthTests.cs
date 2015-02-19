@@ -29,15 +29,29 @@ namespace Microsoft.Tests
         [TestMethod]
         public void SharedKeyRequestTest()
         {
-            Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/container/test?restype=container&comp=list&prefix=te&include=snapshots,uncommittedblobs,metadata,copy", new[] {
+            var headers = new[] {
                 Tuple.Create("User-Agent", "WA-Storage/4.3.0 (.NET CLR 4.0.30319.34014; Win32NT 6.2.9200.0)"),
                 Tuple.Create("x-ms-version", "2014-02-14"),
                 Tuple.Create("x-ms-client-request-id", "adfb540e-1050-4c9b-a53a-be6cb71688d3"),
                 Tuple.Create("x-ms-date", "Fri, 31 Oct 2014 22:50:34 GMT"),
-                Tuple.Create("Authorization", "SharedKey dashstorage1:rB2yPGBXn3CtquDlk03An34hgRHIibK/Xv+hjG3r0Us="),
                 Tuple.Create("Host", "dashstorage1.blob.core.windows.net"),
                 Tuple.Create("Connection", "Keep-Alive"),
-            }));
+                Tuple.Create("Content-Length", "0"),
+            };
+            Assert.IsTrue(IsRequestAuthorized("GET", 
+                "http://localhost/container/test?restype=container&comp=list&prefix=te&include=snapshots,uncommittedblobs,metadata,copy", 
+                headers,
+                "SharedKey dashstorage1:rB2yPGBXn3CtquDlk03An34hgRHIibK/Xv+hjG3r0Us="));
+            Assert.IsTrue(IsRequestAuthorized("PUT",
+                "http://localhost/container/test%20encoded",
+                headers,
+                "SharedKey dashstorage1:CVlJHA7FdyqJ75pPkufGavOsXEtzcr5RAWd3R5fEolA="));
+            // For encoded uris, some clients generate the signature on the unencoded path (in violation of the documented spec), but 
+            // storage supports it, so we have to as well.
+            Assert.IsTrue(IsRequestAuthorized("PUT", 
+                "http://localhost/container/test%20encoded", 
+                headers,
+                "SharedKey dashstorage1:w6D7S11x58ueIvRKEWZGe1MRVvMkQFO+18wPlfm6f+A="));
         }
 
         [TestMethod]
@@ -96,6 +110,11 @@ namespace Microsoft.Tests
             EvaluateAnonymousContainerAccess(ContainerAccess.None, "PUT", "test.txt", "comp=block");
             EvaluateAnonymousContainerAccess(ContainerAccess.None, "PUT", "test.txt", "comp=blocklist");
             EvaluateAnonymousContainerAccess(ContainerAccess.Container | ContainerAccess.Blob, "GET", "test.txt", "comp=blocklist");
+        }
+
+        static bool IsRequestAuthorized(string method, string uri, IEnumerable<Tuple<string, string>> headers, string authString)
+        {
+            return IsRequestAuthorized(method, uri, headers.Concat(new[] { Tuple.Create("Authorization", authString) }));
         }
 
         static bool IsRequestAuthorized(string method, string uri, IEnumerable<Tuple<string, string>> headers = null)

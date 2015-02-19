@@ -5,11 +5,13 @@
       <Site name="Web">
         <Bindings>
           <Binding name="Endpoint1" endpointName="Endpoint1" />
+          <Binding name="Endpoint2" endpointName="Endpoint2" />
         </Bindings>
       </Site>
     </Sites>
     <Endpoints>
       <InputEndpoint name="Endpoint1" protocol="http" port="80" />
+      <InputEndpoint name="Endpoint2" protocol="https" port="443" certificate="TlsCertificate" />
     </Endpoints>
     <Imports>
       <Import moduleName="Diagnostics" />
@@ -36,5 +38,8 @@
       <Setting name="ScaleoutStorage15" />
       <Setting name="LogNormalOperations" />
     </ConfigurationSettings>
+    <Certificates>
+      <Certificate name="TlsCertificate" storeLocation="LocalMachine" storeName="My" />
+    </Certificates>
   </WebRole>
 </ServiceDefinition>

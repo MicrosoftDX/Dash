@@ -13,19 +13,17 @@ namespace Microsoft.Dash.Server.Utils
         public const string ControllerContainer = "container";
         public const string ControllerBlob      = "blob";
 
-        public static RequestUriParts Create(Uri uri)
+        public static RequestUriParts Create(IEnumerable<string> uriSegments, IEnumerable<string> originalSegments)
         {
             // URI format is:
             //  /mvc-controller[/container[/blobseg1/blobseg2/.../blobsegn]]
-            var uriSegments = uri.Segments
-                .Select(segment => segment.Trim('/'))
-                .Where(segment => !String.IsNullOrWhiteSpace(segment))
-                .ToArray();
             return new RequestUriParts
             {
                 Controller = uriSegments.FirstOrDefault(),
                 Container = uriSegments.Skip(1).FirstOrDefault(),
                 BlobName = String.Join("/", uriSegments.Skip(2)),
+                OriginalContainer = originalSegments.Skip(1).FirstOrDefault(),
+                OriginalBlobName = String.Join("/", originalSegments.Skip(2)),
             };
         }
 
@@ -37,6 +35,8 @@ namespace Microsoft.Dash.Server.Utils
         public string Controller { get; private set; }
         public string Container { get; private set; }
         public string BlobName { get; private set; }
+        public string OriginalContainer { get; private set; }
+        public string OriginalBlobName { get; private set; }
 
         public bool IsAccountRequest
         {
@@ -68,10 +68,17 @@ namespace Microsoft.Dash.Server.Utils
 
         public string PublicUriPath
         {
-            get
-            {
-                return "/" + this.Container + (String.IsNullOrWhiteSpace(this.BlobName) ? String.Empty : "/" + this.BlobName);
-            }
+            get { return GetPath(this.Container, this.BlobName); }
+        }
+
+        public string OriginalUriPath
+        {
+            get { return GetPath(this.OriginalContainer, this.OriginalBlobName); }
+        }
+
+        private static string GetPath(string container, string blobName)
+        {
+            return "/" + container + (String.IsNullOrWhiteSpace(blobName) ? String.Empty : "/" + blobName);
         }
     }
 }

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- 
+Copyright (c) Microsoft Corporation.  All rights reserved. 
+Shared msbuild logic to get current build version into property: PackageVersion 
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <SolutionDir Condition="'$(SolutionDir)' == ''">..\</SolutionDir>
+    <AssemblyInfoName Condition="'$(AssemblyInfoName)'==''">$(OutDir)CommonAssemblyInfo.cs</AssemblyInfoName>
+  </PropertyGroup>
+  <Target Name="CreateDirectories">
+    <MakeDir Directories="$(OutDir)" />
+    <Delete Files="$(AssemblyInfoName)" ContinueOnError="true" />
+  </Target>
+  <Import Project="..\packages\CreateAssemblyInfoFromGit.1.0.0-beta0025\build\CreateAssemblyInfoFromGit.targets" Condition="Exists('..\packages\CreateAssemblyInfoFromGit.1.0.0-beta0025\build\CreateAssemblyInfoFromGit.targets')" />
+  <Target Name="GetPackageVersion" DependsOnTargets="CreateDirectories;CreateCommonVersionInfo">
+    <!-- Read the version from the assembly version file we just wrote -->
+    <ReadLinesFromFile File="$(AssemblyInfoName)">
+      <Output TaskParameter="Lines" ItemName="AssemblyVersionData"/>
+    </ReadLinesFromFile>
+    <ItemGroup>
+      <_AssemblyVersionLineItem Include="@(AssemblyVersionData)" Condition="$([System.String]::new('%(AssemblyVersionData.Identity)').Contains('AssemblyVersion'))" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_AssemblyVersionLine>@(_AssemblyVersionLineItem)</_AssemblyVersionLine>
+      <_VersionStartPos>$(_AssemblyVersionLine.IndexOf('"'))</_VersionStartPos>
+      <_VersionStartPos>$([MSBuild]::Add($(_VersionStartPos), 1))</_VersionStartPos>
+      <_VersionEndPos>$(_AssemblyVersionLine.LastIndexOf('"'))</_VersionEndPos>
+      <_VersionEndPos>$([MSBuild]::Subtract($(_VersionEndPos), 1))</_VersionEndPos>
+      <_VersionSubstringLength>$([MSBuild]::Add($([MSBuild]::Subtract($(_VersionEndPos), $(_VersionStartPos))), 1))</_VersionSubstringLength>
+      <_AssemblyVersionLine>$(_AssemblyVersionLine.Substring($(_VersionStartPos), $(_VersionSubstringLength)))</_AssemblyVersionLine>
+      <PackageVersion>v$([System.Version]::Parse($(_AssemblyVersionLine)).ToString(2))</PackageVersion>
+    </PropertyGroup>
+    <Message Text="Package Version: $(PackageVersion)" />
+  </Target>
+</Project>

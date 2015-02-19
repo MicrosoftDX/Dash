@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Web;
+using Microsoft.Dash.Server.Diagnostics;
 using Microsoft.WindowsAzure.Storage;
 
 namespace Microsoft.Dash.Server.Utils
@@ -29,41 +30,44 @@ namespace Microsoft.Dash.Server.Utils
 
             static DashConfigurationSource()
             {
-                _dataAccounts = new Lazy<IList<CloudStorageAccount>>(() =>
-                {
-                    int numDataAccounts = AzureUtils.GetConfigSetting("ScaleoutNumberOfAccounts", 0);
-                    var accountsArray = new CloudStorageAccount[numDataAccounts];
-                    for (int accountIndex = 0; accountIndex < numDataAccounts; accountIndex++)
-                    {
-                        var connectString = AzureUtils.GetConfigSetting("ScaleoutStorage" + accountIndex.ToString(), "");
-                        CloudStorageAccount account;
-                        if (CloudStorageAccount.TryParse(connectString, out account))
-                        {
-                            accountsArray[accountIndex] = account;
-                            ServicePointManager.FindServicePoint(account.BlobEndpoint).ConnectionLimit = int.MaxValue;
-                        }
-                        else
-                        {
-                            // TODO: Trace warning when we have loggin infrastructure
-                        }
-                    }
-                    return Array.AsReadOnly(accountsArray);
-                }, LazyThreadSafetyMode.PublicationOnly);
-
+                _dataAccounts = new Lazy<IList<CloudStorageAccount>>(() => GetDataStorageAccountsFromConfig().ToList(), LazyThreadSafetyMode.PublicationOnly);
                 _dataAccountsByName = new Lazy<IDictionary<string, CloudStorageAccount>>(() => DashConfiguration.DataAccounts
                     .Where(account => account != null)
                     .ToDictionary(account => account.Credentials.AccountName, StringComparer.OrdinalIgnoreCase), LazyThreadSafetyMode.PublicationOnly);
-
                 _namespaceAccount = new Lazy<CloudStorageAccount>(() =>
                 {
                     CloudStorageAccount account;
-                    if (!CloudStorageAccount.TryParse(AzureUtils.GetConfigSetting("StorageConnectionStringMaster", ""), out account))
+                    string connectString = AzureUtils.GetConfigSetting("StorageConnectionStringMaster", "");
+                    if (!CloudStorageAccount.TryParse(connectString, out account))
                     {
-                        // TODO: Trace failure warning when we have logging infrastructure
+                        DashTrace.TraceError("Error reading namespace account connection string from configuration. Details: {0}", connectString);
+                        return null;
                     }
                     ServicePointManager.FindServicePoint(account.BlobEndpoint).ConnectionLimit = int.MaxValue;
                     return account;
                 }, LazyThreadSafetyMode.PublicationOnly);
+            }
+
+            static IEnumerable<CloudStorageAccount> GetDataStorageAccountsFromConfig()
+            {
+                for (int accountIndex = 0; true; accountIndex++)
+                {
+                    var connectString = AzureUtils.GetConfigSetting("ScaleoutStorage" + accountIndex.ToString(), "");
+                    if (String.IsNullOrWhiteSpace(connectString))
+                    {
+                        yield break;
+                    }
+                    CloudStorageAccount account;
+                    if (CloudStorageAccount.TryParse(connectString, out account))
+                    {
+                        ServicePointManager.FindServicePoint(account.BlobEndpoint).ConnectionLimit = int.MaxValue;
+                        yield return account;
+                    }
+                    else
+                    {
+                        DashTrace.TraceWarning("Error reading data account connection string from configuration. Configuration details: {0}:{1}", accountIndex, connectString);
+                    }
+                }
             }
 
             public IList<CloudStorageAccount> DataAccounts
@@ -88,7 +92,7 @@ namespace Microsoft.Dash.Server.Utils
         }
 
         public static IDashConfigurationSource ConfigurationSource = new DashConfigurationSource();
-        
+
         public static IList<CloudStorageAccount> DataAccounts
         {
             get { return ConfigurationSource.DataAccounts; }

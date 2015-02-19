@@ -5,14 +5,15 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProductVersion>2.4</ProductVersion>
-    <ProjectGuid>2f03f471-8951-4b92-8dd1-d335258c005c</ProjectGuid>
+    <ProjectGuid>2f03f471-8951-4b92-8dd1-d335258c005d</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>DashServer.Azure</RootNamespace>
-    <AssemblyName>DashServer.Azure</AssemblyName>
+    <RootNamespace>DashServer.Azure.Https</RootNamespace>
+    <AssemblyName>DashServer.Azure.Https</AssemblyName>
     <StartDevelopmentStorage>False</StartDevelopmentStorage>
-    <Name>DashServer.Azure</Name>
+    <Name>DashServer.Azure.Https</Name>
     <UseWebProjectPorts>True</UseWebProjectPorts>
+    <PackageEnableRemoteDebugger>False</PackageEnableRemoteDebugger>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -35,9 +36,9 @@
   <ItemGroup>
     <ServiceDefinition Include="ServiceDefinition.csdef" />
     <ServiceConfiguration Include="ServiceConfiguration.Cloud - East.cscfg" />
-    <ServiceConfiguration Include="ServiceConfiguration.Publish.cscfg" />
     <ServiceConfiguration Include="ServiceConfiguration.Local.cscfg" />
     <ServiceConfiguration Include="ServiceConfiguration.Cloud.cscfg" />
+    <ServiceConfiguration Include="ServiceConfiguration.PublishHttps.cscfg" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DashServer\DashServer.csproj">
@@ -62,9 +63,6 @@
   <ItemGroup>
     <PublishProfile Include="Profiles\DashJbTestProduction.azurePubxml" />
     <PublishProfile Include="Profiles\DashTestEastProduction.azurePubxml" />
-    <PublishProfile Include="Profiles\DashTestEastProduction3.azurePubxml" />
-    <PublishProfile Include="Profiles\DashTestEastProduction2.azurePubxml" />
-    <PublishProfile Include="Profiles\DashTestEastProduction4.azurePubxml" />
   </ItemGroup>
   <!-- Import the target files for this project template -->
   <PropertyGroup>

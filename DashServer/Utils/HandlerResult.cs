@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Web;
+using Microsoft.Dash.Server.Diagnostics;
 using Microsoft.WindowsAzure.Storage;
 
 namespace Microsoft.Dash.Server.Utils
@@ -30,32 +31,15 @@ namespace Microsoft.Dash.Server.Utils
             return new HandlerResult
             {
                 StatusCode = (HttpStatusCode)ex.RequestInformation.HttpStatusCode,
-                ErrorInformation = new DashErrorInformation(ex.RequestInformation.ExtendedErrorInformation),
+                ReasonPhrase = ex.RequestInformation.HttpStatusMessage,
+                ErrorInformation = DashErrorInformation.Create(ex.RequestInformation.ExtendedErrorInformation),
             };
         }
 
         public HttpStatusCode StatusCode { get; set; }
+        public string ReasonPhrase { get; set; }
         public string Location { get; set; }
         public ResponseHeaders Headers { get; set; }
         public DashErrorInformation ErrorInformation { get; set; }
-    }
-
-    public class DashErrorInformation
-    {
-        public DashErrorInformation()
-        {
-            this.AdditionalDetails = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        }
-
-        public DashErrorInformation(StorageExtendedErrorInformation src)
-        {
-            this.ErrorCode = src.ErrorCode;
-            this.ErrorMessage = src.ErrorMessage;
-            this.AdditionalDetails = src.AdditionalDetails;
-        }
-
-        public IDictionary<string, string> AdditionalDetails { get; set; }
-        public string ErrorCode { get; set; }
-        public string ErrorMessage { get; set; }
     }
 }
