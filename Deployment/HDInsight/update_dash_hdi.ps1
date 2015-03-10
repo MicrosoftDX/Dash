@@ -98,33 +98,48 @@ foreach ($directory in $directories)
     Write-HDILog $output
 }
 
+Write-HDILog "Restarting HDInsight services";
+$output = $hdiservices | Start-Service | Out-String
+Write-HDILog $output
+
 # Create a container in the Dash account to work from. Given that this script is running on every VM in the cluster
 # this will be a race condition between all script invocations - first one wins, everyone else fails benignly
 if ($isActiveHeadNode -and [bool]$DashContainer) {
     if ((Get-Module -Name "Azure") -eq $null) {
-        Write-HDILog "Installing Azure Powershell Cmdlets"
-        # IE isn't available to parse the DOM, so we can't use Invoke-WebRequest here - do it with regex
-        $webclient = New-Object System.Net.WebClient
-        $doc = $webclient.DownloadString("https://github.com/Azure/azure-sdk-tools/releases")
-        $links = $doc | Select-String '<a href="(.*?)"' -AllMatches | select -ExpandProperty Matches | where { $_.Value -like "*.msi*" }
-        $msiuri = $links[0].Groups[1].Value
-        $msifile = Split-Path $msiuri -Leaf
-        $msifile = "$env:TEMP\$msifile"
-        $output = Invoke-WebRequest -uri $msiuri -OutFile $msifile | Out-String
-        Write-HDILog $output
-        $output = Invoke-HDICmdScript -CmdToExecute "msiexec /i '$msifile' /qb /l*v '$env:TEMP\azure-powershell.log'"
-        Write-HDILog $output
-        $output = Import-Module "${env:ProgramFiles(x86)}\Microsoft SDKs\Windows Azure\PowerShell\ServiceManagement\Azure\Services\Azure.psd1" | Out-String
+        $azureInstalled = Get-Module -ListAvailable | where {$_.Name -eq "Azure"}
+        if ($azureInstalled) {
+            Write-HDILog "Activating Azure Powershell Cmdlets"
+            $output = Import-Module "Azure" | Out-String
+            Write-HDILog $output
+        }
+        else {
+            Write-HDILog "Installing Azure Powershell Cmdlets"
+            # IE isn't available to parse the DOM, so we can't use Invoke-WebRequest here - do it with regex
+            $webclient = New-Object System.Net.WebClient
+            $doc = $webclient.DownloadString("https://github.com/Azure/azure-sdk-tools/releases")
+            $links = $doc | Select-String '<a href="(.*?)"' -AllMatches | select -ExpandProperty Matches | where { $_.Value -like "*.msi*" }
+            $msiuri = $links[0].Groups[1].Value
+            $msifile = Split-Path $msiuri -Leaf
+            $msifile = "d:\$msifile"
+            $output = Invoke-WebRequest -uri $msiuri -OutFile $msifile | Out-String
+            Write-HDILog $output
+            Write-HDILog "Installing Azure Powershell Cmdlets from package: $msifile"
+            $output = Invoke-HDICmdScript -CmdToExecute "msiexec /qb /l*v d:\azure-powershell.log /i $msifile"
+            Write-HDILog $output
+            $output = Import-Module "${env:ProgramFiles(x86)}\Microsoft SDKs\Azure\PowerShell\ServiceManagement\Azure\Azure.psd1" | Out-String
+            Write-HDILog $output
+            Write-HDILog "Done installing Azure Powershell Cmdlets"
+        }
+    }
+    Write-HDILog "Verifying container in virtual account: $DashService $DashContainer"
+    $storagectx = New-AzureStorageContext -ConnectionString "BlobEndpoint=http://$DashService.cloudapp.net;AccountName=$DashService;AccountKey=$DashKey"
+    $container = Get-AzureStorageContainer -Context $storagectx -Name $DashContainer.ToLower() -ErrorAction SilentlyContinue
+    if (!$container) {
+        Write-HDILog "Creating container in virtual account: $DashService $DashContainer"
+        $output = New-AzureStorageContainer -Context $storagectx -Name $DashContainer.ToLower() -Permission Off | Out-String
         Write-HDILog $output
     }
-    $storagectx = New-AzureStorageContext -ConnectionString "BlobEndpoint=http://$DashService.cloudapp.net;AccountName=$DashService;AccountKey=$DashKey"
-    $output = New-AzureStorageContainer -Context $storagectx -Name $DashContainer.ToLower() -Permission Off | Out-String
-    Write-HDILog $output
 }
-
-Write-HDILog "Restarting HDInsight services";
-$output = $hdiservices | Start-Service | Out-String
-Write-HDILog $output
 
 Write-HDILog "Done with Dash installation at: $(Get-Date)";
 
