@@ -3,17 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Reflection;
-using System.Web;
-using System.Web.Http;
-using System.Xml.Linq;
-using Microsoft.Dash.Server;
-using Microsoft.Dash.Server.Utils;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System.Threading;
 using Microsoft.WindowsAzure.Storage;
+using Microsoft.Dash.Common.Utils;
 
 namespace Microsoft.Tests
 {

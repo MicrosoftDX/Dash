@@ -99,6 +99,10 @@
     <Compile Include="BlobControllerTests.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\DashLibrary\DashCommon.csproj">
+      <Project>{9514a309-45d1-45e1-b77b-a99cd59b8c77}</Project>
+      <Name>DashCommon</Name>
+    </ProjectReference>
     <ProjectReference Include="..\DashServer\DashServer.csproj">
       <Project>{7E4CA414-B46A-49CA-922F-FE00D69C23CA}</Project>
       <Name>DashServer</Name>

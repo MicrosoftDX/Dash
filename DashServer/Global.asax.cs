@@ -8,6 +8,8 @@ using System.Web.Http;
 using Microsoft.Dash.Server.Diagnostics;
 using Microsoft.Dash.Server.Handlers;
 using Microsoft.Dash.Server.Utils;
+using Microsoft.Dash.Common.Utils;
+using Microsoft.Dash.Common.Diagnostics;
 
 namespace Microsoft.Dash.Server
 {

@@ -7,9 +7,10 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
-using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
+using Microsoft.Dash.Common.Utils;
+using Microsoft.Dash.Common.Handlers;
 
 namespace Microsoft.Dash.Server.Handlers
 {

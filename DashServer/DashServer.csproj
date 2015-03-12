@@ -70,6 +70,7 @@
     <Reference Include="Microsoft.WindowsAzure.Storage">
       <HintPath>..\packages\WindowsAzure.Storage.4.3.0\lib\net40\Microsoft.WindowsAzure.Storage.dll</HintPath>
     </Reference>
+    <Reference Include="MonAgentListener, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
     <Reference Include="Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\Newtonsoft.Json.6.0.4\lib\net45\Newtonsoft.Json.dll</HintPath>
@@ -118,22 +119,16 @@
     <Compile Include="Controllers\AccountController.cs" />
     <Compile Include="Controllers\BlobController.cs" />
     <Compile Include="Controllers\CommonController.cs" />
-    <Compile Include="Diagnostics\DashErrorInformation.cs" />
-    <Compile Include="Diagnostics\DashTrace.cs" />
     <Compile Include="Diagnostics\OperationRunner.cs" />
-    <Compile Include="Diagnostics\TraceMessage.cs" />
     <Compile Include="Handlers\BlobHandler.cs" />
     <Compile Include="Handlers\ControllerOperations.cs" />
     <Compile Include="Controllers\ContainerController.cs" />
-    <Compile Include="Handlers\NamespaceBlob.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
     <Compile Include="Handlers\RequestAuthorization.cs" />
     <Compile Include="Handlers\StorageOperations.cs" />
     <Compile Include="Handlers\StorageOperationsHandler.cs" />
-    <Compile Include="Utils\AzureUtils.cs" />
-    <Compile Include="Utils\DashConfiguration.cs" />
     <Compile Include="Utils\DelegatedResponse.cs" />
     <Compile Include="Utils\HttpContextFactory.cs" />
     <Compile Include="Utils\HttpRequestBaseWrapper.cs" />
@@ -146,7 +141,6 @@
     <Compile Include="Utils\RequestUriParts.cs" />
     <Compile Include="Utils\RequestUtils.cs" />
     <Compile Include="Utils\ResponseHeaders.cs" />
-    <Compile Include="Utils\StorageServiceVersions.cs" />
     <Compile Include="Utils\WebApiRequestWrapper.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -169,6 +163,12 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\PublishProfiles\" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DashLibrary\DashCommon.csproj">
+      <Project>{9514a309-45d1-45e1-b77b-a99cd59b8c77}</Project>
+      <Name>DashCommon</Name>
+    </ProjectReference>
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

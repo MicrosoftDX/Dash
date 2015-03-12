@@ -8,9 +8,10 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.Dash.Server.Diagnostics;
 using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage.Blob;
+using Microsoft.Dash.Common.Utils;
+using Microsoft.Dash.Common.Diagnostics;
 
 namespace Microsoft.Dash.Server.Handlers
 {

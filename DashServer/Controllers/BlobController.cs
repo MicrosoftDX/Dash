@@ -1,17 +1,13 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
-using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Net;
 using System.Threading.Tasks;
-using System.Web;
 using System.Web.Http;
 using Microsoft.Dash.Server.Handlers;
 using Microsoft.Dash.Server.Utils;
-using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Blob;
+using Microsoft.Dash.Common.Utils;
 
 namespace Microsoft.Dash.Server.Controllers
 {

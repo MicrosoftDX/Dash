@@ -11,6 +11,8 @@ using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.WindowsAzure.Storage.RetryPolicies;
+using Microsoft.Dash.Common.Utils;
+using Microsoft.Dash.Common.Diagnostics;
 
 namespace Microsoft.Dash.Server.Handlers
 {

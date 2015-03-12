@@ -15,6 +15,7 @@ using Microsoft.Dash.Server.Handlers;
 using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
+using Microsoft.Dash.Common.Utils;
 
 namespace Microsoft.Dash.Server.Controllers
 {
