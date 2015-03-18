@@ -81,6 +81,9 @@ namespace Microsoft.Dash.Server.Controllers
                 case "blocklist":
                     return await GetBlobBlockList(container, blob, snapshot);
 
+                case "pagelist":
+                    return await GetBlobPageRanges(container, blob, snapshot);
+
                 default:
                     return BadRequest();
             }
@@ -112,6 +115,9 @@ namespace Microsoft.Dash.Server.Controllers
 
                 case "copy":
                     return await AbortCopyBlob(container, blob);
+
+                case "page":
+                    return await PutBlobPage(container, blob);
 
                 default:
                     return BadRequest();
@@ -173,6 +179,18 @@ namespace Microsoft.Dash.Server.Controllers
         private async Task<IHttpActionResult> PutBlobBlockList(string container, string blob)
         {
             return await PutBlobHandler(container, blob);
+        }
+
+        /// Get Page Ranges - https://msdn.microsoft.com/en-us/library/azure/ee691973.aspx 
+        private async Task<IHttpActionResult> GetBlobPageRanges(string container, string blob, string snapshot)
+        {
+            return await BasicBlobHandler(container, blob);
+        }
+
+        /// Put Page - https://msdn.microsoft.com/en-us/library/azure/ee691975.aspx 
+        private async Task<IHttpActionResult> PutBlobPage(string container, string blob)
+        {
+            return await BasicBlobHandler(container, blob);
         }
 
         /// <summary>

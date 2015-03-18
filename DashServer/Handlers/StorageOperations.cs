@@ -39,7 +39,9 @@ namespace Microsoft.Dash.Server.Handlers
         AbortCopyBlob,
         PutBlock,
         PutBlockList,
-        GetBlockList
+        GetBlockList,
+        PutPage,
+        GetPageRanges,
     }
 
     public static class StorageOperations
@@ -109,6 +111,7 @@ namespace Microsoft.Dash.Server.Handlers
             new OperationDefinition(OperationGroup.Blob,        HttpMethod.Get,     null,               "",             StorageOperationTypes.GetBlob),
             new OperationDefinition(OperationGroup.Blob,        HttpMethod.Get,     HttpMethod.Head,    "metadata",     StorageOperationTypes.GetBlobMetadata),
             new OperationDefinition(OperationGroup.Blob,        HttpMethod.Get,     null,               "blocklist",    StorageOperationTypes.GetBlockList),
+            new OperationDefinition(OperationGroup.Blob,        HttpMethod.Get,     null,               "pagelist",     StorageOperationTypes.GetPageRanges),
             new OperationDefinition(OperationGroup.Blob,        HttpMethod.Head,    null,               "",             StorageOperationTypes.GetBlobProperties),
             new OperationDefinition(OperationGroup.Blob,        HttpMethod.Put,     null,               "",             GetPutOrCopyBlobOperation),
             new OperationDefinition(OperationGroup.Blob,        HttpMethod.Put,     null,               "properties",   StorageOperationTypes.SetBlobProperties),
@@ -118,6 +121,7 @@ namespace Microsoft.Dash.Server.Handlers
             new OperationDefinition(OperationGroup.Blob,        HttpMethod.Put,     null,               "copy",         StorageOperationTypes.AbortCopyBlob),
             new OperationDefinition(OperationGroup.Blob,        HttpMethod.Put,     null,               "block",        StorageOperationTypes.PutBlock),
             new OperationDefinition(OperationGroup.Blob,        HttpMethod.Put,     null,               "blocklist",    StorageOperationTypes.PutBlockList),
+            new OperationDefinition(OperationGroup.Blob,        HttpMethod.Put,     null,               "page",         StorageOperationTypes.PutPage),
             new OperationDefinition(OperationGroup.Blob,        HttpMethod.Delete,  null,               "",             StorageOperationTypes.DeleteBlob),
         };
 

@@ -148,6 +148,52 @@ namespace Microsoft.Tests
             // Cleanup - TODO
         }
 
+        [TestMethod]
+        public void PutExistingPageBlobPipelineTest()
+        {
+            var result = BlobRequest("PUT", "http://localhost/blob/test/pagetest.txt?comp=page", new[] {
+                Tuple.Create("x-ms-version", "2013-08-15"),
+                Tuple.Create("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT"),
+                Tuple.Create("x-ms-range", "bytes=1024-2047"),
+                Tuple.Create("Content-Length", "1024"),
+                Tuple.Create("x-ms-page-write", "update"),
+            });
+            Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
+            var location = new Uri(result.Location);
+            Assert.AreEqual("http://dashtestdata1.blob.core.windows.net/test/pagetest.txt", location.GetLeftPart(UriPartial.Path));
+        }
+
+        [TestMethod]
+        public void PutNonExistingPageBlobPipelineTest()
+        {
+            var result = BlobRequest("PUT", "http://localhost/blob/test/non-existant-page-test.txt?comp=page", new[] {
+                Tuple.Create("x-ms-version", "2013-08-15"),
+                Tuple.Create("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT"),
+                Tuple.Create("x-ms-range", "bytes=1024-2047"),
+                Tuple.Create("Content-Length", "1024"),
+                Tuple.Create("x-ms-page-write", "update"),
+            });
+            Assert.AreEqual(HttpStatusCode.NotFound, result.StatusCode);
+        }
+
+        [TestMethod]
+        public void GetPageBlobPipelineTest()
+        {
+            var result = BlobRequest("GET", "http://localhost/blob/test/pagetest.txt?comp=pagelist");
+            Assert.IsNotNull(result);
+            Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
+            var location = new Uri(result.Location);
+            Assert.AreEqual("http://dashtestdata1.blob.core.windows.net/test/pagetest.txt", location.GetLeftPart(UriPartial.Path));
+        }
+
+        [TestMethod]
+        public void GetNonExistingPageBlobPipelineTest()
+        {
+            var result = BlobRequest("GET", "http://localhost/blob/test/non-existant-page-test.txt?comp=pagelist");
+            Assert.IsNotNull(result);
+            Assert.AreEqual(HttpStatusCode.NotFound, result.StatusCode);
+        }
+
         HandlerResult BlobRequest(string method, string uri, IEnumerable<Tuple<string, string>> headers = null)
         {
             WebApiTestRunner.SetupRequest(uri, method);

@@ -28,6 +28,8 @@ namespace Microsoft.Dash.Server.Handlers
                 case StorageOperationTypes.LeaseBlob:
                 case StorageOperationTypes.SnapshotBlob:
                 case StorageOperationTypes.GetBlockList:
+                case StorageOperationTypes.PutPage:
+                case StorageOperationTypes.GetPageRanges:
                     result = await BlobHandler.BasicBlobAsync(containerName, blobName);
                     break;
 
