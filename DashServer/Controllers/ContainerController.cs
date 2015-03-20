@@ -11,11 +11,11 @@ using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
 using System.Xml;
+using Microsoft.Dash.Common.Utils;
 using Microsoft.Dash.Server.Handlers;
 using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
-using Microsoft.Dash.Common.Utils;
 
 namespace Microsoft.Dash.Server.Controllers
 {
