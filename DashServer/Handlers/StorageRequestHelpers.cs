@@ -28,27 +28,6 @@ namespace Microsoft.Dash.Server.Handlers
             response.Headers.Date = DateTimeOffset.UtcNow;
         }
 
-        public static bool ReadRequestMetadata(this RequestHeaders requestHeaders, IDictionary<string, string> metadata)
-        {
-            bool updated = false;
-            foreach (var metadatum in requestHeaders.Where(header => header.Key.StartsWith(MetadataPrefix, StringComparison.OrdinalIgnoreCase)))
-            {
-                string key = metadatum.Key.Substring(MetadataPrefix.Length);
-                string value = metadatum.First();
-                metadata.Add(new KeyValuePair<string, string>(key, value));
-                updated = true;
-            }
-            return updated;
-        }
-
-        public static void AddMetadataResponseHeaders(this HttpResponseMessage response, IDictionary<string, string> metadata)
-        {
-            foreach (var metadataEntry in metadata)
-            {
-                response.Headers.Add(MetadataPrefix + metadataEntry.Key, metadataEntry.Value);
-            }
-        }
-
         public static bool SetAttributeFromRequest<T>(this RequestResponseItems requestItems, string attributeName, Action<T> setAttribute) where T : IConvertible
         {
             if (requestItems.Contains(attributeName))
