@@ -51,7 +51,7 @@ namespace Microsoft.Dash.Server.Utils
             return _items.GetEnumerator();
         }
 
-        public T Value<T>(string itemName) where T: IConvertible
+        public T Value<T>(string itemName) where T : IConvertible
         {
             return Value(itemName, default(T));
         }
@@ -99,6 +99,12 @@ namespace Microsoft.Dash.Server.Utils
                     });
             }
             return Enumerable.Empty<T>();
+        }
+
+        public TimeSpan? TimeSpanFromSeconds(string itemName)
+        {
+            int durationInSecs = this.Value(itemName, -1);
+            return durationInSecs == -1 ? (TimeSpan?)null : TimeSpan.FromSeconds(durationInSecs);
         }
     }
 }

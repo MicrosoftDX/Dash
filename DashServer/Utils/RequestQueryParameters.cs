@@ -49,5 +49,10 @@ namespace Microsoft.Dash.Server.Utils
             : base(queryParams)
         {
         }
+
+        public TimeSpan? Timeout
+        {
+            get { return TimeSpanFromSeconds("timeout"); }
+        }
     }
 }

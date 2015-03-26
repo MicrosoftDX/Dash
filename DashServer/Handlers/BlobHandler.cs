@@ -23,7 +23,7 @@ namespace Microsoft.Dash.Server.Handlers
         {
             return await OperationRunner.DoHandlerAsync("BlobHandler.BasicBlobAsync", async () =>
                 {
-                    var namespaceBlob = await ControllerOperations.FetchNamespaceBlobAsync(container, blob);
+                    var namespaceBlob = await NamespaceHandler.FetchNamespaceBlobAsync(container, blob);
                     if (!await namespaceBlob.ExistsAsync())
                     {
                         return new HandlerResult
@@ -42,7 +42,7 @@ namespace Microsoft.Dash.Server.Handlers
         {
             return await OperationRunner.DoHandlerAsync("BlobHandler.PutBlobAsync", async () =>
                 {
-                    var namespaceBlob = await ControllerOperations.CreateNamespaceBlobAsync(container, blob);
+                    var namespaceBlob = await NamespaceHandler.CreateNamespaceBlobAsync(container, blob);
                     //redirection code
                     Uri redirect = ControllerOperations.GetRedirectUri(HttpContextFactory.Current.Request,
                         DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName),
@@ -122,12 +122,12 @@ namespace Microsoft.Dash.Server.Handlers
                                 sourceBlobName = String.Join("/", segments.Skip(1));
                             }
                         }
-                        var destNamespaceBlob = await ControllerOperations.FetchNamespaceBlobAsync(destContainer, destBlob);
+                        var destNamespaceBlob = await NamespaceHandler.FetchNamespaceBlobAsync(destContainer, destBlob);
                         string destAccount = String.Empty;
                         if (!String.IsNullOrEmpty(sourceContainer) && !String.IsNullOrEmpty(sourceBlobName))
                         {
                             var sourceQueryParams = HttpUtility.ParseQueryString(sourceUri.Query);
-                            var sourceNamespaceBlob = await ControllerOperations.FetchNamespaceBlobAsync(sourceContainer, sourceBlobName, sourceQueryParams["snapshot"]);
+                            var sourceNamespaceBlob = await NamespaceHandler.FetchNamespaceBlobAsync(sourceContainer, sourceBlobName, sourceQueryParams["snapshot"]);
                             if (!await sourceNamespaceBlob.ExistsAsync())
                             {
                                 // This isn't actually documented (what happens when the source doesn't exist), but by obervation the service emits 404
@@ -200,7 +200,7 @@ namespace Microsoft.Dash.Server.Handlers
         {
             return await OperationRunner.DoHandlerAsync("BlobHandler.AbortCopyBlobAsync", async () =>
                 {
-                    var destNamespaceBlob = await ControllerOperations.FetchNamespaceBlobAsync(destContainer, destBlob);
+                    var destNamespaceBlob = await NamespaceHandler.FetchNamespaceBlobAsync(destContainer, destBlob);
 
                     var destCloudContainer = ControllerOperations.GetContainerByName(DashConfiguration.GetDataAccountByAccountName(destNamespaceBlob.AccountName), destContainer);
                     var destCloudBlob = destCloudContainer.GetBlockBlobReference(destBlob);

@@ -125,13 +125,16 @@
     <Compile Include="Handlers\BlobHandler.cs" />
     <Compile Include="Handlers\ControllerOperations.cs" />
     <Compile Include="Controllers\ContainerController.cs" />
+    <Compile Include="Handlers\DashClientCapabilities.cs" />
     <Compile Include="Handlers\NamespaceBlob.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
+    <Compile Include="Handlers\NamespaceHandler.cs" />
     <Compile Include="Handlers\RequestAuthorization.cs" />
     <Compile Include="Handlers\StorageOperations.cs" />
     <Compile Include="Handlers\StorageOperationsHandler.cs" />
+    <Compile Include="Handlers\StorageRequestHelpers.cs" />
     <Compile Include="Utils\AzureUtils.cs" />
     <Compile Include="Utils\DashConfiguration.cs" />
     <Compile Include="Utils\DelegatedResponse.cs" />

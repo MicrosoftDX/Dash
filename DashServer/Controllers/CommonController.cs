@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
 using Microsoft.Dash.Server.Diagnostics;
+using Microsoft.Dash.Server.Handlers;
 using Microsoft.Dash.Server.Utils;
 
 namespace Microsoft.Dash.Server.Controllers
@@ -26,8 +27,14 @@ namespace Microsoft.Dash.Server.Controllers
         protected HttpResponseMessage CreateResponse<T>(T result, HttpStatusCode status)
         {
             var response = this.Request.CreateResponse(status, result, GlobalConfiguration.Configuration.Formatters.XmlFormatter, "application/xml");
-            response.Headers.TryAddWithoutValidation("x-ms-version", "2014-02-14");
-            response.Headers.TryAddWithoutValidation("x-ms-date", DateTimeOffset.UtcNow.ToString("r"));
+            response.AddStandardResponseHeaders(this.Request.GetHeaders());
+            return response;
+        }
+
+        protected HttpResponseMessage CreateResponse(HttpStatusCode status, RequestHeaders requestHeaders)
+        {
+            var response = this.Request.CreateResponse(status);
+            response.AddStandardResponseHeaders(requestHeaders ?? this.Request.GetHeaders());
             return response;
         }
 

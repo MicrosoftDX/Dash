@@ -1,12 +1,9 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
-using Microsoft.Dash.Server.Utils;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
-using System.Web;
+using Microsoft.Dash.Server.Diagnostics;
+using Microsoft.Dash.Server.Utils;
 
 namespace Microsoft.Dash.Server.Handlers
 {
@@ -17,6 +14,7 @@ namespace Microsoft.Dash.Server.Handlers
             string containerName = requestWrapper.UriParts.Container;
             string blobName = requestWrapper.UriParts.BlobName;
             StorageOperationTypes requestOperation = StorageOperations.GetBlobOperation(requestWrapper);
+            DashClientCapabilities client = DashClientDetector.DetectClient(requestWrapper);
             HandlerResult result = null;
             switch (requestOperation)
             {
@@ -28,21 +26,37 @@ namespace Microsoft.Dash.Server.Handlers
                 case StorageOperationTypes.LeaseBlob:
                 case StorageOperationTypes.SnapshotBlob:
                 case StorageOperationTypes.GetBlockList:
-                case StorageOperationTypes.PutPage:
                 case StorageOperationTypes.GetPageRanges:
-                    result = await BlobHandler.BasicBlobAsync(containerName, blobName);
+                    if (client.HasFlag(DashClientCapabilities.FollowRedirects))
+                    {
+                        result = await BlobHandler.BasicBlobAsync(containerName, blobName);
+                    }
+                    break;
+
+                case StorageOperationTypes.PutPage:
+                    if (client.HasFlag(DashClientCapabilities.NoPayloadToDash))
+                    {
+                        result = await BlobHandler.BasicBlobAsync(containerName, blobName);
+                    }
                     break;
 
                 case StorageOperationTypes.PutBlob:
                 case StorageOperationTypes.PutBlock:
                 case StorageOperationTypes.PutBlockList:
-                    result = await BlobHandler.PutBlobAsync(containerName, blobName);
+                    if (client.HasFlag(DashClientCapabilities.NoPayloadToDash))
+                    {
+                        result = await BlobHandler.PutBlobAsync(containerName, blobName);
+                    }
                     break;
 
                 default:
                     // All other operations flow through to the controller action
                     break;
             }
+            DashTrace.TraceInformation("Operation: {0}, client capability: {1}, action: {2}",
+                requestOperation,
+                client,
+                result == null ? "Forward" : "Redirect");
             return result;
         }
     }

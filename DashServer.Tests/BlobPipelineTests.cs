@@ -57,6 +57,8 @@ namespace Microsoft.Tests
                 Tuple.Create("x-ms-blob-type", "BlockBlob"),
                 Tuple.Create("x-ms-meta-m1", "v1"),
                 Tuple.Create("x-ms-meta-m2", "v2"),
+                Tuple.Create("User-Agent", "WA-Storage/2.0.6.1"),
+                Tuple.Create("Expect", "100-Continue")
             });
             Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
             var location = new Uri(result.Location);
@@ -74,6 +76,8 @@ namespace Microsoft.Tests
                 Tuple.Create("x-ms-blob-type", "BlockBlob"),
                 Tuple.Create("x-ms-meta-m1", "v1"),
                 Tuple.Create("x-ms-meta-m2", "v2"),
+                Tuple.Create("User-Agent", "WA-Storage/2.0.6.1"),
+                Tuple.Create("Expect", "100-Continue")
             });
             Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
             var redirectLocation = new Uri(result.Location).GetLeftPart(UriPartial.Path);
@@ -99,6 +103,8 @@ namespace Microsoft.Tests
             // Set Blob Properties
             result = BlobRequest("PUT", blobUri + "?comp=properties", new[] {
                 Tuple.Create("x-ms-blob-content-encoding", "application/csv"),
+                Tuple.Create("User-Agent", "WA-Storage/2.0.6.1"),
+                Tuple.Create("Expect", "100-Continue")
             });
             Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
             Assert.AreEqual(redirectLocation, new Uri(result.Location).GetLeftPart(UriPartial.Path));
@@ -114,6 +120,8 @@ namespace Microsoft.Tests
             result = BlobRequest("PUT", metadataUri, new[] {
                 Tuple.Create("x-ms-meta-m1", "v1"),
                 Tuple.Create("x-ms-meta-m2", "v2"),
+                Tuple.Create("User-Agent", "WA-Storage/2.0.6.1"),
+                Tuple.Create("Expect", "100-Continue")
             });
             Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
             Assert.AreEqual(redirectLocation, new Uri(result.Location).GetLeftPart(UriPartial.Path));
@@ -157,6 +165,8 @@ namespace Microsoft.Tests
                 Tuple.Create("x-ms-range", "bytes=1024-2047"),
                 Tuple.Create("Content-Length", "1024"),
                 Tuple.Create("x-ms-page-write", "update"),
+                Tuple.Create("User-Agent", "WA-Storage/2.0.6.1"),
+                Tuple.Create("Expect", "100-Continue")
             });
             Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
             var location = new Uri(result.Location);
@@ -172,6 +182,8 @@ namespace Microsoft.Tests
                 Tuple.Create("x-ms-range", "bytes=1024-2047"),
                 Tuple.Create("Content-Length", "1024"),
                 Tuple.Create("x-ms-page-write", "update"),
+                Tuple.Create("User-Agent", "WA-Storage/2.0.6.1"),
+                Tuple.Create("Expect", "100-Continue")
             });
             Assert.AreEqual(HttpStatusCode.NotFound, result.StatusCode);
         }
@@ -194,7 +206,43 @@ namespace Microsoft.Tests
             Assert.AreEqual(HttpStatusCode.NotFound, result.StatusCode);
         }
 
-        HandlerResult BlobRequest(string method, string uri, IEnumerable<Tuple<string, string>> headers = null)
+        [TestMethod]
+        public void BlobPipelineForwardRequestsTest()
+        {
+            var result = BlobRequest("GET", "http://localhost/blob/test/test.txt", new Tuple<string, string>[] { });
+            Assert.IsNull(result);
+
+            result = BlobRequest("PUT", "http://localhost/blob/test/test.txt", new[] {
+                Tuple.Create("x-ms-version", "2013-08-15"),
+                Tuple.Create("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT"),
+                Tuple.Create("x-ms-blob-content-disposition", "attachment; filename=\"test.txt\""),
+                Tuple.Create("x-ms-blob-type", "BlockBlob"),
+                Tuple.Create("x-ms-meta-m1", "v1"),
+                Tuple.Create("x-ms-meta-m2", "v2"),
+            });
+            Assert.IsNull(result);
+
+            result = BlobRequest("PUT", "http://localhost/blob/test/test.txt", new[] {
+                Tuple.Create("x-ms-version", "2013-08-15"),
+                Tuple.Create("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT"),
+                Tuple.Create("x-ms-blob-content-disposition", "attachment; filename=\"test.txt\""),
+                Tuple.Create("x-ms-blob-type", "BlockBlob"),
+                Tuple.Create("x-ms-meta-m1", "v1"),
+                Tuple.Create("x-ms-meta-m2", "v2"),
+                Tuple.Create("User-Agent", "WA-Storage/2.0.6.1"),
+            });
+            Assert.IsNull(result);
+        }
+
+        public static HandlerResult BlobRequest(string method, string uri)
+        {
+            return BlobRequest(method, uri, new[] {
+                Tuple.Create("User-Agent", "WA-Storage/2.0.6.1"),
+                Tuple.Create("Expect", "100-Continue")
+            });
+        }
+
+        public static HandlerResult BlobRequest(string method, string uri, IEnumerable<Tuple<string, string>> headers = null)
         {
             WebApiTestRunner.SetupRequest(uri, method);
             return StorageOperationsHandler.HandlePrePipelineOperationAsync(

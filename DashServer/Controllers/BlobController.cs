@@ -1,6 +1,8 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -20,23 +22,29 @@ namespace Microsoft.Dash.Server.Controllers
     {
         /// Get Blob - http://msdn.microsoft.com/en-us/library/azure/dd179440.aspx
         [HttpGet]
-        public async Task<IHttpActionResult> GetBlob(string container, string blob, string snapshot = null)
+        public async Task<HttpResponseMessage> GetBlob(string container, string blob, string snapshot = null)
         {
-            return await BasicBlobHandler(container, blob);
+            return await BasicBlobHandler(container, blob, StorageOperationTypes.GetBlob);
         }
 
-        /// Put Blob - http://msdn.microsoft.com/en-us/library/azure/dd179451.aspx
         [HttpPut]
-        public async Task<IHttpActionResult> PutBlob(string container, string blob)
+        public async Task<HttpResponseMessage> PutBlob(string container, string blob)
         {
             var requestWrapper = DashHttpRequestWrapper.Create(this.Request);
-            if (requestWrapper.Headers.Contains("x-ms-copy-source"))
+            var operation = StorageOperations.GetBlobOperation(requestWrapper);
+            switch (operation)
             {
-                return ProcessHandlerResult(await BlobHandler.CopyBlobAsync(requestWrapper, container, blob, requestWrapper.Headers.Value<string>("x-ms-copy-source")));
-            }
-            else
-            {
-                return await PutBlobHandler(container, blob);
+                case StorageOperationTypes.CopyBlob:
+                    /// Copy Blob - https://msdn.microsoft.com/en-us/library/azure/dd894037.aspx
+                    return ProcessResultResponse(await BlobHandler.CopyBlobAsync(requestWrapper, container, blob, requestWrapper.Headers.Value<string>("x-ms-copy-source")));
+
+                case StorageOperationTypes.PutBlob:
+                    /// Put Blob - http://msdn.microsoft.com/en-us/library/azure/dd179451.aspx
+                    return await PutBlobHandler(container, blob, operation);
+
+                default:
+                    System.Diagnostics.Debug.Assert(false);
+                    return this.CreateResponse(HttpStatusCode.BadRequest, requestWrapper.Headers);
             }
         }
 
@@ -45,7 +53,7 @@ namespace Microsoft.Dash.Server.Controllers
         public async Task<HttpResponseMessage> DeleteBlob(string container, string blob, string snapshot = null)
         {
             return await DoHandlerAsync(String.Format("BlobController.DeleteBlob: {0}/{1}", container, blob),
-                async () => await ControllerOperations.PerformNamespaceOperation(container, blob, async (namespaceBlob) =>
+                async () => await NamespaceHandler.PerformNamespaceOperation(container, blob, async (namespaceBlob) =>
                 {
                     //We only need to delete the actual blob. We are leaving the namespace entry alone as a sort of cache.
                     if (!(await namespaceBlob.ExistsAsync()) || namespaceBlob.IsMarkedForDeletion)
@@ -64,148 +72,174 @@ namespace Microsoft.Dash.Server.Controllers
 
         /// Get Blob Properties - http://msdn.microsoft.com/en-us/library/azure/dd179394.aspx
         [HttpHead]
-        public async Task<IHttpActionResult> GetBlobProperties(string container, string blob, string snapshot = null)
+        public async Task<HttpResponseMessage> GetBlobProperties(string container, string blob, string snapshot = null)
         {
-            return await BasicBlobHandler(container, blob);
+            return await BasicBlobHandler(container, blob, StorageOperationTypes.GetBlobProperties);
         }
 
         /// Get Blob operations with the 'comp' query parameter
         [AcceptVerbs("GET", "HEAD")]
-        public async Task<IHttpActionResult> GetBlobComp(string container, string blob, string comp, string snapshot = null)
+        public async Task<HttpResponseMessage> GetBlobComp(string container, string blob, string comp, string snapshot = null)
         {
-            switch (comp.ToLower())
+            var requestWrapper = DashHttpRequestWrapper.Create(this.Request);
+            var operation = StorageOperations.GetBlobOperation(requestWrapper);
+            switch (operation)
             {
-                case "metadata":
-                    return await GetBlobMetadata(container, blob, snapshot);
-
-                case "blocklist":
-                    return await GetBlobBlockList(container, blob, snapshot);
-
-                case "pagelist":
-                    return await GetBlobPageRanges(container, blob, snapshot);
+                case StorageOperationTypes.GetBlobMetadata:
+                case StorageOperationTypes.GetBlockList:
+                case StorageOperationTypes.GetPageRanges:
+                    return await BasicBlobHandler(container, blob, operation);
 
                 default:
-                    return BadRequest();
+                    return this.CreateResponse(HttpStatusCode.BadRequest, requestWrapper.Headers);
             }
         }
 
         /// PUT Blob operations with the 'comp' query parameter
         [HttpPut]
-        public async Task<IHttpActionResult> PutBlobComp(string container, string blob, string comp)
+        public async Task<HttpResponseMessage> PutBlobComp(string container, string blob, string comp)
         {
-            switch (comp.ToLower())
+            var requestWrapper = DashHttpRequestWrapper.Create(this.Request);
+            var operation = StorageOperations.GetBlobOperation(requestWrapper);
+            switch (operation)
             {
-                case "properties":
-                    return await SetBlobProperties(container, blob);
+                case StorageOperationTypes.SetBlobProperties:
+                case StorageOperationTypes.SetBlobMetadata:
+                case StorageOperationTypes.LeaseBlob:
+                case StorageOperationTypes.SnapshotBlob:
+                case StorageOperationTypes.PutPage:
+                    return await BasicBlobHandler(container, blob, operation);
 
-                case "metadata":
-                    return await SetBlobMetadata(container, blob);
+                case StorageOperationTypes.PutBlock:
+                case StorageOperationTypes.PutBlockList:
+                    return await PutBlobHandler(container, blob, operation);
 
-                case "lease":
-                    return await LeaseBlob(container, blob);
-
-                case "snapshot":
-                    return await SnapshotBlob(container, blob);
-
-                case "block":
-                    return await PutBlobBlock(container, blob);
-
-                case "blocklist":
-                    return await PutBlobBlockList(container, blob);
-
-                case "copy":
-                    return await AbortCopyBlob(container, blob);
-
-                case "page":
-                    return await PutBlobPage(container, blob);
+                case StorageOperationTypes.AbortCopyBlob:
+                    /// Abort Copy Blob - http://msdn.microsoft.com/en-us/library/azure/jj159098.aspx
+                    return ProcessResultResponse(await BlobHandler.AbortCopyBlobAsync(
+                        requestWrapper, container, blob, requestWrapper.QueryParameters.Value<string>("copyid")));
 
                 default:
-                    return BadRequest();
+                    return this.CreateResponse(HttpStatusCode.BadRequest, requestWrapper.Headers);
             }
         }
 
-        /// Set Blob Properties - http://msdn.microsoft.com/en-us/library/azure/ee691966.aspx
-        private async Task<IHttpActionResult> SetBlobProperties(string container, string blob)
-        {
-            return await BasicBlobHandler(container, blob);
-        }
-
-        /// Get Blob Metadata - http://msdn.microsoft.com/en-us/library/azure/dd179350.aspx
-        private async Task<IHttpActionResult> GetBlobMetadata(string container, string blob, string snapshot)
-        {
-            return await BasicBlobHandler(container, blob);
-        }
-
-        /// Set Blob Metadata - http://msdn.microsoft.com/en-us/library/azure/dd179414.aspx
-        private async Task<IHttpActionResult> SetBlobMetadata(string container, string blob)
-        {
-            return await BasicBlobHandler(container, blob);
-        }
-
-        /// Lease Blob - http://msdn.microsoft.com/en-us/library/azure/ee691972.aspx
-        private async Task<IHttpActionResult> LeaseBlob(string container, string blob)
-        {
-            return await BasicBlobHandler(container, blob);
-        }
-
-        /// Snapshot Blob - http://msdn.microsoft.com/en-us/library/azure/ee691971.aspx
-        private async Task<IHttpActionResult> SnapshotBlob(string container, string blob)
-        {
-            // This will need to be some variation of copy. May need to replicate snapshotting logic in case
-            // original server is out of space.
-            return await BasicBlobHandler(container, blob);
-        }
-
-        /// Abort Copy Blob - http://msdn.microsoft.com/en-us/library/azure/jj159098.aspx
-        private async Task<IHttpActionResult> AbortCopyBlob(string container, string blob)
-        {
-            var requestWrapper = DashHttpRequestWrapper.Create(this.Request);
-            return ProcessHandlerResult(await BlobHandler.AbortCopyBlobAsync(requestWrapper, container, blob, requestWrapper.QueryParameters.Value<string>("copyid")));
-        }
-
-        /// Get Block List - http://msdn.microsoft.com/en-us/library/azure/dd179400.aspx
-        private async Task<IHttpActionResult> GetBlobBlockList(string container, string blob, string snapshot)
-        {
-            return await BasicBlobHandler(container, blob);
-        }
-
-        /// Put Block - http://msdn.microsoft.com/en-us/library/azure/dd135726.aspx
-        private async Task<IHttpActionResult> PutBlobBlock(string container, string blob)
-        {
-            return await PutBlobHandler(container, blob);
-        }
-
-        /// Put Block List - http://msdn.microsoft.com/en-us/library/azure/dd179467.aspx
-        private async Task<IHttpActionResult> PutBlobBlockList(string container, string blob)
-        {
-            return await PutBlobHandler(container, blob);
-        }
-
-        /// Get Page Ranges - https://msdn.microsoft.com/en-us/library/azure/ee691973.aspx 
-        private async Task<IHttpActionResult> GetBlobPageRanges(string container, string blob, string snapshot)
-        {
-            return await BasicBlobHandler(container, blob);
-        }
-
-        /// Put Page - https://msdn.microsoft.com/en-us/library/azure/ee691975.aspx 
-        private async Task<IHttpActionResult> PutBlobPage(string container, string blob)
-        {
-            return await BasicBlobHandler(container, blob);
-        }
-
         /// <summary>
-        /// Generic function to redirect a put request for properties of a blob
+        /// Generic function to forward blob request. Target blob must already exist.
         /// </summary>
-        private async Task<IHttpActionResult> BasicBlobHandler(string container, string blob)
+        private async Task<HttpResponseMessage> BasicBlobHandler(string container, string blob, StorageOperationTypes operation)
         {
-            var result = await BlobHandler.BasicBlobAsync(container, blob);
-            return ProcessHandlerResult(result);
+            return await DoHandlerAsync(String.Format("BlobController.BasicBlobHandler: {0} {1}/{2}", operation, container, blob),
+                async () =>
+                {
+                    var namespaceBlob = await NamespaceHandler.FetchNamespaceBlobAsync(container, blob);
+                    if (!await namespaceBlob.ExistsAsync())
+                    {
+                        return this.CreateResponse(HttpStatusCode.NotFound, (RequestHeaders)null);
+                    }
+                    return await ForwardRequestHandler(namespaceBlob, operation);
+                });
         }
 
-        private async Task<IHttpActionResult> PutBlobHandler(string container, string blob)
+        private async Task<HttpResponseMessage> PutBlobHandler(string container, string blob, StorageOperationTypes operation)
         {
-            var result = await BlobHandler.PutBlobAsync(container, blob);
-            return ProcessHandlerResult(result);
+            return await DoHandlerAsync(String.Format("BlobController.PutBlobHandler: {0} {1}/{2}", operation, container, blob),
+                async () =>
+                {
+                    var namespaceBlob = await NamespaceHandler.CreateNamespaceBlobAsync(container, blob);
+                    return await ForwardRequestHandler(namespaceBlob, operation);
+                });
+        }
+
+        static readonly HashSet<string> _noCopyHeaders = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+            "Authorization",
+            "Host",
+            "x-original-url",
+            "Expect",
+        };
+        static ConcurrentDictionary<string, HttpClient> _forwardClients = new ConcurrentDictionary<string, HttpClient>(StringComparer.OrdinalIgnoreCase);
+        private async Task<HttpResponseMessage> ForwardRequestHandler(NamespaceBlob namespaceBlob, StorageOperationTypes operation)
+        {
+            // Clone the inbound request
+            var sourceRequest = this.Request;
+            var clonedRequest = new HttpRequestMessage(sourceRequest.Method,
+                ControllerOperations.GetRedirectUri(sourceRequest.RequestUri,
+                    sourceRequest.Method.Method,
+                    DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName),
+                    namespaceBlob.Container,
+                    namespaceBlob.BlobName));
+            clonedRequest.Version = sourceRequest.Version;
+            foreach (var property in sourceRequest.Properties)
+            {
+                clonedRequest.Properties.Add(property);
+            }
+            foreach (var header in sourceRequest.Headers)
+            {
+                if (!_noCopyHeaders.Contains(header.Key))
+                {
+                    clonedRequest.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                }
+            }
+            // Depending on the operation, we have to do some fixup to unwind HttpRequestMessage a bit - we also have to fixup some responses
+            switch (operation)
+            {
+                case StorageOperationTypes.GetBlob:
+                case StorageOperationTypes.GetBlobMetadata:
+                case StorageOperationTypes.GetBlobProperties:
+                case StorageOperationTypes.GetBlockList:
+                case StorageOperationTypes.GetPageRanges:
+                case StorageOperationTypes.LeaseBlob:
+                case StorageOperationTypes.SetBlobMetadata:
+                case StorageOperationTypes.SetBlobProperties:
+                case StorageOperationTypes.SnapshotBlob:
+                    // Push any headers that are assigned to Content onto the request itself as these operations do not have any body
+                    if (sourceRequest.Content != null)
+                    {
+                        foreach (var header in sourceRequest.Content.Headers)
+                        {
+                            clonedRequest.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                        }
+                    }
+                    break;
+
+                default:
+                    clonedRequest.Content = sourceRequest.Content;
+                    break;
+            }
+            HttpClient client = null;
+            string host = clonedRequest.RequestUri.Host;
+            if (!_forwardClients.TryGetValue(host, out client))
+            {
+                client = new HttpClient();
+                client = _forwardClients.AddOrUpdate(host, client, (key, currentClient) => currentClient);
+            }
+            var response = await client.SendAsync(clonedRequest, HttpCompletionOption.ResponseHeadersRead);
+            // Fixup response for HEAD requests
+            switch (operation)
+            {
+                case StorageOperationTypes.GetBlobProperties:
+                    var content = response.Content;
+                    if (response.IsSuccessStatusCode && content != null)
+                    {
+                        string mediaType = null;
+                        string dummyContent = String.Empty;
+                        if (content.Headers.ContentType != null)
+                        {
+                            mediaType = content.Headers.ContentType.MediaType;
+                        }
+                        // For some reason, a HEAD request requires some content otherwise the Content-Length is set to 0
+                        dummyContent = "A";
+                        response.Content = new StringContent(dummyContent, null, mediaType);
+                        foreach (var header in content.Headers)
+                        {
+                            response.Content.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                        }
+                        response.Content.Headers.ContentLength = content.Headers.ContentLength;
+                        content.Dispose();
+                    }
+                    break;
+            }
+            return response;
         }
     }
 }
