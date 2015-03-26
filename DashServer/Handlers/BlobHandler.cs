@@ -6,6 +6,9 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using System.Web;
+using Microsoft.Dash.Common.Diagnostics;
+using Microsoft.Dash.Common.Handlers;
+using Microsoft.Dash.Common.Utils;
 using Microsoft.Dash.Server.Diagnostics;
 using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage;
@@ -154,12 +157,12 @@ namespace Microsoft.Dash.Server.Handlers
                         }
                         else
                         {
-                            destAccount = ControllerOperations.GetDataStorageAccountForBlob(destBlob).Credentials.AccountName;
+                            destAccount = NamespaceHandler.GetDataStorageAccountForBlob(destBlob).Credentials.AccountName;
                         }
                         if (await destNamespaceBlob.ExistsAsync() && destNamespaceBlob.AccountName != destAccount)
                         {
                             // Delete the existing blob to prevent orphaning it
-                            var dataBlob = ControllerOperations.GetBlobByName(DashConfiguration.GetDataAccountByAccountName(destNamespaceBlob.AccountName), destContainer, destBlob);
+                            var dataBlob = NamespaceHandler.GetBlobByName(DashConfiguration.GetDataAccountByAccountName(destNamespaceBlob.AccountName), destContainer, destBlob);
                             await dataBlob.DeleteIfExistsAsync();
                         }
                         destNamespaceBlob.AccountName = destAccount;
@@ -168,7 +171,7 @@ namespace Microsoft.Dash.Server.Handlers
                         destNamespaceBlob.IsMarkedForDeletion = false;
                         await destNamespaceBlob.SaveAsync();
                         // Now that we've got the metadata tucked away - do the actual copy
-                        var destCloudContainer = ControllerOperations.GetContainerByName(DashConfiguration.GetDataAccountByAccountName(destAccount), destContainer);
+                        var destCloudContainer = NamespaceHandler.GetContainerByName(DashConfiguration.GetDataAccountByAccountName(destAccount), destContainer);
                         var destCloudBlob = destCloudContainer.GetBlockBlobReference(destBlob);
                         // Storage client will retry failed copy. Let our clients decide that.
                         var copyId = await destCloudBlob.StartCopyFromBlobAsync(sourceUri,
@@ -202,8 +205,7 @@ namespace Microsoft.Dash.Server.Handlers
                 {
                     var destNamespaceBlob = await NamespaceHandler.FetchNamespaceBlobAsync(destContainer, destBlob);
 
-                    var destCloudContainer = ControllerOperations.GetContainerByName(DashConfiguration.GetDataAccountByAccountName(destNamespaceBlob.AccountName), destContainer);
-                    var destCloudBlob = destCloudContainer.GetBlockBlobReference(destBlob);
+                    var destCloudBlob = NamespaceHandler.GetBlobByName(DashConfiguration.GetDataAccountByAccountName(destNamespaceBlob.AccountName), destContainer, destBlob);
                     await destCloudBlob.AbortCopyAsync(copyId);
                     return new HandlerResult
                     {

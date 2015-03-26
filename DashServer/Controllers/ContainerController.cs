@@ -11,6 +11,8 @@ using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
 using System.Xml;
+using Microsoft.Dash.Common.Handlers;
+using Microsoft.Dash.Common.Utils;
 using Microsoft.Dash.Server.Handlers;
 using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage;
@@ -46,7 +48,7 @@ namespace Microsoft.Dash.Server.Controllers
         {
             return await DoHandlerAsync(String.Format("ContainerController.PutContainerComp: {0}", comp), async () =>
                 {
-                    CloudBlobContainer containerObj = ControllerOperations.GetContainerByName(DashConfiguration.NamespaceAccount, container);
+                    CloudBlobContainer containerObj = NamespaceHandler.GetContainerByName(DashConfiguration.NamespaceAccount, container);
                     HttpResponseMessage errorResponse = await ValidatePreconditions(containerObj);
                     if (errorResponse != null)
                     {
@@ -98,7 +100,7 @@ namespace Microsoft.Dash.Server.Controllers
             };
             foreach (var account in accounts)
             {
-                var containerObj = ControllerOperations.GetContainerByName(account, container);
+                var containerObj = NamespaceHandler.GetContainerByName(account, container);
                 try
                 {
                     await action(containerObj);
@@ -120,7 +122,7 @@ namespace Microsoft.Dash.Server.Controllers
         {
             return await DoHandlerAsync("ContainerController.GetContainerProperties", async () =>
                 {
-                    CloudBlobContainer containerObj = ControllerOperations.GetContainerByName(DashConfiguration.NamespaceAccount, container);
+                    CloudBlobContainer containerObj = NamespaceHandler.GetContainerByName(DashConfiguration.NamespaceAccount, container);
                     HttpResponseMessage errorResponse = await ValidatePreconditions(containerObj);
                     if (errorResponse != null)
                     {
@@ -146,7 +148,7 @@ namespace Microsoft.Dash.Server.Controllers
         {
             return await DoHandlerAsync(String.Format("ContainerController.GetContainerData: {0}", comp), async () =>
                 {
-                    CloudBlobContainer containerObj = ControllerOperations.GetContainerByName(DashConfiguration.NamespaceAccount, container);
+                    CloudBlobContainer containerObj = NamespaceHandler.GetContainerByName(DashConfiguration.NamespaceAccount, container);
                     HttpResponseMessage errorResponse = await ValidatePreconditions(containerObj);
                     if (errorResponse != null)
                     {
@@ -445,7 +447,7 @@ namespace Microsoft.Dash.Server.Controllers
 
         private async Task<IEnumerable<IListBlobItem>> ChildBlobListAsync(CloudStorageAccount dataAccount, string container, string prefix, string delimiter, string includeFlags)
         {
-            CloudBlobContainer containerObj = ControllerOperations.GetContainerByName(dataAccount, container);
+            CloudBlobContainer containerObj = NamespaceHandler.GetContainerByName(dataAccount, container);
             if (!String.IsNullOrWhiteSpace(delimiter))
             {
                 containerObj.ServiceClient.DefaultDelimiter = delimiter;

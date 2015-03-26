@@ -8,7 +8,9 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.Dash.Server.Diagnostics;
+using Microsoft.Dash.Common.Diagnostics;
+using Microsoft.Dash.Common.Handlers;
+using Microsoft.Dash.Common.Utils;
 using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage.Blob;
 
@@ -231,7 +233,7 @@ namespace Microsoft.Dash.Server.Handlers
         static async Task<BlobContainerPublicAccessType> GetContainerPublicAccessAsync(string container)
         {
             // TODO: Plug this potential DoS vector - spurious anonymous requests could drown us here...
-            var containerObject = ControllerOperations.GetContainerByName(DashConfiguration.NamespaceAccount, container);
+            var containerObject = NamespaceHandler.GetContainerByName(DashConfiguration.NamespaceAccount, container);
             var permissions = await containerObject.GetPermissionsAsync();
             return permissions.PublicAccess;
         }

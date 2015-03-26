@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 
-namespace Microsoft.Dash.Server.Utils
+namespace Microsoft.Dash.Common.Utils
 {
     public static class StorageServiceVersions
     {

@@ -3,6 +3,8 @@
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Microsoft.Dash.Common.Diagnostics;
+using Microsoft.Dash.Common.Utils;
 using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage;
 

@@ -2,19 +2,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Threading.Tasks;
 using System.Web;
-using System.Web.Http;
-using Microsoft.Dash.Server.Controllers;
-using Microsoft.Dash.Server.Handlers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Xml.Linq;
-using System.Threading;
-using Microsoft.Dash.Server;
 
 namespace Microsoft.Tests
 {

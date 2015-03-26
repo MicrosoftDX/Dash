@@ -11,6 +11,7 @@ using System.Xml.Linq;
 using Microsoft.Dash.Server;
 using Microsoft.Dash.Server.Utils;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Microsoft.Dash.Common.Utils;
 
 namespace Microsoft.Tests
 {

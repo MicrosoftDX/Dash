@@ -2,7 +2,7 @@
 
 using System;
 using System.Threading.Tasks;
-using Microsoft.Dash.Server.Diagnostics;
+using Microsoft.Dash.Common.Diagnostics;
 using Microsoft.Dash.Server.Utils;
 
 namespace Microsoft.Dash.Server.Handlers
