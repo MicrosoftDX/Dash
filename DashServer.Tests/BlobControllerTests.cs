@@ -300,9 +300,7 @@ namespace Microsoft.Tests
                 HttpStatusCode.BadRequest);
 
             // Cleanup
-            _runner.ExecuteRequest(destBlobUri,
-                "DELETE",
-                expectedStatusCode: HttpStatusCode.Accepted);
+            _runner.ExecuteRequest(destBlobUri, "DELETE");
         }
 
         [TestMethod]
