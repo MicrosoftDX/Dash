@@ -43,27 +43,32 @@ namespace Microsoft.Dash.Server.Controllers
                     System.Diagnostics.Debug.Assert(false);
                     return this.CreateResponse(HttpStatusCode.BadRequest, requestWrapper.Headers);
             }
-            }
+        }
 
         /// Delete Blob - http://msdn.microsoft.com/en-us/library/azure/dd179413.aspx
         [HttpDelete]
         public async Task<HttpResponseMessage> DeleteBlob(string container, string blob, string snapshot = null)
         {
+            var requestWrapper = DashHttpRequestWrapper.Create(this.Request);
+            var headers = requestWrapper.Headers;
+            var queryParams = requestWrapper.QueryParameters;
             return await DoHandlerAsync(String.Format("BlobController.DeleteBlob: {0}/{1}", container, blob),
                 async () => await NamespaceHandler.PerformNamespaceOperation(container, blob, async (namespaceBlob) =>
                 {
-                    //We only need to delete the actual blob. We are leaving the namespace entry alone as a sort of cache.
+                    // We only need to delete the actual blob. We are leaving the namespace entry alone as a sort of cache.
                     if (!(await namespaceBlob.ExistsAsync()) || namespaceBlob.IsMarkedForDeletion)
                     {
-                        return new HttpResponseMessage(HttpStatusCode.NotFound);
+                        return this.CreateResponse(HttpStatusCode.NotFound, headers);
                     }
-                    // Delete the real data blob
-                    var dataBlob = NamespaceHandler.GetBlobByName(DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName), container, blob);
-                    await dataBlob.DeleteIfExistsAsync();
+                    // Delete the real data blob by forwarding the request onto the data account
+                    var forwardedResponse = await ForwardRequestHandler(namespaceBlob, StorageOperationTypes.DeleteBlob);
+                    if (!forwardedResponse.IsSuccessStatusCode)
+                    {
+                        return forwardedResponse;
+                    }
                     // Mark the namespace blob for deletion
                     await namespaceBlob.MarkForDeletionAsync();
-
-                    return new HttpResponseMessage(HttpStatusCode.Accepted);
+                    return this.CreateResponse(HttpStatusCode.Accepted, headers);
                 }));
         }
 
@@ -133,7 +138,7 @@ namespace Microsoft.Dash.Server.Controllers
                     if (!await namespaceBlob.ExistsAsync())
                     {
                         return this.CreateResponse(HttpStatusCode.NotFound, (RequestHeaders)null);
-        }
+                    }
                     return await ForwardRequestHandler(namespaceBlob, operation);
                 });
         }
@@ -167,16 +172,16 @@ namespace Microsoft.Dash.Server.Controllers
                     namespaceBlob.BlobName));
             clonedRequest.Version = sourceRequest.Version;
             foreach (var property in sourceRequest.Properties)
-        {
+            {
                 clonedRequest.Properties.Add(property);
-        }
+            }
             foreach (var header in sourceRequest.Headers)
             {
                 if (!_noCopyHeaders.Contains(header.Key))
-        {
+                {
                     clonedRequest.Headers.TryAddWithoutValidation(header.Key, header.Value);
                 }
-        }
+            }
             // Depending on the operation, we have to do some fixup to unwind HttpRequestMessage a bit - we also have to fixup some responses
             switch (operation)
             {
@@ -193,10 +198,10 @@ namespace Microsoft.Dash.Server.Controllers
                     if (sourceRequest.Content != null)
                     {
                         foreach (var header in sourceRequest.Content.Headers)
-        {
+                        {
                             clonedRequest.Headers.TryAddWithoutValidation(header.Key, header.Value);
                         }
-        }
+                    }
                     break;
 
                 default:
@@ -206,36 +211,36 @@ namespace Microsoft.Dash.Server.Controllers
             HttpClient client = null;
             string host = clonedRequest.RequestUri.Host;
             if (!_forwardClients.TryGetValue(host, out client))
-        {
+            {
                 client = new HttpClient();
                 client = _forwardClients.AddOrUpdate(host, client, (key, currentClient) => currentClient);
-        }
+            }
             var response = await client.SendAsync(clonedRequest, HttpCompletionOption.ResponseHeadersRead);
             // Fixup response for HEAD requests
             switch (operation)
-        {
+            {
                 case StorageOperationTypes.GetBlobProperties:
                     var content = response.Content;
                     if (response.IsSuccessStatusCode && content != null)
-        {
+                    {
                         string mediaType = null;
                         string dummyContent = String.Empty;
                         if (content.Headers.ContentType != null)
-        {
+                        {
                             mediaType = content.Headers.ContentType.MediaType;
-        }
+                        }
                         // For some reason, a HEAD request requires some content otherwise the Content-Length is set to 0
                         dummyContent = "A";
                         response.Content = new StringContent(dummyContent, null, mediaType);
                         foreach (var header in content.Headers)
-        {
+                        {
                             response.Content.Headers.TryAddWithoutValidation(header.Key, header.Value);
-        }
+                        }
                         response.Content.Headers.ContentLength = content.Headers.ContentLength;
                         content.Dispose();
-        }
+                    }
                     break;
-        }
+            }
             return response;
         }
     }
