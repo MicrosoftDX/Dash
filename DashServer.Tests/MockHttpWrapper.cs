@@ -45,6 +45,8 @@ namespace Microsoft.Tests
         public string HttpMethod { get; set; }
         public IEnumerable<string> PathSegments { get; private set; }
         public IEnumerable<string> OriginalPathSegments { get; private set; }
+        public string AuthenticationScheme { get; set; }
+        public byte[] AuthenticationKey { get; set; }
         public RequestQueryParameters QueryParameters 
         {
             get { return RequestQueryParameters.Create(this.Url.Query); }

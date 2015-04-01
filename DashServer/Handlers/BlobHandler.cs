@@ -22,7 +22,7 @@ namespace Microsoft.Dash.Server.Handlers
         /// <summary>
         /// Generic function to redirect a put request for properties of a blob
         /// </summary>
-        public static async Task<HandlerResult> BasicBlobAsync(string container, string blob)
+        public static async Task<HandlerResult> BasicBlobAsync(IHttpRequestWrapper requestWrapper, string container, string blob)
         {
             return await OperationRunner.DoHandlerAsync("BlobHandler.BasicBlobAsync", async () =>
                 {
@@ -34,14 +34,15 @@ namespace Microsoft.Dash.Server.Handlers
                             StatusCode = HttpStatusCode.NotFound,
                         };
                     }
-                    return HandlerResult.Redirect(ControllerOperations.GetRedirectUri(HttpContextFactory.Current.Request,
-                        DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName),
-                        namespaceBlob.Container,
-                        namespaceBlob.BlobName));
+                    return HandlerResult.Redirect(requestWrapper, 
+                        ControllerOperations.GetRedirectUri(HttpContextFactory.Current.Request,
+                            DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName),
+                            namespaceBlob.Container,
+                            namespaceBlob.BlobName));
                 });
         }
 
-        public static async Task<HandlerResult> PutBlobAsync(string container, string blob)
+        public static async Task<HandlerResult> PutBlobAsync(IHttpRequestWrapper requestWrapper, string container, string blob)
         {
             return await OperationRunner.DoHandlerAsync("BlobHandler.PutBlobAsync", async () =>
                 {
@@ -51,7 +52,7 @@ namespace Microsoft.Dash.Server.Handlers
                         DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName),
                         container,
                         blob);
-                    return HandlerResult.Redirect(redirect);
+                    return HandlerResult.Redirect(requestWrapper, redirect);
                 });
         }
 

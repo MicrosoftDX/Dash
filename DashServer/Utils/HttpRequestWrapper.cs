@@ -19,6 +19,8 @@ namespace Microsoft.Dash.Server.Utils
         RequestQueryParameters QueryParameters { get; }
         Uri Url { get; }
         string HttpMethod { get; }
+        string AuthenticationScheme { get; set; }
+        byte[] AuthenticationKey { get; set; }
     }
 
     /// <summary>
@@ -55,6 +57,18 @@ namespace Microsoft.Dash.Server.Utils
             get { return GetCachedObject<RequestQueryParameters>("Dash_QueryParameters", () => GetQueryParameters()); }
         }
 
+        public string AuthenticationScheme 
+        {
+            get { return GetCachedObject<string>("Dash_AuthenticationScheme", () => String.Empty);  }
+            set { SetCachedObject("Dash_AuthenticationScheme", value); }
+        }
+        
+        public byte[] AuthenticationKey 
+        {
+            get { return GetCachedObject<byte[]>("Dash_AuthenticationKey", () => default(byte[])); }
+            set { SetCachedObject("Dash_AuthenticationKey", value); }
+        }
+
         protected abstract string GetHttpMethod();
         protected abstract Uri GetRequestUri();
         protected abstract RequestHeaders GetRequestHeaders();
@@ -83,7 +97,7 @@ namespace Microsoft.Dash.Server.Utils
             get { return GetHttpMethod(); }
         }
 
-        T GetCachedObject<T>(string key, Func<T> creator)
+        T GetCachedObject<T>(string key, Func<T> factory)
         {
             // We're reasonably thread safe here because we're affinitized to a single request, so we omit locking
             var ctx = HttpContextFactory.Current;
@@ -91,7 +105,16 @@ namespace Microsoft.Dash.Server.Utils
             {
                 return (T)ctx.Items[key];
             }
-            T newObject = creator();
+            return SetCachedObject(ctx, key, factory());
+        }
+
+        T SetCachedObject<T>(string key, T newObject)
+        {
+            return SetCachedObject(HttpContextFactory.Current, key, newObject);
+        }
+
+        T SetCachedObject<T>(HttpContextBase ctx, string key, T newObject)
+        {
             ctx.Items[key] = newObject;
             return newObject;
         }

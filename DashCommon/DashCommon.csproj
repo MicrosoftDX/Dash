@@ -81,6 +81,7 @@
     <Compile Include="Handlers\NamespaceHandler.cs" />
     <Compile Include="Utils\AzureUtils.cs" />
     <Compile Include="Utils\DashConfiguration.cs" />
+    <Compile Include="Utils\SharedKeySignature.cs" />
     <Compile Include="Utils\StorageServiceVersions.cs" />
   </ItemGroup>
   <ItemGroup>

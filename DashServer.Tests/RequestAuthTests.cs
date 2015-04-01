@@ -2,10 +2,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.Linq;
-using System.Web;
+using Microsoft.Dash.Common.Utils;
 using Microsoft.Dash.Server.Handlers;
+using Microsoft.Dash.Server.Utils;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Microsoft.Tests
@@ -66,6 +66,22 @@ namespace Microsoft.Tests
                 Tuple.Create("Host", "dashstorage1.blob.core.windows.net"),
                 Tuple.Create("Connection", "Keep-Alive"),
             }));
+        }
+
+        [TestMethod]
+        public void RedirectionSignatureTest()
+        {
+            var request = new MockHttpRequestWrapper("GET", "http://localhost/container/test%20encoded", null)
+            {
+                AuthenticationScheme = "SharedKey",
+                AuthenticationKey = DashConfiguration.AccountKey,
+            };
+            var result = HandlerResult.Redirect(request,
+                "http://dataaccount.blob.core.windows.net/container/test%20encoded");
+            result.Headers = new ResponseHeaders(new[] {
+                new KeyValuePair<string, string>("x-ms-date", "Wed, 01 Apr 2015 01:26:43 GMT"),
+            });
+            Assert.AreEqual(result.SignedLocation, "SharedKey dashstorage1:iU0kJCrvLR7rdIS/HXO0T04gTu09enDo25/3WtrjESI=");
         }
 
         [Flags]
