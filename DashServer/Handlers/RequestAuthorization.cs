@@ -62,10 +62,6 @@ namespace Microsoft.Dash.Server.Handlers
             {
                 return false;
             }
-            // Remember the Auth Scheme & Key for when we have to sign the response
-            request.AuthenticationScheme = parts[0];
-            // TODO: Update this logic when we implement rolling keys
-            request.AuthenticationKey = SharedKeySignature.AccountKey;
             var account = parts[1];
             var signature = parts[2];
 
@@ -90,30 +86,19 @@ namespace Microsoft.Dash.Server.Handlers
                     runBlankContentLengthComparison = !method.Equals(WebRequestMethods.Http.Put, StringComparison.OrdinalIgnoreCase);
                 }
             }
-            // Both encoding schemes are valid for the signature
-            // Evaluations are ordered by most likely match to least likely match to reduce # of hash calculations
             if (!String.Equals(account, SharedKeySignature.AccountName, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
-            else if (runBlankContentLengthComparison &&
-                signature == GenerateSharedKeySignature(!fullKeyAlgorithm, method, uriPath, headers, queryParams, dateHeader, String.Empty))
-            {
-                return true;
-            }
-            else if (signature == GenerateSharedKeySignature(!fullKeyAlgorithm, method, uriPath, headers, queryParams, dateHeader, contentLength))
-            {
-                return true;
-            }
-            else if (runBlankContentLengthComparison &&
-                runUnencodedComparison &&
-                signature == GenerateSharedKeySignature(!fullKeyAlgorithm, method, uriUnencodedPath, headers, queryParams, dateHeader, String.Empty))
-            {
-                return true;
-            }
-            else if (runUnencodedComparison && 
-                signature == GenerateSharedKeySignature(!fullKeyAlgorithm, method, uriUnencodedPath, headers, queryParams, dateHeader, contentLength))
-            {
+            var evaluationResult = TaskUtils.WaitAnyWithPredicate<bool>(result => result, 
+                () => VerifyRequestAuthorization(signature, true, !fullKeyAlgorithm, method, uriPath, uriUnencodedPath, headers, queryParams, dateHeader, contentLength, runBlankContentLengthComparison, runUnencodedComparison),
+                () => VerifyRequestAuthorization(signature, false, !fullKeyAlgorithm, method, uriPath, uriUnencodedPath, headers, queryParams, dateHeader, contentLength, runBlankContentLengthComparison, runUnencodedComparison)
+            );
+            if (evaluationResult.CompletedIndex >= 0 && evaluationResult.Value)
+            { 
+                // Remember the Auth Scheme & Key for when we have to sign the response
+                request.AuthenticationScheme = parts[0];
+                request.AuthenticationKey = evaluationResult.CompletedIndex == 0 ? SharedKeySignature.PrimaryAccountKey : SharedKeySignature.SecondaryAccountKey;
                 return true;
             }
             DashTrace.TraceWarning("Failed to authenticate request: {0}:{1}:{2}:{3}", account, method, uriPath, signature);
@@ -121,7 +106,41 @@ namespace Microsoft.Dash.Server.Handlers
             return false;
         }
 
-        public static string GenerateSharedKeySignature(bool liteAlgorithm, string method, string uriPath, RequestHeaders headers, RequestQueryParameters queryParams, string requestDate, string contentLength)
+        private static bool VerifyRequestAuthorization(string signature, bool usePrimaryKey, bool liteAlgorithm, string method, string uriPath, string uriUnencodedPath, 
+            RequestHeaders headers, RequestQueryParameters queryParams, string requestDate, string contentLength,
+            bool runBlankContentLengthComparison, bool runUnencodedComparison)
+        {
+            if (!SharedKeySignature.HasKey(usePrimaryKey))
+            {
+                return false;
+            }
+            // Both encoding schemes are valid for the signature
+            // Evaluations are ordered by most likely match to least likely match to reduce # of hash calculations
+            if (runBlankContentLengthComparison &&
+                signature == GenerateSharedKeySignature(usePrimaryKey, liteAlgorithm, method, uriPath, headers, queryParams, requestDate, String.Empty))
+            {
+                return true;
+            }
+            else if (signature == GenerateSharedKeySignature(usePrimaryKey, liteAlgorithm, method, uriPath, headers, queryParams, requestDate, contentLength))
+            {
+                return true;
+            }
+            else if (runBlankContentLengthComparison &&
+                runUnencodedComparison &&
+                signature == GenerateSharedKeySignature(usePrimaryKey, liteAlgorithm, method, uriUnencodedPath, headers, queryParams, requestDate, String.Empty))
+            {
+                return true;
+            }
+            else if (runUnencodedComparison &&
+                signature == GenerateSharedKeySignature(usePrimaryKey, liteAlgorithm, method, uriUnencodedPath, headers, queryParams, requestDate, contentLength))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public static string GenerateSharedKeySignature(bool usePrimaryKey, bool liteAlgorithm, string method, string uriPath, 
+            RequestHeaders headers, RequestQueryParameters queryParams, string requestDate, string contentLength)
         {
             // Signature scheme is described at: http://msdn.microsoft.com/en-us/library/azure/dd179428.aspx
             // and the SDK implementation is at: https://github.com/Azure/azure-storage-net/tree/master/Lib/ClassLibraryCommon/Auth/Protocol
@@ -155,7 +174,7 @@ namespace Microsoft.Dash.Server.Handlers
                                                             SharedKeySignature.GetCanonicalizedHeaders(headers),
                                                             GetCanonicalizedResource(liteAlgorithm, uriPath, queryParams, SharedKeySignature.AccountName));
             }
-            return SharedKeySignature.GenerateSignature(stringToSignFactory);
+            return SharedKeySignature.GenerateSignature(stringToSignFactory, usePrimaryKey);
         }
 
         static string GetCanonicalizedResource(bool liteAlgorithm, string uriPath, RequestQueryParameters queryParams, string accountName)

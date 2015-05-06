@@ -11,22 +11,33 @@ namespace Microsoft.Dash.Common.Utils
 {
     public static class SharedKeySignature
     {
-        public const string AlgorithmSharedKey      = "SharedKey";
-        public const string AlgorithmSharedKeyLite  = "SharedKeyLite";
+        public const string AlgorithmSharedKey              = "SharedKey";
+        public const string AlgorithmSharedKeyLite          = "SharedKeyLite";
 
-        public static readonly string AccountName   = DashConfiguration.AccountName;
-        public static readonly byte[] AccountKey    = DashConfiguration.AccountKey;
+        public static readonly string AccountName           = DashConfiguration.AccountName;
+        public static readonly byte[] PrimaryAccountKey     = DashConfiguration.AccountKey;
+        public static readonly byte[] SecondaryAccountKey   = DashConfiguration.SecondaryAccountKey;
 
-        public static string GenerateSignature(Func<string> stringToSignFactory)
+        public static string GenerateSignature(Func<string> stringToSignFactory, bool usePrimaryKey = true)
+        {
+            return GenerateSignature(stringToSignFactory, usePrimaryKey ? SharedKeySignature.PrimaryAccountKey : SharedKeySignature.SecondaryAccountKey);
+        }
+
+        public static string GenerateSignature(Func<string> stringToSignFactory, byte[] accountKey)
         {
             string stringToSign = stringToSignFactory();
             DashTrace.TraceInformation("Authentication signing string: {0}", stringToSign);
 
             var bytesToSign = Encoding.UTF8.GetBytes(stringToSign);
-            using (var hmac = new HMACSHA256(SharedKeySignature.AccountKey))
+            using (var hmac = new HMACSHA256(accountKey))
             {
                 return Convert.ToBase64String(hmac.ComputeHash(bytesToSign));
             }
+        }
+
+        public static bool HasKey(bool primary)
+        {
+            return (primary ? SharedKeySignature.PrimaryAccountKey : SharedKeySignature.SecondaryAccountKey).Length != 0;
         }
 
         public static string GetCanonicalizedHeaders(ILookup<string, string> headers)

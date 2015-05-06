@@ -84,7 +84,8 @@ namespace Microsoft.Dash.Server.Utils
                                                     this.Request.HttpMethod,
                                                     responseDate,
                                                     this.Location,
-                                                    SharedKeySignature.GetCanonicalizedHeaders(this.Headers))));
+                                                    SharedKeySignature.GetCanonicalizedHeaders(this.Headers)),
+                                                this.Request.AuthenticationKey));
                 }
                 return _signedLocation;
             }

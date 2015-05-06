@@ -6,6 +6,7 @@
       <Setting name="Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString" value="" />
       <Setting name="AccountName" value="" />
       <Setting name="AccountKey" value="" />
+      <Setting name="SecondaryAccountKey" value="" />
       <Setting name="StorageConnectionStringMaster" value="" />
       <Setting name="ScaleoutStorage0" value="" />
       <Setting name="ScaleoutStorage1" value="" />
