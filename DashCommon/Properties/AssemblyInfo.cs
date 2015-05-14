@@ -9,3 +9,5 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCompany("Microsoft")]
 [assembly: AssemblyProduct("Data At Scale Hub")]
 [assembly: AssemblyCopyright("Copyright © Microsoft 2015")]
+
+[assembly: InternalsVisibleToAttribute("DashServer.Tests")]

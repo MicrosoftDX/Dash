@@ -59,6 +59,10 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\Newtonsoft.Json.6.0.4\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
+    <Reference Include="StackExchange.Redis, Version=1.0.316.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\StackExchange.Redis.1.0.414\lib\net45\StackExchange.Redis.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
@@ -80,6 +84,7 @@
     <Compile Include="Handlers\NamespaceBlob.cs" />
     <Compile Include="Handlers\NamespaceHandler.cs" />
     <Compile Include="Utils\AzureUtils.cs" />
+    <Compile Include="Utils\CacheStore.cs" />
     <Compile Include="Utils\DashConfiguration.cs" />
     <Compile Include="Utils\SharedKeySignature.cs" />
     <Compile Include="Utils\StorageServiceVersions.cs" />
@@ -93,7 +98,9 @@
     <AssemblyInfoName>Properties\AssemblyVersion.cs</AssemblyInfoName>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="app.config" />
+    <None Include="app.config">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="packages.config">
       <SubType>Designer</SubType>
     </None>
