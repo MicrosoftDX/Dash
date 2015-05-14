@@ -159,7 +159,6 @@ namespace Microsoft.Dash.Server.Controllers
             "x-original-url",
             "Expect",
         };
-        static ConcurrentDictionary<string, HttpClient> _forwardClients = new ConcurrentDictionary<string, HttpClient>(StringComparer.OrdinalIgnoreCase);
         private async Task<HttpResponseMessage> ForwardRequestHandler(NamespaceBlob namespaceBlob, StorageOperationTypes operation)
         {
             // Clone the inbound request
@@ -208,13 +207,7 @@ namespace Microsoft.Dash.Server.Controllers
                     clonedRequest.Content = sourceRequest.Content;
                     break;
             }
-            HttpClient client = null;
-            string host = clonedRequest.RequestUri.Host;
-            if (!_forwardClients.TryGetValue(host, out client))
-            {
-                client = new HttpClient();
-                client = _forwardClients.AddOrUpdate(host, client, (key, currentClient) => currentClient);
-            }
+            var client = new HttpClient();
             var response = await client.SendAsync(clonedRequest, HttpCompletionOption.ResponseHeadersRead);
             // Fixup response for HEAD requests
             switch (operation)
