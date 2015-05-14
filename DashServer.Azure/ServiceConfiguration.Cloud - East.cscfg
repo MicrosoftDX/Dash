@@ -7,6 +7,9 @@
       <Setting name="AccountName" value="dashtesteast" />
       <Setting name="AccountKey" value="wCNvIdXcltACBiDUMyO0BflZpKmjseplqOlzE62tx87qnkwpUMBV/GQhrscW9lmdZVT0x8DilYqUoHMNBlVIGg==" />
       <Setting name="SecondaryAccountKey" value="" />
+      <Setting name="CacheIsEnabled" value="false"/>
+      <Setting name="CacheRedisEndpointUrl" value="" />
+      <Setting name="CacheRedisPassword" value="" />
       <Setting name="StorageConnectionStringMaster" value="DefaultEndpointsProtocol=http;AccountName=zaybxcwddash3namespace;AccountKey=i/fB7QVy9J5ydlg3sUcQByG7kd1pngH/qyXMpN/HaRsSVqjB6pN5vd8dfDTrtXq6VV7q3LGWtvAThauBvjpmQw==" />
       <Setting name="ScaleoutStorage0" value="DefaultEndpointsProtocol=http;AccountName=a30f9400dash3east0;AccountKey=tbLV3IUd7RKQmCmsGtYACU2qf+yl2kiyYMJ9m5XShk2WCOG9lvewcsymSYXL8FlgD8y7mKj5CaLseYyfXiNDCQ==" />
       <Setting name="ScaleoutStorage1" value="DefaultEndpointsProtocol=http;AccountName=c16a1097dash3east1;AccountKey=RvSCY9b4IyloZ8LMPLVF9LHFdnL4w5G2dHoqUl/ndS4rD9/p8HEBm6M/2BAYdwj+fQaT5FQjxjYbs6YnxjZofA==" />
