@@ -2,10 +2,9 @@
 
 using System;
 using System.Threading.Tasks;
+using Microsoft.Dash.Common.Cache;
 using Microsoft.Dash.Common.Handlers;
-using Microsoft.Dash.Common.Utils;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Microsoft.WindowsAzure.Storage.Blob;
 using Moq;
 using StackExchange.Redis;
 
@@ -14,26 +13,52 @@ namespace Microsoft.Tests
     [TestClass]
     public class CacheStoreTests
     {
+        public class TestNamespaceBlob : INamespaceBlob
+        {
+            public string AccountName { get; set; }
+            public string Container { get; set; }
+            public string BlobName { get; set; }
+            public bool? IsMarkedForDeletion { get; set; }
+            public Task SaveAsync()
+            {
+                throw new NotImplementedException();
+            }
+
+            public Task<bool> ExistsAsync(bool forceRefresh = false)
+            {
+                throw new NotImplementedException();
+            }
+        }
+
         [TestMethod]
-        public void SetAsyncTest()
+        public void SerializeDeserializeTest()
         {
             // setup
             var mockDatabase = new Mock<IDatabase>(MockBehavior.Strict);
-            mockDatabase.Setup(m => m.StringSetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), It.IsAny<TimeSpan>(), It.IsAny<When>(), It.IsAny<CommandFlags>()))
-                .Returns(Task.FromResult(true));
 
-            var cloudBlockBlob = new CloudBlockBlob(new Uri("http://127.0.0.1:10000/container/blob"));
-            var namespaceBlob = new NamespaceBlob(cloudBlockBlob);
+            var testNamespaceBlob = new TestNamespaceBlob
+            {
+                AccountName = "account-name",
+                BlobName = "blob-name",
+                Container = "container",
+                IsMarkedForDeletion = false,
+            };
 
-            var cacheStore = new CacheStore(() => mockDatabase.Object);
+            var namespaceBlob = new NamespaceBlobCache(testNamespaceBlob, "data-container", "data-blobName", "data-snapshot");
 
-            //var action = new Func<Task<NamespaceBlob>>(() => new Task<NamespaceBlob>(() => namespaceBlob));
+            var cacheStore = new CacheStore {GetDatabase = () => mockDatabase.Object};
 
             // execute
-            var result = cacheStore.SetAsync("someKey", namespaceBlob, new TimeSpan(0, 0, 0, 60)).Result;
+            var serialized = cacheStore.Serialize(namespaceBlob);
+            var deserialized = cacheStore.Deserialize<NamespaceBlobCache>(serialized);
 
-            Assert.AreEqual(result, true);
             // assert
+            Assert.IsNotNull(serialized);
+            Assert.IsNotNull(deserialized);
+            Assert.AreEqual(testNamespaceBlob.AccountName, deserialized.AccountName);
+            Assert.AreEqual(testNamespaceBlob.BlobName, deserialized.BlobName);
+            Assert.AreEqual(testNamespaceBlob.Container, deserialized.Container);
+            Assert.AreEqual(testNamespaceBlob.IsMarkedForDeletion, deserialized.IsMarkedForDeletion);
         }
     }
 }

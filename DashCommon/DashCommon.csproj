@@ -66,6 +66,7 @@
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Spatial, Version=5.6.2.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\System.Spatial.5.6.2\lib\net40\System.Spatial.dll</HintPath>
@@ -81,10 +82,13 @@
     <Compile Include="Diagnostics\DashErrorInformation.cs" />
     <Compile Include="Diagnostics\DashTrace.cs" />
     <Compile Include="Diagnostics\TraceMessage.cs" />
+    <Compile Include="Handlers\INamespaceBlob.cs" />
+    <Compile Include="Handlers\NamespaceBlobCloud.cs" />
+    <Compile Include="Handlers\NamespaceBlobCache.cs" />
     <Compile Include="Handlers\NamespaceBlob.cs" />
     <Compile Include="Handlers\NamespaceHandler.cs" />
     <Compile Include="Utils\AzureUtils.cs" />
-    <Compile Include="Utils\CacheStore.cs" />
+    <Compile Include="Cache\CacheStore.cs" />
     <Compile Include="Utils\DashConfiguration.cs" />
     <Compile Include="Utils\SharedKeySignature.cs" />
     <Compile Include="Utils\StorageServiceVersions.cs" />

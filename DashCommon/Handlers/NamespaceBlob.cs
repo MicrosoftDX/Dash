@@ -1,115 +1,144 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
-using System.Text;
 using System.Threading.Tasks;
-using Microsoft.WindowsAzure.Storage;
+using Microsoft.Dash.Common.Utils;
 using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace Microsoft.Dash.Common.Handlers
 {
-    [Serializable]
-    public class NamespaceBlob
+    public class NamespaceBlob : INamespaceBlob
     {
-        private const string MetadataNameAccount    = "accountname";
-        private const string MetadataNameContainer  = "container";
-        private const string MetadataNameBlobName   = "blobname";
-        private const string MetadataNameDeleteFlag = "todelete";
-        private bool _blobExists;
+        private readonly NamespaceBlobCache _cachedNamespaceBlob;
+        private readonly NamespaceBlobCloub _cloudNamespaceBlob;
+        private static readonly bool CacheIsEnabled = Boolean.Parse(AzureUtils.GetConfigSetting("CacheIsEnabled", Boolean.FalseString));
 
-        private readonly CloudBlockBlob _namespaceBlob;
-
-        internal NamespaceBlob(CloudBlockBlob namespaceBlob)
+        private NamespaceBlob(NamespaceBlobCache cachedNamespaceBlob, NamespaceBlobCloub cloudNamespaceBlob)
         {
-            _namespaceBlob = namespaceBlob;
+            _cachedNamespaceBlob = cachedNamespaceBlob;
+            _cloudNamespaceBlob = cloudNamespaceBlob;
+        }
+
+        public async static Task<NamespaceBlob> FetchAsync(string container, string blobName, string snapshot = null)
+        {
+            if (String.IsNullOrEmpty(container))
+            {
+                throw new ArgumentNullException("container");
+            }
+
+            if (String.IsNullOrEmpty(blobName))
+            {
+                throw new ArgumentNullException("blobName");
+            }
+
+            var cloudNamespaceBlob = new NamespaceBlobCloub(() => (CloudBlockBlob)NamespaceHandler.GetBlobByName(DashConfiguration.NamespaceAccount, container, blobName, snapshot));
+            NamespaceBlobCache cachedNamespaceBlob = null;
+
+            if (CacheIsEnabled)
+            {
+                cachedNamespaceBlob = (NamespaceBlobCache) await NamespaceBlobCache.FetchAsync(container, blobName, snapshot);
+                if (cachedNamespaceBlob == null)
+                {
+                    // save to cache
+                    cachedNamespaceBlob = new NamespaceBlobCache(cloudNamespaceBlob, container, blobName, snapshot);
+                    await cachedNamespaceBlob.SaveAsync();
+                }
+            }
+
+            return new NamespaceBlob(cachedNamespaceBlob, cloudNamespaceBlob);
         }
 
         public string AccountName
         {
-            get { return TryGetMetadataValue(MetadataNameAccount); }
-            set { _namespaceBlob.Metadata[MetadataNameAccount] = value; }
+            get 
+            {
+                return CacheIsEnabled ? _cachedNamespaceBlob.AccountName : _cloudNamespaceBlob.AccountName;
+            }
+
+            set
+            {
+                _cloudNamespaceBlob.AccountName = value;
+                if (CacheIsEnabled)
+                {
+                    _cachedNamespaceBlob.AccountName = value;
+                }
+            }
         }
 
         public string Container
         {
-            get { return TryGetMetadataValue(MetadataNameContainer); }
-            set { _namespaceBlob.Metadata[MetadataNameContainer] = value; }
+            get
+            {
+                return CacheIsEnabled ? _cachedNamespaceBlob.Container: _cloudNamespaceBlob.Container;
+            }
+
+            set
+            {
+                SetProperty(p => _cloudNamespaceBlob.Container = p, p => _cachedNamespaceBlob.Container = p, value);
+                _cloudNamespaceBlob.Container = value;
+                if (CacheIsEnabled)
+                {
+                    _cachedNamespaceBlob.Container = value;
+                }
+            }
         }
 
         public string BlobName
         {
-            get { return TryGetMetadataValue(MetadataNameBlobName); }
-            set { _namespaceBlob.Metadata[MetadataNameBlobName] = value; }
+            get
+            {
+                return CacheIsEnabled ? _cachedNamespaceBlob.BlobName: _cloudNamespaceBlob.BlobName;
+            }
+
+            set
+            {
+                SetProperty(p => _cloudNamespaceBlob.BlobName = p, p => _cachedNamespaceBlob.BlobName = p, value);
+                _cloudNamespaceBlob.BlobName = value;
+                if (CacheIsEnabled)
+                {
+                    _cachedNamespaceBlob.BlobName = value;
+                }
+            }
         }
 
-        public bool IsMarkedForDeletion
+        public bool? IsMarkedForDeletion
         {
             get
             {
-                var retval = false;
-                var deleteFlag = TryGetMetadataValue(MetadataNameDeleteFlag);
-                bool.TryParse(deleteFlag, out retval);
-                return retval;
+                return CacheIsEnabled ? _cachedNamespaceBlob.IsMarkedForDeletion: _cloudNamespaceBlob.IsMarkedForDeletion ?? false;
             }
+
             set
             {
-                if (value)
+                _cloudNamespaceBlob.IsMarkedForDeletion = value;
+                if (CacheIsEnabled)
                 {
-                    _namespaceBlob.Metadata[MetadataNameDeleteFlag] = "true";
-                }
-                else
-                {
-                    _namespaceBlob.Metadata.Remove(MetadataNameDeleteFlag);
+                    _cachedNamespaceBlob.IsMarkedForDeletion = value;
                 }
             }
-        }
-
-        public async static Task<NamespaceBlob> FetchForBlobAsync(CloudBlockBlob namespaceBlob)
-        {
-            var retval = new NamespaceBlob(namespaceBlob);
-            await retval.RefreshAsync();
-            return retval;
-        }
-
-        public async Task RefreshAsync()
-        { 
-            // Exists() populates attributes
-            _blobExists = await _namespaceBlob.ExistsAsync();
         }
 
         public async Task SaveAsync()
         {
-            if (!_blobExists)
+            if (CacheIsEnabled)
             {
-                await _namespaceBlob.UploadTextAsync("", Encoding.UTF8, AccessCondition.GenerateIfNoneMatchCondition("*"), null, null);
+                await _cachedNamespaceBlob.SaveAsync();
             }
-            else
-            {
-                await _namespaceBlob.SetMetadataAsync(AccessCondition.GenerateIfMatchCondition(_namespaceBlob.Properties.ETag), null, null);
-            }
-        }
-
-        public async Task MarkForDeletionAsync()
-        {
-            await RefreshAsync();
-            this.IsMarkedForDeletion = true;
-            await SaveAsync();
+            await _cloudNamespaceBlob.SaveAsync();
         }
 
         public async Task<bool> ExistsAsync(bool forceRefresh = false)
         {
-            if (forceRefresh)
-            {
-                _blobExists = await _namespaceBlob.ExistsAsync();
-            }
-            return _blobExists;
+            return await _cloudNamespaceBlob.ExistsAsync(forceRefresh);
         }
 
-        private string TryGetMetadataValue(string metadataName)
+        private void SetProperty<T>(Action<T> cloudAction, Action<T> cacheAction, T value)
         {
-            string retval = String.Empty;
-            _namespaceBlob.Metadata.TryGetValue(metadataName, out retval);
-            return retval;
+            cloudAction(value);
+            if (CacheIsEnabled)
+            {
+                cacheAction(value);
+            }
         }
     }
 }

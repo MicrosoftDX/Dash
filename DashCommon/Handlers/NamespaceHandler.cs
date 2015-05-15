@@ -5,6 +5,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Dash.Common.Cache;
 using Microsoft.Dash.Common.Utils;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
@@ -19,7 +20,7 @@ namespace Microsoft.Dash.Common.Handlers
             return await PerformNamespaceOperation(container, blob, async (namespaceBlob) =>
             {
                 bool exists = await namespaceBlob.ExistsAsync();
-                if (exists && !namespaceBlob.IsMarkedForDeletion && !String.IsNullOrWhiteSpace(namespaceBlob.BlobName))
+                if (exists && (bool)!namespaceBlob.IsMarkedForDeletion && !String.IsNullOrWhiteSpace(namespaceBlob.BlobName))
                 {
                     return namespaceBlob;
                 }
@@ -37,17 +38,16 @@ namespace Microsoft.Dash.Common.Handlers
 
         public static async Task<NamespaceBlob> FetchNamespaceBlobAsync(string container, string blobName, string snapshot = null)
         {
-            return await NamespaceBlob.FetchForBlobAsync(
-                (CloudBlockBlob)GetBlobByName(DashConfiguration.NamespaceAccount, container, blobName, snapshot));
+            return await NamespaceBlob.FetchAsync(container, blobName, snapshot);
         }
 
         public static async Task<T> PerformNamespaceOperation<T>(string container, string blobName, Func<NamespaceBlob, Task<T>> operation)
         {
-            const int CreateRetryCount = 3;
+            const int createRetryCount = 3;
 
             // Allow namespace operations to be retried. Update operations (via NamespaceBlob.SaveAsync()) use pre-conditions to
             // resolve race conditions on the same namespace blob
-            for (int retry = 0; retry < CreateRetryCount; retry++)
+            for (int retry = 0; retry < createRetryCount; retry++)
             {
                 try
                 {
@@ -58,7 +58,7 @@ namespace Microsoft.Dash.Common.Handlers
                 {
                     if ((ex.RequestInformation.HttpStatusCode != (int)HttpStatusCode.PreconditionFailed &&
                         ex.RequestInformation.HttpStatusCode != (int)HttpStatusCode.Conflict) ||
-                        retry >= CreateRetryCount - 1)
+                        retry >= createRetryCount - 1)
                     {
                         throw;
                     }
