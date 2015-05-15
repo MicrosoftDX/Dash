@@ -18,12 +18,6 @@ namespace Microsoft.Dash.Server.Handlers
 {
     public static class RequestAuthorization
     {
-        static readonly string AccountName  = DashConfiguration.AccountName;
-        static readonly byte[] AccountKey   = DashConfiguration.AccountKey;
-
-        const string AlgorithmSharedKey     = "SharedKey";
-        const string AlgorithmSharedKeyLite = "SharedKeyLite";
-
         public static async Task<bool> IsRequestAuthorizedAsync(IHttpRequestWrapper request, bool ignoreRequestAge = false)
         {
             var headers = request.Headers;
@@ -64,7 +58,7 @@ namespace Microsoft.Dash.Server.Handlers
             {
                 return false;
             }
-            else if (parts[0] != AlgorithmSharedKey && parts[0] != AlgorithmSharedKeyLite)
+            else if (parts[0] != SharedKeySignature.AlgorithmSharedKey && parts[0] != SharedKeySignature.AlgorithmSharedKeyLite)
             {
                 return false;
             }
@@ -79,7 +73,7 @@ namespace Microsoft.Dash.Server.Handlers
 
             // For some verbs we can't tell if the Content-Length header was specified as 0 or that IIS/UrlRewrite/ASP.NET has constructed
             // the header value for us. The difference is significant to the signature as content length is included for SharedKey
-            bool fullKeyAlgorithm = parts[0] == AlgorithmSharedKey;
+            bool fullKeyAlgorithm = parts[0] == SharedKeySignature.AlgorithmSharedKey;
             bool runBlankContentLengthComparison = false;
             string method = request.HttpMethod.ToUpper();
             var contentLength = headers.Value("Content-Length", "");
@@ -92,30 +86,19 @@ namespace Microsoft.Dash.Server.Handlers
                     runBlankContentLengthComparison = !method.Equals(WebRequestMethods.Http.Put, StringComparison.OrdinalIgnoreCase);
                 }
             }
-            // Both encoding schemes are valid for the signature
-            // Evaluations are ordered by most likely match to least likely match to reduce # of hash calculations
-            if (!String.Equals(account, AccountName, StringComparison.OrdinalIgnoreCase))
+            if (!String.Equals(account, SharedKeySignature.AccountName, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
-            else if (runBlankContentLengthComparison &&
-                signature == SharedKeySignature(!fullKeyAlgorithm, method, uriPath, headers, queryParams, dateHeader, String.Empty))
-            {
-                return true;
-            }
-            else if (signature == SharedKeySignature(!fullKeyAlgorithm, method, uriPath, headers, queryParams, dateHeader, contentLength))
-            {
-                return true;
-            }
-            else if (runBlankContentLengthComparison &&
-                runUnencodedComparison &&
-                signature == SharedKeySignature(!fullKeyAlgorithm, method, uriUnencodedPath, headers, queryParams, dateHeader, String.Empty))
-            {
-                return true;
-            }
-            else if (runUnencodedComparison && 
-                signature == SharedKeySignature(!fullKeyAlgorithm, method, uriUnencodedPath, headers, queryParams, dateHeader, contentLength))
-            {
+            var evaluationResult = TaskUtils.WaitAnyWithPredicate<bool>(result => result, 
+                () => VerifyRequestAuthorization(signature, true, !fullKeyAlgorithm, method, uriPath, uriUnencodedPath, headers, queryParams, dateHeader, contentLength, runBlankContentLengthComparison, runUnencodedComparison),
+                () => VerifyRequestAuthorization(signature, false, !fullKeyAlgorithm, method, uriPath, uriUnencodedPath, headers, queryParams, dateHeader, contentLength, runBlankContentLengthComparison, runUnencodedComparison)
+            );
+            if (evaluationResult.CompletedIndex >= 0 && evaluationResult.Value)
+            { 
+                // Remember the Auth Scheme & Key for when we have to sign the response
+                request.AuthenticationScheme = parts[0];
+                request.AuthenticationKey = evaluationResult.CompletedIndex == 0 ? SharedKeySignature.PrimaryAccountKey : SharedKeySignature.SecondaryAccountKey;
                 return true;
             }
             DashTrace.TraceWarning("Failed to authenticate request: {0}:{1}:{2}:{3}", account, method, uriPath, signature);
@@ -123,56 +106,75 @@ namespace Microsoft.Dash.Server.Handlers
             return false;
         }
 
-        public static string SharedKeySignature(bool liteAlgorithm, string method, string uriPath, RequestHeaders headers, RequestQueryParameters queryParams, string requestDate, string contentLength)
+        private static bool VerifyRequestAuthorization(string signature, bool usePrimaryKey, bool liteAlgorithm, string method, string uriPath, string uriUnencodedPath, 
+            RequestHeaders headers, RequestQueryParameters queryParams, string requestDate, string contentLength,
+            bool runBlankContentLengthComparison, bool runUnencodedComparison)
+        {
+            if (!SharedKeySignature.HasKey(usePrimaryKey))
+            {
+                return false;
+            }
+            // Both encoding schemes are valid for the signature
+            // Evaluations are ordered by most likely match to least likely match to reduce # of hash calculations
+            if (runBlankContentLengthComparison &&
+                signature == GenerateSharedKeySignature(usePrimaryKey, liteAlgorithm, method, uriPath, headers, queryParams, requestDate, String.Empty))
+            {
+                return true;
+            }
+            else if (signature == GenerateSharedKeySignature(usePrimaryKey, liteAlgorithm, method, uriPath, headers, queryParams, requestDate, contentLength))
+            {
+                return true;
+            }
+            else if (runBlankContentLengthComparison &&
+                runUnencodedComparison &&
+                signature == GenerateSharedKeySignature(usePrimaryKey, liteAlgorithm, method, uriUnencodedPath, headers, queryParams, requestDate, String.Empty))
+            {
+                return true;
+            }
+            else if (runUnencodedComparison &&
+                signature == GenerateSharedKeySignature(usePrimaryKey, liteAlgorithm, method, uriUnencodedPath, headers, queryParams, requestDate, contentLength))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public static string GenerateSharedKeySignature(bool usePrimaryKey, bool liteAlgorithm, string method, string uriPath, 
+            RequestHeaders headers, RequestQueryParameters queryParams, string requestDate, string contentLength)
         {
             // Signature scheme is described at: http://msdn.microsoft.com/en-us/library/azure/dd179428.aspx
             // and the SDK implementation is at: https://github.com/Azure/azure-storage-net/tree/master/Lib/ClassLibraryCommon/Auth/Protocol
-            string stringToSign = "";
+            Func<string> stringToSignFactory = null;
 
             if (liteAlgorithm)
             {
-                stringToSign = String.Format("{0}\n{1}\n{2}\n{3}\n{4}\n{5}",
-                                                    method,
-                                                    headers.Value("Content-MD5", String.Empty),
-                                                    headers.Value("Content-Type", String.Empty),
-                                                    requestDate,
-                                                    GetCanonicalizedHeaders(headers),
-                                                    GetCanonicalizedResource(liteAlgorithm, uriPath, queryParams, AccountName));
+                stringToSignFactory = () => String.Format("{0}\n{1}\n{2}\n{3}\n{4}\n{5}",
+                                                            method,
+                                                            headers.Value("Content-MD5", String.Empty),
+                                                            headers.Value("Content-Type", String.Empty),
+                                                            requestDate,
+                                                            SharedKeySignature.GetCanonicalizedHeaders(headers),
+                                                            GetCanonicalizedResource(liteAlgorithm, uriPath, queryParams, SharedKeySignature.AccountName));
             }
             else
             {
-                stringToSign = String.Format("{0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}\n{8}\n{9}\n{10}\n{11}\n{12}\n{13}",
-                                                    method,
-                                                    headers.Value("Content-Encoding", String.Empty),
-                                                    headers.Value("Content-Language", String.Empty),
-                                                    contentLength,
-                                                    headers.Value("Content-MD5", String.Empty),
-                                                    headers.Value("Content-Type", String.Empty),
-                                                    requestDate,
-                                                    headers.Value("If-Modified-Since", String.Empty),
-                                                    headers.Value("If-Match", String.Empty),
-                                                    headers.Value("If-None-Match", String.Empty),
-                                                    headers.Value("If-Unmodified-Since", String.Empty),
-                                                    headers.Value("Range", String.Empty),
-                                                    GetCanonicalizedHeaders(headers),
-                                                    GetCanonicalizedResource(liteAlgorithm, uriPath, queryParams, AccountName));
+                stringToSignFactory = () => String.Format("{0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}\n{8}\n{9}\n{10}\n{11}\n{12}\n{13}",
+                                                            method,
+                                                            headers.Value("Content-Encoding", String.Empty),
+                                                            headers.Value("Content-Language", String.Empty),
+                                                            contentLength,
+                                                            headers.Value("Content-MD5", String.Empty),
+                                                            headers.Value("Content-Type", String.Empty),
+                                                            requestDate,
+                                                            headers.Value("If-Modified-Since", String.Empty),
+                                                            headers.Value("If-Match", String.Empty),
+                                                            headers.Value("If-None-Match", String.Empty),
+                                                            headers.Value("If-Unmodified-Since", String.Empty),
+                                                            headers.Value("Range", String.Empty),
+                                                            SharedKeySignature.GetCanonicalizedHeaders(headers),
+                                                            GetCanonicalizedResource(liteAlgorithm, uriPath, queryParams, SharedKeySignature.AccountName));
             }
-            DashTrace.TraceInformation("Authentication signing string: {0}", stringToSign);
-
-            var bytesToSign = Encoding.UTF8.GetBytes(stringToSign);
-            using (var hmac = new HMACSHA256(AccountKey))
-            {
-                return Convert.ToBase64String(hmac.ComputeHash(bytesToSign));
-            }
-        }
-
-        static string GetCanonicalizedHeaders(RequestHeaders headers)
-        {
-            return String.Join("\n", headers
-                .Where(header => header.Key.StartsWith("x-ms-") && 
-                                 header.Any(headerValue => !String.IsNullOrWhiteSpace(headerValue)))
-                .OrderBy(header => header.Key, StringComparer.Create(new CultureInfo("en-US"), false))
-                .Select(header => FormatCanonicalizedValues(header)));
+            return SharedKeySignature.GenerateSignature(stringToSignFactory, usePrimaryKey);
         }
 
         static string GetCanonicalizedResource(bool liteAlgorithm, string uriPath, RequestQueryParameters queryParams, string accountName)
@@ -189,18 +191,10 @@ namespace Microsoft.Dash.Server.Handlers
                 {
                     return commonPrefix + "\n" + String.Join("\n", queryParams
                         .OrderBy(queryParam => queryParam.Key, StringComparer.OrdinalIgnoreCase)
-                        .Select(queryParam => FormatCanonicalizedValues(queryParam)));
+                        .Select(queryParam => SharedKeySignature.FormatCanonicalizedValues(queryParam)));
                 }
                 return commonPrefix;
             }
-        }
-
-        static string FormatCanonicalizedValues(IGrouping<string, string> headerOrParameter)
-        {
-            return headerOrParameter.Key.ToLowerInvariant() + ":" +
-                String.Join(",", headerOrParameter
-                    .Select(value => value.TrimStart().Replace("\r\n", String.Empty))
-                    .OrderBy(value => value, StringComparer.OrdinalIgnoreCase));
         }
 
         static async Task<bool> IsAnonymousAccessAllowedAsync(IHttpRequestWrapper request)

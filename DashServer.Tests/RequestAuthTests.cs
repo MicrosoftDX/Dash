@@ -2,10 +2,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.Linq;
-using System.Web;
+using Microsoft.Dash.Common.Utils;
 using Microsoft.Dash.Server.Handlers;
+using Microsoft.Dash.Server.Utils;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Microsoft.Tests
@@ -20,6 +20,7 @@ namespace Microsoft.Tests
                 {
                     { "AccountName", "dashstorage1" },
                     { "AccountKey", "8jqRVtXUWiEthgIhR+dFwrB8gh3lFuquvJQ1v4eabObIj7okI1cZIuzY8zZHmEdpcC0f+XlUkbFwAhjTfyrLIg==" },
+                    { "SecondaryAccountKey", "Klari9ZbVdFQ35aULCfqqehCsd136amhusMHWynTpz2Pg+GyQMJw3GH177hvEQbaZ2oeRYk3jw0mIaV3ehNIRg==" },
                     { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=https;AccountName=dashtestnamespace;AccountKey=N+BMOAp/bswfqp4dxoQYLLwmYnERysm1Xxv3qSf5H9RVhQ0q+f/QKNHhXX4Z/P67mZ+5QwT6RZv9qKV834pOqQ==" },
                     { "ScaleoutStorage0", "DefaultEndpointsProtocol=https;AccountName=dashtestdata1;AccountKey=IatOQyIdf8x3HcCZuhtGGLv/nS0v/SwXu2vBS6E9/5/+GYllhdmFFX6YqMXmR7U6UyFYQt4pdZnlLCM+bPcJ4A==" },
                     { "ScaleoutNumberOfAccounts", "1"},
@@ -38,10 +39,13 @@ namespace Microsoft.Tests
                 Tuple.Create("Connection", "Keep-Alive"),
                 Tuple.Create("Content-Length", "0"),
             };
-            Assert.IsTrue(IsRequestAuthorized("GET", 
-                "http://localhost/container/test?restype=container&comp=list&prefix=te&include=snapshots,uncommittedblobs,metadata,copy", 
-                headers,
-                "SharedKey dashstorage1:rB2yPGBXn3CtquDlk03An34hgRHIibK/Xv+hjG3r0Us="));
+            var request = new MockHttpRequestWrapper("GET",
+                "http://localhost/container/test?restype=container&comp=list&prefix=te&include=snapshots,uncommittedblobs,metadata,copy",
+                headers.Concat(new[] { Tuple.Create("Authorization", "SharedKey dashstorage1:rB2yPGBXn3CtquDlk03An34hgRHIibK/Xv+hjG3r0Us=") }));
+            Assert.IsTrue(IsRequestAuthorized(request));
+            Assert.IsTrue(request.AuthenticationKey.SequenceEqual(Convert.FromBase64String("8jqRVtXUWiEthgIhR+dFwrB8gh3lFuquvJQ1v4eabObIj7okI1cZIuzY8zZHmEdpcC0f+XlUkbFwAhjTfyrLIg==")));
+            Assert.AreEqual(request.AuthenticationScheme, "SharedKey");
+            // Encoded URI
             Assert.IsTrue(IsRequestAuthorized("PUT",
                 "http://localhost/container/test%20encoded",
                 headers,
@@ -52,6 +56,17 @@ namespace Microsoft.Tests
                 "http://localhost/container/test%20encoded", 
                 headers,
                 "SharedKey dashstorage1:w6D7S11x58ueIvRKEWZGe1MRVvMkQFO+18wPlfm6f+A="));
+            // Secondary key
+            request = new MockHttpRequestWrapper("GET",
+                "http://localhost/container/test?restype=container&comp=list&prefix=te&include=snapshots,uncommittedblobs,metadata,copy",
+                headers.Concat(new[] { Tuple.Create("Authorization", "SharedKey dashstorage1:zmKvQUdxMH2OJWQygKOa950BULRSw6Dpue2zpE6TAAA=") }));
+            Assert.IsTrue(IsRequestAuthorized(request));
+            Assert.IsTrue(request.AuthenticationKey.SequenceEqual(Convert.FromBase64String("Klari9ZbVdFQ35aULCfqqehCsd136amhusMHWynTpz2Pg+GyQMJw3GH177hvEQbaZ2oeRYk3jw0mIaV3ehNIRg==")));
+            // Invalid key
+            Assert.IsFalse(IsRequestAuthorized("GET",
+                "http://localhost/container/test?restype=container&comp=list&prefix=te&include=snapshots,uncommittedblobs,metadata,copy",
+                headers,
+                "SharedKey dashstorage1:ymKvQUdxMH2OJWQygKOa950BULRSw6Dpue2zpE6TAAA="));
         }
 
         [TestMethod]
@@ -66,6 +81,54 @@ namespace Microsoft.Tests
                 Tuple.Create("Host", "dashstorage1.blob.core.windows.net"),
                 Tuple.Create("Connection", "Keep-Alive"),
             }));
+            // Secondary key
+            Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/container/test?restype=container&comp=list&prefix=te&include=snapshots,uncommittedblobs,metadata,copy", new[] {
+                Tuple.Create("User-Agent", "WA-Storage/4.3.0 (.NET CLR 4.0.30319.34014; Win32NT 6.2.9200.0)"),
+                Tuple.Create("x-ms-version", "2014-02-14"),
+                Tuple.Create("x-ms-client-request-id", "bbe0b567-f26e-405c-93e6-341ab6f6bb0e"),
+                Tuple.Create("x-ms-date", "Fri, 31 Oct 2014 23:41:08 GMT"),
+                Tuple.Create("Authorization", "SharedKeyLite dashstorage1:uKfAsKUjr3KqNb8jeKVtNuNT7whE+caeAkuGsYWehD8="),
+                Tuple.Create("Host", "dashstorage1.blob.core.windows.net"),
+                Tuple.Create("Connection", "Keep-Alive"),
+            }));
+            // Invalid key
+            Assert.IsFalse(IsRequestAuthorized("GET", "http://localhost/container/test?restype=container&comp=list&prefix=te&include=snapshots,uncommittedblobs,metadata,copy", new[] {
+                Tuple.Create("User-Agent", "WA-Storage/4.3.0 (.NET CLR 4.0.30319.34014; Win32NT 6.2.9200.0)"),
+                Tuple.Create("x-ms-version", "2014-02-14"),
+                Tuple.Create("x-ms-client-request-id", "bbe0b567-f26e-405c-93e6-341ab6f6bb0e"),
+                Tuple.Create("x-ms-date", "Fri, 31 Oct 2014 23:41:08 GMT"),
+                Tuple.Create("Authorization", "SharedKeyLite dashstorage1:ymKvQUdxMH2OJWQygKOa950BULRSw6Dpue2zpE6TAAA="),
+                Tuple.Create("Host", "dashstorage1.blob.core.windows.net"),
+                Tuple.Create("Connection", "Keep-Alive"),
+            }));
+        }
+
+        [TestMethod]
+        public void RedirectionSignatureTest()
+        {
+            var request = new MockHttpRequestWrapper("GET", "http://localhost/container/test%20encoded", null)
+            {
+                AuthenticationScheme = "SharedKey",
+                AuthenticationKey = DashConfiguration.AccountKey,
+            };
+            var result = HandlerResult.Redirect(request,
+                "http://dataaccount.blob.core.windows.net/container/test%20encoded");
+            result.Headers = new ResponseHeaders(new[] {
+                new KeyValuePair<string, string>("x-ms-date", "Wed, 01 Apr 2015 01:26:43 GMT"),
+            });
+            Assert.AreEqual(result.SignedLocation, "SharedKey dashstorage1:iU0kJCrvLR7rdIS/HXO0T04gTu09enDo25/3WtrjESI=");
+            // Secondary key
+            request = new MockHttpRequestWrapper("GET", "http://localhost/container/test%20encoded", null)
+            {
+                AuthenticationScheme = "SharedKeyLite",
+                AuthenticationKey = DashConfiguration.SecondaryAccountKey,
+            };
+            result = HandlerResult.Redirect(request,
+                "http://dataaccount.blob.core.windows.net/container/test%20encoded");
+            result.Headers = new ResponseHeaders(new[] {
+                new KeyValuePair<string, string>("x-ms-date", "Wed, 01 Apr 2015 01:26:43 GMT"),
+            });
+            Assert.AreEqual(result.SignedLocation, "SharedKeyLite dashstorage1:o3XAz28naFjcSxCbqoZL394S/zLY2+nYk7v8KbdnlSI=");
         }
 
         [Flags]
@@ -119,7 +182,12 @@ namespace Microsoft.Tests
 
         static bool IsRequestAuthorized(string method, string uri, IEnumerable<Tuple<string, string>> headers = null)
         {
-            return RequestAuthorization.IsRequestAuthorizedAsync(new MockHttpRequestWrapper(method, uri, headers), true).Result;
+            return IsRequestAuthorized(new MockHttpRequestWrapper(method, uri, headers));
+        }
+
+        static bool IsRequestAuthorized(IHttpRequestWrapper request)
+        {
+            return RequestAuthorization.IsRequestAuthorizedAsync(request, true).Result;
         }
 
         static void EvaluateAnonymousContainerAccess(ContainerAccess expectedAccess, string method, string blob, string uriSuffix, IEnumerable<Tuple<string, string>> headers = null)

@@ -125,5 +125,10 @@ namespace Microsoft.Dash.Common.Utils
         {
             get { return Convert.FromBase64String(ConfigurationSource.GetSetting("AccountKey", "")); }
         }
+
+        public static byte[] SecondaryAccountKey
+        {
+            get { return Convert.FromBase64String(ConfigurationSource.GetSetting("SecondaryAccountKey", "")); }
+        }
     }
 }

@@ -38,34 +38,6 @@ namespace Microsoft.Dash.Server.Controllers
             return response;
         }
 
-        protected async Task<IHttpActionResult> DoHandlerAsync(string handlerName, Func<Task<HandlerResult>> handler)
-        {
-            return ProcessHandlerResult(await OperationRunner.DoHandlerAsync(handlerName, handler));
-        }
-
-        protected IHttpActionResult ProcessHandlerResult(HandlerResult result)
-        {
-            switch (result.StatusCode)
-            {
-                case HttpStatusCode.NotFound:
-                    return NotFound();
-
-                case HttpStatusCode.Redirect:
-                    return Redirect(result.Location);
-
-                case HttpStatusCode.Accepted:
-                case HttpStatusCode.Created:
-                case HttpStatusCode.InternalServerError:
-                case HttpStatusCode.BadRequest:
-                case HttpStatusCode.Conflict:
-                    return ResponseMessage(ProcessResultResponse(result));
-
-                default:
-                    System.Diagnostics.Debug.Assert(false);
-                    return ResponseMessage(ProcessResultResponse(result));
-            }
-        }
-
         protected async Task<HttpResponseMessage> DoHandlerAsync(string handlerName, Func<Task<HttpResponseMessage>> handler)
         {
             return await OperationRunner.DoActionAsync(handlerName, handler, (ex) =>

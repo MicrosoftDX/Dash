@@ -1,6 +1,7 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using System.Web;
@@ -63,6 +64,19 @@ namespace Microsoft.Dash.Server
                 {
                     case HttpStatusCode.Redirect:
                         this.Response.Redirect(result.Location, false);
+                        if (!String.IsNullOrWhiteSpace(result.SignedLocation))
+                        {
+                            this.Response.AppendHeader("x-ms-redirect-signature", result.SignedLocation);
+                        }
+                        if (result.Headers != null)
+                        {
+                            foreach (var header in result.Headers
+                                .SelectMany(headerGroup => headerGroup
+                                    .Select(headerItem => Tuple.Create(headerGroup.Key, headerItem))))
+                            {
+                                this.Response.AppendHeader(header.Item1, header.Item2);
+                            }
+                        }
                         break;
 
                     case HttpStatusCode.NotFound:

@@ -19,6 +19,7 @@ namespace Microsoft.Tests
                 {
                     { "AccountName", "dashstorage1" },
                     { "AccountKey", "8jqRVtXUWiEthgIhR+dFwrB8gh3lFuquvJQ1v4eabObIj7okI1cZIuzY8zZHmEdpcC0f+XlUkbFwAhjTfyrLIg==" },
+                    { "SecondaryAccountKey", "Klari9ZbVdFQ35aULCfqqehCsd136amhusMHWynTpz2Pg+GyQMJw3GH177hvEQbaZ2oeRYk3jw0mIaV3ehNIRg==" },
                 });
         }
 
@@ -41,7 +42,7 @@ namespace Microsoft.Tests
                 Tuple.Create("Host", "dashstorage1.blob.core.windows.net"),
             };
             Assert.AreEqual("mDTyDIDy8yt7D81qAmYEYiXH1X/bmBHJF2+ZPn/r74k=",
-                RequestAuthorization.SharedKeySignature(false, "PUT", "/test/test.txt", RequestHeaders.Create(headers.ToLookup(header => header.Item1, header => header.Item2)), RequestQueryParameters.Empty, "", "423"),
+                RequestAuthorization.GenerateSharedKeySignature(true, false, "PUT", "/test/test.txt", RequestHeaders.Create(headers.ToLookup(header => header.Item1, header => header.Item2)), RequestQueryParameters.Empty, "", "423"),
                 "Generated SharedKey signature should match expected one 1");
 
             // Taken directly from the payload emitted by the .NET Storage FX
@@ -60,8 +61,8 @@ namespace Microsoft.Tests
                 Tuple.Create("Expect", "100-continue"),
                 Tuple.Create("Host", "dashstorage1.blob.core.windows.net"),
             };
-            Assert.AreEqual("ktMmzuta7Wsqtzyd3TBbd3zW4miedtJPkWWlW9DCRb0=",
-                RequestAuthorization.SharedKeySignature(false, "PUT", "/test/test.txt", RequestHeaders.Create(headers.ToLookup(header => header.Item1, header => header.Item2)), RequestQueryParameters.Empty, "", "423"),
+            Assert.AreEqual("9q8Xz2jAkDaNpLeDoOUAo5hfZ3nbg696xt5F17wcX7Y=",
+                RequestAuthorization.GenerateSharedKeySignature(false, false, "PUT", "/test/test.txt", RequestHeaders.Create(headers.ToLookup(header => header.Item1, header => header.Item2)), RequestQueryParameters.Empty, "", "423"),
                 "Generated SharedKey signature should match expected one 2");
 
             // Taken directly from the payload emitted by the .NET Storage FX
@@ -80,7 +81,7 @@ namespace Microsoft.Tests
                 Tuple.Create("Host", "dashstorage1.blob.core.windows.net"),
             };
             Assert.AreEqual("21rAYhnoRQQu6MmxXj6W5Rx3YWI8OCjO50CNNniohAA=",
-                RequestAuthorization.SharedKeySignature(false, "PUT", "/test/test.txt", RequestHeaders.Create(headers.ToLookup(header => header.Item1, header => header.Item2)), RequestQueryParameters.Empty, "", "423"),
+                RequestAuthorization.GenerateSharedKeySignature(true, false, "PUT", "/test/test.txt", RequestHeaders.Create(headers.ToLookup(header => header.Item1, header => header.Item2)), RequestQueryParameters.Empty, "", "423"),
                 "Generated SharedKey signature should match expected one 3");
 
             // Taken directly from the payload emitted by the .NET Storage FX
@@ -101,8 +102,8 @@ namespace Microsoft.Tests
                 Tuple.Create("Expect", "100-continue"),
                 Tuple.Create("Host", "dashstorage1.blob.core.windows.net"),
             };
-            Assert.AreEqual("ZBQYgC9dgzldVfH6t06qIYZujSz/3blWrinuYePTMv8=",
-                RequestAuthorization.SharedKeySignature(false, "PUT", "/test/test.txt", RequestHeaders.Create(headers.ToLookup(header => header.Item1, header => header.Item2)), RequestQueryParameters.Empty, "", "423"),
+            Assert.AreEqual("LzmxJ091fSbkczQfZErnqG0QEbsYQ+/mKx4gyBIjmFA=",
+                RequestAuthorization.GenerateSharedKeySignature(false, false, "PUT", "/test/test.txt", RequestHeaders.Create(headers.ToLookup(header => header.Item1, header => header.Item2)), RequestQueryParameters.Empty, "", "423"),
                 "Generated SharedKey signature should match expected one 4");
 
             // Taken directly from the payload emitted by the .NET Storage FX
@@ -126,7 +127,8 @@ namespace Microsoft.Tests
                 Tuple.Create("INCLUDE", "uncommittedblobs,metadata,copy"),
             };
             Assert.AreEqual("C0mPsPAiMs+4qlDQXGXMXpRGUkQgyMLzOHBiCmoC4LE=",
-                RequestAuthorization.SharedKeySignature(false, 
+                RequestAuthorization.GenerateSharedKeySignature(true, 
+                    false, 
                     "GET", 
                     "/test", 
                     RequestHeaders.Create(headers.ToLookup(header => header.Item1, header => header.Item2)), 
@@ -147,7 +149,8 @@ namespace Microsoft.Tests
                 Tuple.Create("Host", "dashstorage1.blob.core.windows.net"),
             };
             Assert.AreEqual("9ADGhBpIykIHJ+egWUVSP0LyzFF6aV9hPrT+6++IOPA=",
-                RequestAuthorization.SharedKeySignature(false,
+                RequestAuthorization.GenerateSharedKeySignature(true, 
+                    false,
                     "PUT",
                     "/test/TEST%20Encoded",
                     RequestHeaders.Create(headers.ToLookup(header => header.Item1, header => header.Item2)),
@@ -180,7 +183,8 @@ namespace Microsoft.Tests
                 Tuple.Create("INCLUDE", "uncommittedblobs,metadata,copy")
             };
             Assert.AreEqual("+C5fkZr8g80qF5vzPeLCnuaaA2pG8jTZRdmhKkjZt2g=",
-                RequestAuthorization.SharedKeySignature(true, 
+                RequestAuthorization.GenerateSharedKeySignature(true, 
+                    true, 
                     "GET", 
                     "/test",
                     RequestHeaders.Create(headers.ToLookup(header => header.Item1, header => header.Item2)),
@@ -207,11 +211,9 @@ namespace Microsoft.Tests
                 Tuple.Create("Expect", "100-continue"),
                 Tuple.Create("Host", "dashstorage1.blob.core.windows.net"),
             };
-            Assert.AreEqual("0y2rS4dabAWCahy2pTzrr1liZ7uSkJkYv/C3aYAgvpg=",
-                RequestAuthorization.SharedKeySignature(true, "PUT", "/test/test.txt", RequestHeaders.Create(headers.ToLookup(header => header.Item1, header => header.Item2)), RequestQueryParameters.Empty, "", "423"),
+            Assert.AreEqual("2D9i7xldeRtls7/qW+lSgwYQEWx6aNbtTKPFhzfR7Dw=",
+                RequestAuthorization.GenerateSharedKeySignature(false, true, "PUT", "/test/test.txt", RequestHeaders.Create(headers.ToLookup(header => header.Item1, header => header.Item2)), RequestQueryParameters.Empty, "", "423"),
                 "Generated SharedKeyLite signature should match expected one 1");
-
-
         }
     }
 }

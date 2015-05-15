@@ -17,6 +17,7 @@
     <ConfigurationSettings>
       <Setting name="AccountName" />
       <Setting name="AccountKey" />
+      <Setting name="SecondaryAccountKey" />
       <Setting name="StorageConnectionStringMaster" />
       <Setting name="ScaleoutStorage0" />
       <Setting name="ScaleoutStorage1" />

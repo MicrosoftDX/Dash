@@ -5,35 +5,37 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
+using Microsoft.Dash.Common.Diagnostics;
 
 namespace Microsoft.Dash.Server.Utils
 {
     public abstract class RequestResponseItems : ILookup<string, string>, IEnumerable<IGrouping<string, string>>
     {
-        ILookup<string, string> _items;
+        IDictionary<string, IEnumerable<string>> _items;
 
         protected RequestResponseItems(IEnumerable<KeyValuePair<string, string>> items)
         {
             _items = items
-                .ToLookup(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase);
+                .GroupBy(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(item => item.Key, item => item.AsEnumerable(), StringComparer.OrdinalIgnoreCase);
         }
 
         protected RequestResponseItems(IEnumerable<KeyValuePair<string, IEnumerable<string>>> items)
         {
             _items = items
-                .SelectMany(item => item.Value
-                    .Select(itemValue => Tuple.Create(item.Key, itemValue)))
-                .ToLookup(item => item.Item1, item => item.Item2, StringComparer.OrdinalIgnoreCase);
+                .GroupBy(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(groupedItems => groupedItems.Key, groupedItems => groupedItems.SelectMany(keyItems => keyItems), StringComparer.OrdinalIgnoreCase);
         }
 
         public IEnumerable<string> this[string itemName]
         {
             get { return _items[itemName]; }
+            set { _items[itemName] = value; }
         }
 
         public bool Contains(string key)
         {
-            return _items.Contains(key);
+            return _items.ContainsKey(key);
         }
 
         public int Count
@@ -43,12 +45,15 @@ namespace Microsoft.Dash.Server.Utils
 
         public IEnumerator<IGrouping<string, string>> GetEnumerator()
         {
-            return _items.GetEnumerator();
+            return _items
+                .SelectMany(keyValue => keyValue.Value, Tuple.Create)
+                .ToLookup(item => item.Item1.Key, item => item.Item2)
+                .GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return _items.GetEnumerator();
+            return this.GetEnumerator();
         }
 
         public T Value<T>(string itemName) where T : IConvertible
@@ -78,8 +83,8 @@ namespace Microsoft.Dash.Server.Utils
 
         public IEnumerable<T> Values<T>(string itemName) where T : IConvertible
         {
-            var values = _items[itemName];
-            if (values != null)
+            IEnumerable<string> values = null;
+            if (_items.TryGetValue(itemName, out values))
             {
                 return values
                     .Select(value =>
@@ -92,8 +97,14 @@ namespace Microsoft.Dash.Server.Utils
                             }
                             return (T)Convert.ChangeType(value, typeof(T));
                         }
-                        catch
+                        catch (Exception ex)
                         {
+                            DashTrace.TraceWarning(new TraceMessage
+                            {
+                                Operation = "General Exception",
+                                Message = String.Format("Failure converting item type. Item: {0}, new type: {1}", value, typeof(T).Name),
+                                ErrorDetails = new DashErrorInformation { ErrorMessage = ex.ToString() },
+                            });
                         }
                         return default(T);
                     });

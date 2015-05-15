@@ -66,6 +66,8 @@ Write-HDILog $output
 # This is currently not enabled as we need to determine which files need to be copied to default file system if switching after setup
 # $element = $core_site.configuration.property | where { $_.name -eq "fs.defaultFS" } 
 # $element.value = “wasb://$DashContainer@$DashService@cloudapp.net”
+$output = Edit-CoreSiteFile -ConfigFile $core_site -Name "fs.defaultFS" -Value "wasb://$DashContainer@$DashService.cloudapp.net" | Out-String
+Write-HDILog $output
 
 # Update core-site.xml file deleting property configuring custom topology discovery to work around yarn scheduler bug 
 $element = $core_site.configuration.property | where { $_.name -eq "topology.script.file.name" } 
@@ -76,13 +78,13 @@ $core_site.Save($core_site_path)
 
 # Replace storage client library with Dash version
 Write-HDILog "Updating Azure Storage Client SDK"
-$new_jar_uri = "https://www.dash-update.net/client/latest/StorageSDK/dash-microsoft-windowsazure-storage-sdk-0.6.0.jar"
+$new_jar_uri = "https://www.dash-update.net/client/latest/StorageSDK2.0/dash-azure-storage-2.0.0.jar"
 $directories = "$hadoop_directory\share\hadoop\common\lib", "$hadoop_directory\share\hadoop\tools\lib"
 foreach ($directory in $directories) 
 {
-    $output = remove-item "$directory\microsoft-windowsazure-storage-sdk-0.6.0.jar" -ErrorAction SilentlyContinue | Out-String
+    $output = remove-item "$directory\azure-storage-2.0.0.jar" -ErrorAction SilentlyContinue | Out-String
     Write-HDILog $output
-    $output = Invoke-WebRequest -Uri $new_jar_uri -Method Get -OutFile "$directory\dash-microsoft-windowsazure-storage-sdk-0.6.0.jar" | Out-String
+    $output = Invoke-WebRequest -Uri $new_jar_uri -Method Get -OutFile "$directory\dash-azure-storage-2.0.0.jar" | Out-String
     Write-HDILog $output
 }
 
@@ -139,6 +141,8 @@ if ($isActiveHeadNode -and [bool]$DashContainer) {
         $output = New-AzureStorageContainer -Context $storagectx -Name $DashContainer.ToLower() -Permission Off | Out-String
         Write-HDILog $output
     }
+    # Copy required files to the default container
+
 }
 
 Write-HDILog "Done with Dash installation at: $(Get-Date)";

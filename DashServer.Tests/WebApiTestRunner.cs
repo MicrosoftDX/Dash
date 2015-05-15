@@ -25,6 +25,7 @@ namespace Microsoft.Tests
             WebApiConfig.Register(webApiConfig);
             var server = new HttpServer(webApiConfig);
             _requestClient = new HttpClient(server);
+            _requestClient.Timeout = TimeSpan.FromMinutes(15);
 
             if (config != null)
             {

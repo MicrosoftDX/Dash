@@ -85,8 +85,10 @@
     <Compile Include="Utils\AzureMessageQueue.cs" />
     <Compile Include="Utils\AzureUtils.cs" />
     <Compile Include="Utils\DashConfiguration.cs" />
+    <Compile Include="Utils\SharedKeySignature.cs" />
     <Compile Include="Utils\MessageQueue.cs" />
     <Compile Include="Utils\StorageServiceVersions.cs" />
+    <Compile Include="Utils\TaskUtils.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
