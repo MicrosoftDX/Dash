@@ -16,7 +16,7 @@ namespace Microsoft.Dash.Common.Handlers
         private const string MetadataNameDeleteFlag = "todelete";
 
         private bool _isLoaded = false;
-        private bool _cloudBlockBlobExists;
+        private bool _cloudBlockBlobExists = false;
 
         private readonly Func<CloudBlockBlob> _getCloudBlockBlob;
 
@@ -25,8 +25,13 @@ namespace Microsoft.Dash.Common.Handlers
         {
             get
             {
-                _isLoaded = true;
-                return _cloudBlockBlob ?? (_cloudBlockBlob = _getCloudBlockBlob());
+                if (_isLoaded == false)
+                {
+                    _cloudBlockBlob = _getCloudBlockBlob();
+                    _cloudBlockBlobExists = _cloudBlockBlob.Exists();
+                    _isLoaded = true;
+                }
+                return _cloudBlockBlob;
             }
         }
 
@@ -74,11 +79,12 @@ namespace Microsoft.Dash.Common.Handlers
         {
             if (await ExistsAsync())
             {
-                await CloudBlockBlob.UploadTextAsync("", Encoding.UTF8, AccessCondition.GenerateIfNoneMatchCondition("*"), null, null);
+                await CloudBlockBlob.SetMetadataAsync(AccessCondition.GenerateIfMatchCondition(CloudBlockBlob.Properties.ETag), null, null);
             }
             else
             {
-                await CloudBlockBlob.SetMetadataAsync(AccessCondition.GenerateIfMatchCondition(CloudBlockBlob.Properties.ETag), null, null);
+                await CloudBlockBlob.UploadTextAsync("", Encoding.UTF8, AccessCondition.GenerateIfNoneMatchCondition("*"), null, null);
+                _cloudBlockBlobExists = true;
             }
         }
 

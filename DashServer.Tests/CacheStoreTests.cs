@@ -13,6 +13,7 @@ namespace Microsoft.Tests
     [TestClass]
     public class CacheStoreTests
     {
+        [Serializable]
         public class TestNamespaceBlob : INamespaceBlob
         {
             public string AccountName { get; set; }
@@ -44,13 +45,14 @@ namespace Microsoft.Tests
                 IsMarkedForDeletion = false,
             };
 
-            var namespaceBlob = new NamespaceBlobCache(testNamespaceBlob, "data-container", "data-blobName", "data-snapshot");
-
-            var cacheStore = new CacheStore {GetDatabase = () => mockDatabase.Object};
+            var cacheStore = new CacheStore("someRedisUrl", "someRedisPassword")
+            {
+                GetDatabase = () => mockDatabase.Object
+            };
 
             // execute
-            var serialized = cacheStore.Serialize(namespaceBlob);
-            var deserialized = cacheStore.Deserialize<NamespaceBlobCache>(serialized);
+            var serialized = cacheStore.Serialize(testNamespaceBlob);
+            var deserialized = cacheStore.Deserialize<TestNamespaceBlob>(serialized);
 
             // assert
             Assert.IsNotNull(serialized);
