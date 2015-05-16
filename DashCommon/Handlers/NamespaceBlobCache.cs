@@ -1,7 +1,6 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
-using System.Runtime.Remoting.Messaging;
 using System.Threading.Tasks;
 using Microsoft.Dash.Common.Cache;
 

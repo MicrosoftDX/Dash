@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Diagnostics;
+using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using Microsoft.Dash.Common.Utils;
 using StackExchange.Redis;
@@ -23,19 +24,18 @@ namespace Microsoft.Dash.Common.Cache
 
         public CacheStore(string redisEndpointUrl = null, string redisPassword = null, bool useSsl = true)
         {
-            redisEndpointUrl = redisEndpointUrl ?? AzureUtils.GetConfigSetting("CacheRedisEndpointUrl", String.Empty);
             if (String.IsNullOrEmpty(redisEndpointUrl))
             {
-                throw new ArgumentNullException("redisEndpointUrl");
+                redisEndpointUrl = AzureUtils.GetConfigSetting("CacheRedisEndpointUrl", String.Empty);
             }
 
-            redisPassword = redisPassword ?? AzureUtils.GetConfigSetting("CacheRedisPassword", String.Empty);
             if (String.IsNullOrEmpty(redisPassword))
             {
-                throw new ArgumentNullException("redisEndpointUrl");
+                redisPassword = AzureUtils.GetConfigSetting("CacheRedisPassword", String.Empty);
             }
 
             _connectionString = String.Format("{0},abortConnect=false,ssl={1},password={2},allowAdmin=true", redisEndpointUrl, useSsl, redisPassword);
+            Debug.WriteLine(_connectionString);
             _lazyConnection = new Lazy<ConnectionMultiplexer>(() => ConnectionMultiplexer.Connect(_connectionString));
         }
 
