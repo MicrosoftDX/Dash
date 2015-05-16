@@ -8,6 +8,9 @@ using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace Microsoft.Dash.Common.Handlers
 {
+    /// <summary>
+    /// NamespaceBlob that lives in the Namespace Storage Account
+    /// </summary>
     internal class NamespaceBlobCloub : INamespaceBlob
     {
         private const string MetadataNameAccount    = "accountname";
@@ -97,6 +100,10 @@ namespace Microsoft.Dash.Common.Handlers
             return _cloudBlockBlobExists;
         }
 
+        /// <summary>
+        /// NamespaceBlobCloud
+        /// </summary>
+        /// <param name="getCloudBlockBlob">Function delegate to retrieve the NamespaceBlob from Storage</param>
         public NamespaceBlobCloub(Func<CloudBlockBlob> getCloudBlockBlob)
         {
             _getCloudBlockBlob = getCloudBlockBlob;

@@ -13,5 +13,7 @@ namespace Microsoft.Dash.Common.Handlers
         bool? IsMarkedForDeletion { get; set; }
 
         Task SaveAsync();
+
+        Task<bool> ExistsAsync(bool forceRefresh);
     }
 }

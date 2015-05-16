@@ -9,16 +9,23 @@ namespace Microsoft.Dash.Common.Handlers
 {
     public class NamespaceBlob : INamespaceBlob
     {
-        private readonly NamespaceBlobCache _cachedNamespaceBlob;
-        private readonly NamespaceBlobCloub _cloudNamespaceBlob;
-        private static readonly bool CacheIsEnabled = Boolean.Parse(AzureUtils.GetConfigSetting("CacheIsEnabled", Boolean.FalseString));
+        private readonly INamespaceBlob _cachedNamespaceBlob;
+        private readonly INamespaceBlob _cloudNamespaceBlob;
+        internal static bool CacheIsEnabled = Boolean.Parse(AzureUtils.GetConfigSetting("CacheIsEnabled", Boolean.FalseString));
 
-        private NamespaceBlob(NamespaceBlobCache cachedNamespaceBlob, NamespaceBlobCloub cloudNamespaceBlob)
+        internal NamespaceBlob(INamespaceBlob cachedNamespaceBlob, INamespaceBlob cloudNamespaceBlob)
         {
             _cachedNamespaceBlob = cachedNamespaceBlob;
             _cloudNamespaceBlob = cloudNamespaceBlob;
         }
 
+        /// <summary>
+        /// Fetches an instance of NamespaceBlob.
+        /// </summary>
+        /// <param name="container">container name</param>
+        /// <param name="blobName">blob name</param>
+        /// <param name="snapshot">snapshot name</param>
+        /// <returns>NamespaceBlob</returns>
         public async static Task<NamespaceBlob> FetchAsync(string container, string blobName, string snapshot = null)
         {
             if (String.IsNullOrEmpty(container))
@@ -67,7 +74,7 @@ namespace Microsoft.Dash.Common.Handlers
 
         public string Container
         {
-            get
+            get 
             {
                 return CacheIsEnabled ? _cachedNamespaceBlob.Container: _cloudNamespaceBlob.Container;
             }

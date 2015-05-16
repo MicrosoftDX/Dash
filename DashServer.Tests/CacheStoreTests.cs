@@ -1,9 +1,6 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
-using System;
-using System.Threading.Tasks;
 using Microsoft.Dash.Common.Cache;
-using Microsoft.Dash.Common.Handlers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using StackExchange.Redis;
@@ -13,31 +10,13 @@ namespace Microsoft.Tests
     [TestClass]
     public class CacheStoreTests
     {
-        [Serializable]
-        public class TestNamespaceBlob : INamespaceBlob
-        {
-            public string AccountName { get; set; }
-            public string Container { get; set; }
-            public string BlobName { get; set; }
-            public bool? IsMarkedForDeletion { get; set; }
-            public Task SaveAsync()
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<bool> ExistsAsync(bool forceRefresh = false)
-            {
-                throw new NotImplementedException();
-            }
-        }
-
         [TestMethod]
         public void SerializeDeserializeTest()
         {
             // setup
             var mockDatabase = new Mock<IDatabase>(MockBehavior.Strict);
 
-            var testNamespaceBlob = new TestNamespaceBlob
+            var testNamespaceBlob = new NamespaceBlobTests.TestNamespaceBlob
             {
                 AccountName = "account-name",
                 BlobName = "blob-name",
@@ -52,7 +31,7 @@ namespace Microsoft.Tests
 
             // execute
             var serialized = cacheStore.Serialize(testNamespaceBlob);
-            var deserialized = cacheStore.Deserialize<TestNamespaceBlob>(serialized);
+            var deserialized = cacheStore.Deserialize<NamespaceBlobTests.TestNamespaceBlob>(serialized);
 
             // assert
             Assert.IsNotNull(serialized);

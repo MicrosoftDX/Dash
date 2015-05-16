@@ -94,6 +94,7 @@
     <Reference Include="System.Xml.Linq" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="NamespaceBlobTests.cs" />
     <Compile Include="CacheStoreTests.cs" />
     <Compile Include="MockHttpWrapper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
