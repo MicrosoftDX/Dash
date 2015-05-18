@@ -10,6 +10,12 @@ namespace Microsoft.Tests
     [TestClass]
     public class NamespaceBlobTests
     {
+        [TestCleanup]
+        public void Cleanup()
+        {
+            NamespaceBlob.CacheIsEnabled = false;
+        }
+
         [Serializable]
         public class TestNamespaceBlob : INamespaceBlob
         {
@@ -29,7 +35,7 @@ namespace Microsoft.Tests
         }
 
         [TestMethod]
-        public void GetterCacheFlag()
+        public void ToggleCacheFlagPropertyGetter()
         {
             var fakeCloudObj = new TestNamespaceBlob
             {
@@ -65,7 +71,7 @@ namespace Microsoft.Tests
         }
 
         [TestMethod]
-        public void SetterCacheFlag()
+        public void ToggleCacheFlagPropertySetter()
         {
             var fakeCloudObj = new TestNamespaceBlob
             {

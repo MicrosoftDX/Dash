@@ -24,18 +24,19 @@ namespace Microsoft.Dash.Common.Cache
 
         public CacheStore(string redisEndpointUrl = null, string redisPassword = null, bool useSsl = true)
         {
+            redisEndpointUrl = redisEndpointUrl ?? AzureUtils.GetConfigSetting("CacheRedisEndpointUrl", String.Empty);
             if (String.IsNullOrEmpty(redisEndpointUrl))
             {
-                redisEndpointUrl = AzureUtils.GetConfigSetting("CacheRedisEndpointUrl", String.Empty);
+                throw new ArgumentNullException("redisEndpointUrl");
             }
 
+            redisPassword = redisPassword ?? AzureUtils.GetConfigSetting("CacheRedisPassword", String.Empty);
             if (String.IsNullOrEmpty(redisPassword))
             {
-                redisPassword = AzureUtils.GetConfigSetting("CacheRedisPassword", String.Empty);
+                throw new ArgumentNullException("redisEndpointUrl");
             }
 
             _connectionString = String.Format("{0},abortConnect=false,ssl={1},password={2},allowAdmin=true", redisEndpointUrl, useSsl, redisPassword);
-            Debug.WriteLine(_connectionString);
             _lazyConnection = new Lazy<ConnectionMultiplexer>(() => ConnectionMultiplexer.Connect(_connectionString));
         }
 

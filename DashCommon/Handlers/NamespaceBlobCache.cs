@@ -1,6 +1,7 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Dash.Common.Cache;
 
@@ -9,9 +10,14 @@ namespace Microsoft.Dash.Common.Handlers
     [Serializable]
     internal class NamespaceBlobCache : INamespaceBlob
     {
-        internal static readonly CacheStore CacheStore = new CacheStore();
+        private static readonly Lazy<CacheStore> LazyCacheStore = new Lazy<CacheStore>(() => new CacheStore());
 
-        public string CacheKey { get; private set; }
+        internal static CacheStore CacheStore
+        {
+            get { return LazyCacheStore.Value; }
+        }
+
+        public Func<string> GetCacheKey;
 
         public string AccountName { get; set; }
 
@@ -23,21 +29,32 @@ namespace Microsoft.Dash.Common.Handlers
 
         public async Task SaveAsync()
         {
-            await CacheStore.SetAsync(CacheKey, this, TimeSpan.FromHours(1));
+            await CacheStore.SetAsync(GetCacheKey(), this, TimeSpan.FromHours(1));
         }
 
-        public Task<bool> ExistsAsync(bool forceRefresh)
+        public async Task<bool> ExistsAsync(bool forceRefresh)
         {
-            return Task.Factory.StartNew(() => true);
+            return await CacheStore.ExistsAsync(GetCacheKey());
         }
 
         public NamespaceBlobCache(INamespaceBlob namespaceBlob, string container, string blobName, string snapshot = null)
         {
+            if (String.IsNullOrEmpty(container))
+            {
+                throw new ArgumentNullException("container");
+            }
+
+            if (String.IsNullOrEmpty(blobName))
+            {
+                throw new ArgumentNullException("blobName");
+            }
+
             this.AccountName = namespaceBlob.AccountName;
             this.Container = namespaceBlob.Container;
             this.BlobName = namespaceBlob.BlobName;
             this.IsMarkedForDeletion = namespaceBlob.IsMarkedForDeletion;
-            this.CacheKey = BuildCacheKey(container, blobName, snapshot);
+
+            this.GetCacheKey = () => BuildCacheKey(container, blobName, snapshot);
         }
 
         public static async Task<INamespaceBlob> FetchAsync(string container, string blobName, string snapshot = null)
