@@ -1,6 +1,7 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Diagnostics;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -48,6 +49,7 @@ namespace Microsoft.Dash.Common.Handlers
             // resolve race conditions on the same namespace blob
             for (int retry = 0; retry < createRetryCount; retry++)
             {
+                var startTime = DateTime.Now;
                 try
                 {
                     var namespaceBlob = await FetchNamespaceBlobAsync(container, blobName);
@@ -55,12 +57,16 @@ namespace Microsoft.Dash.Common.Handlers
                 }
                 catch (StorageException ex)
                 {
-                    if ((ex.RequestInformation.HttpStatusCode != (int)HttpStatusCode.PreconditionFailed &&
-                        ex.RequestInformation.HttpStatusCode != (int)HttpStatusCode.Conflict) ||
+                    if ((ex.RequestInformation.HttpStatusCode != (int) HttpStatusCode.PreconditionFailed &&
+                         ex.RequestInformation.HttpStatusCode != (int) HttpStatusCode.Conflict) ||
                         retry >= createRetryCount - 1)
                     {
                         throw;
                     }
+                }
+                finally
+                {
+                    Debug.WriteLine("Elapsed Time (minutes)={0}, Container={1}, BlobName={2}", DateTime.Now.Subtract(startTime).TotalMinutes, container, blobName);
                 }
             }
             // Never get here

@@ -38,7 +38,7 @@ namespace Microsoft.Dash.Common.Handlers
                 throw new ArgumentNullException("blobName");
             }
 
-            var cloudNamespaceBlob = new NamespaceBlobCloub(() => (CloudBlockBlob)NamespaceHandler.GetBlobByName(DashConfiguration.NamespaceAccount, container, blobName, snapshot));
+            var cloudNamespaceBlob = new NamespaceBlobCloud(() => (CloudBlockBlob)NamespaceHandler.GetBlobByName(DashConfiguration.NamespaceAccount, container, blobName, snapshot));
             NamespaceBlobCache cachedNamespaceBlob = null;
 
             if (CacheIsEnabled)

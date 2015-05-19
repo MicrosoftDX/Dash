@@ -4,6 +4,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Dash.Common.Handlers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Moq;
 
 namespace Microsoft.Tests
 {
@@ -35,39 +36,68 @@ namespace Microsoft.Tests
         }
 
         [TestMethod]
+        public void SaveTest()
+        {
+            // setup
+            var mockNamespaceCloudBlob = new Mock<INamespaceBlob>(MockBehavior.Strict);
+            mockNamespaceCloudBlob.Setup(s => s.SaveAsync()).Returns(() => Task.FromResult(true));
+
+            var mockNamespaceCacheBlob = new Mock<INamespaceBlob>(MockBehavior.Strict);
+            mockNamespaceCacheBlob.Setup(s => s.SaveAsync()).Returns(() => Task.FromResult(true));
+
+            var namespaceBlob = new NamespaceBlob(mockNamespaceCacheBlob.Object, mockNamespaceCloudBlob.Object);
+
+            // disabled cache
+            //      execute
+            NamespaceBlob.CacheIsEnabled = false;
+            namespaceBlob.SaveAsync().Wait();
+
+            //      assert
+            mockNamespaceCloudBlob.Verify(s => s.SaveAsync(), Times.Once);
+            mockNamespaceCacheBlob.Verify(s => s.SaveAsync(), Times.Never);
+
+            // enable cache
+            //      execute
+            NamespaceBlob.CacheIsEnabled = true;
+            namespaceBlob.SaveAsync().Wait();
+
+            //      assert
+            mockNamespaceCloudBlob.Verify(s => s.SaveAsync(), Times.Exactly(2));
+            mockNamespaceCacheBlob.Verify(s => s.SaveAsync(), Times.Once);
+        }
+
+        [TestMethod]
         public void ToggleCacheFlagPropertyGetter()
         {
-            var fakeCloudObj = new TestNamespaceBlob
-            {
-                AccountName = "cloud-account-name",
-                BlobName = "cloud-blob-name",
-                Container = "cloud-container",
-                IsMarkedForDeletion = false,
-            };
+            var mockNamespaceCloudBlob = new Mock<INamespaceBlob>(MockBehavior.Strict);
+            mockNamespaceCloudBlob.SetupAllProperties();
+            mockNamespaceCloudBlob.Object.AccountName = "cloud-account-name";
+            mockNamespaceCloudBlob.Object.BlobName = "cloud-blob-name";
+            mockNamespaceCloudBlob.Object.Container = "cloud-container";
+            mockNamespaceCloudBlob.Object.IsMarkedForDeletion = false;
 
-            var fakeCacheObj = new TestNamespaceBlob
-            {
-                AccountName = "cache-account-name",
-                BlobName = "cloud-blob-name",
-                Container = "cloud-container",
-                IsMarkedForDeletion = true,
-            };
+            var mockNamespaceCacheBlob = new Mock<INamespaceBlob>(MockBehavior.Strict);
+            mockNamespaceCacheBlob.SetupAllProperties();
+            mockNamespaceCacheBlob.Object.AccountName = "cache-account-name";
+            mockNamespaceCacheBlob.Object.BlobName = "cache-blob-name";
+            mockNamespaceCacheBlob.Object.Container = "cache-container";
+            mockNamespaceCacheBlob.Object.IsMarkedForDeletion = true;
 
-            var namespaceBlob = new NamespaceBlob(fakeCacheObj, fakeCloudObj);
+            var namespaceBlob = new NamespaceBlob(mockNamespaceCacheBlob.Object, mockNamespaceCloudBlob.Object);
 
-            // disable
+            // disable - values should be from cloud
             NamespaceBlob.CacheIsEnabled = false;
-            Assert.AreEqual(fakeCloudObj.AccountName, namespaceBlob.AccountName);
-            Assert.AreEqual(fakeCloudObj.BlobName, namespaceBlob.BlobName);
-            Assert.AreEqual(fakeCloudObj.Container, namespaceBlob.Container);
-            Assert.AreEqual(fakeCloudObj.IsMarkedForDeletion, namespaceBlob.IsMarkedForDeletion);
+            Assert.AreEqual(mockNamespaceCloudBlob.Object.AccountName, namespaceBlob.AccountName);
+            Assert.AreEqual(mockNamespaceCloudBlob.Object.BlobName, namespaceBlob.BlobName);
+            Assert.AreEqual(mockNamespaceCloudBlob.Object.Container, namespaceBlob.Container);
+            Assert.AreEqual(mockNamespaceCloudBlob.Object.IsMarkedForDeletion, namespaceBlob.IsMarkedForDeletion);
 
-            // enable
+            // enable - values should be from cache
             NamespaceBlob.CacheIsEnabled = true;
-            Assert.AreEqual(fakeCacheObj.AccountName, namespaceBlob.AccountName);
-            Assert.AreEqual(fakeCacheObj.BlobName, namespaceBlob.BlobName);
-            Assert.AreEqual(fakeCacheObj.Container, namespaceBlob.Container);
-            Assert.AreEqual(fakeCacheObj.IsMarkedForDeletion, namespaceBlob.IsMarkedForDeletion);
+            Assert.AreEqual(mockNamespaceCacheBlob.Object.AccountName, namespaceBlob.AccountName);
+            Assert.AreEqual(mockNamespaceCacheBlob.Object.BlobName, namespaceBlob.BlobName);
+            Assert.AreEqual(mockNamespaceCacheBlob.Object.Container, namespaceBlob.Container);
+            Assert.AreEqual(mockNamespaceCacheBlob.Object.IsMarkedForDeletion, namespaceBlob.IsMarkedForDeletion);
         }
 
         [TestMethod]

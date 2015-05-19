@@ -11,7 +11,7 @@ namespace Microsoft.Dash.Common.Handlers
     /// <summary>
     /// NamespaceBlob that lives in the Namespace Storage Account
     /// </summary>
-    internal class NamespaceBlobCloub : INamespaceBlob
+    internal class NamespaceBlobCloud : INamespaceBlob
     {
         private const string MetadataNameAccount    = "accountname";
         private const string MetadataNameContainer  = "container";
@@ -104,7 +104,7 @@ namespace Microsoft.Dash.Common.Handlers
         /// NamespaceBlobCloud
         /// </summary>
         /// <param name="getCloudBlockBlob">Function delegate to retrieve the NamespaceBlob from Storage</param>
-        public NamespaceBlobCloub(Func<CloudBlockBlob> getCloudBlockBlob)
+        public NamespaceBlobCloud(Func<CloudBlockBlob> getCloudBlockBlob)
         {
             _getCloudBlockBlob = getCloudBlockBlob;
         }

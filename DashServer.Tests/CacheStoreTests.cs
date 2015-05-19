@@ -1,5 +1,6 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
+using System;
 using Microsoft.Dash.Common.Cache;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
@@ -10,6 +11,9 @@ namespace Microsoft.Tests
     [TestClass]
     public class CacheStoreTests
     {
+        private const string redisUrl = "dashtest.redis.cache.windows.net";
+        private const string redisKey = "TGgq1fErigjkf9Lq9zp9I/+g7hpevYfNZYBPsKoQmeM=";
+
         [TestMethod]
         public void SerializeDeserializeTest()
         {
@@ -40,6 +44,33 @@ namespace Microsoft.Tests
             Assert.AreEqual(testNamespaceBlob.BlobName, deserialized.BlobName);
             Assert.AreEqual(testNamespaceBlob.Container, deserialized.Container);
             Assert.AreEqual(testNamespaceBlob.IsMarkedForDeletion, deserialized.IsMarkedForDeletion);
+        }
+
+        [TestMethod]
+        public void HappyPath()
+        {
+            var key = Guid.NewGuid().ToString();
+            var value = "unit-test-expected-value";
+            var expiry = new TimeSpan(0, 1, 0);
+
+            var cacheStore = new CacheStore(redisUrl, redisKey);
+
+            // set
+            Assert.IsFalse(cacheStore.ExistsAsync(key).Result);
+            Assert.IsTrue(cacheStore.SetAsync(key, value, expiry).Result);
+            Assert.IsTrue(cacheStore.ExistsAsync(key).Result);
+
+            // get
+            var cacheValue = cacheStore.GetAsync<string>(key).Result;
+            Assert.AreEqual(value, cacheValue);
+
+            // delete
+            Assert.IsTrue(cacheStore.DeleteAsync(key).Result);
+            Assert.IsFalse(cacheStore.ExistsAsync(key).Result);
+
+            // get
+            cacheValue = cacheStore.GetAsync<string>(key).Result;
+            Assert.IsNull(cacheValue);
         }
     }
 }
