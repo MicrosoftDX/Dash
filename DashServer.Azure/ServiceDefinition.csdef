@@ -21,6 +21,7 @@
       <Setting name="CacheIsEnabled" />
       <Setting name="CacheRedisEndpointUrl" />
       <Setting name="CacheRedisPassword" />
+      <Setting name="CacheExpirationInMinutes" />
       <Setting name="StorageConnectionStringMaster" />
       <Setting name="ScaleoutStorage0" />
       <Setting name="ScaleoutStorage1" />

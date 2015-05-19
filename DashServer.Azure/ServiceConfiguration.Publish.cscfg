@@ -10,6 +10,7 @@
       <Setting name="CacheIsEnabled" value="false"/>
       <Setting name="CacheRedisEndpointUrl" value="" />
       <Setting name="CacheRedisPassword" value="" />
+      <Setting name="CacheExpirationInMinutes" value="60" />
       <Setting name="StorageConnectionStringMaster" value="" />
       <Setting name="ScaleoutStorage0" value="" />
       <Setting name="ScaleoutStorage1" value="" />

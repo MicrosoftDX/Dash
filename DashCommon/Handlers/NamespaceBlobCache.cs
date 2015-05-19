@@ -1,9 +1,9 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Dash.Common.Cache;
+using Microsoft.Dash.Common.Utils;
 
 namespace Microsoft.Dash.Common.Handlers
 {
@@ -11,6 +11,7 @@ namespace Microsoft.Dash.Common.Handlers
     internal class NamespaceBlobCache : INamespaceBlob
     {
         private static readonly Lazy<CacheStore> LazyCacheStore = new Lazy<CacheStore>(() => new CacheStore());
+        private static readonly int CacheExpirationInMinutes = AzureUtils.GetConfigSetting("CacheExpirationInMinutes", 60);
 
         internal static CacheStore CacheStore
         {
@@ -29,7 +30,7 @@ namespace Microsoft.Dash.Common.Handlers
 
         public async Task SaveAsync()
         {
-            await CacheStore.SetAsync(GetCacheKey(), this, TimeSpan.FromHours(1));
+            await CacheStore.SetAsync(GetCacheKey(), this, TimeSpan.FromMinutes(CacheExpirationInMinutes));
         }
 
         public async Task<bool> ExistsAsync(bool forceRefresh)
