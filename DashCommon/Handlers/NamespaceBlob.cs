@@ -81,7 +81,6 @@ namespace Microsoft.Dash.Common.Handlers
 
             set
             {
-                SetProperty(p => _cloudNamespaceBlob.Container = p, p => _cachedNamespaceBlob.Container = p, value);
                 _cloudNamespaceBlob.Container = value;
                 if (CacheIsEnabled)
                 {
@@ -99,7 +98,6 @@ namespace Microsoft.Dash.Common.Handlers
 
             set
             {
-                SetProperty(p => _cloudNamespaceBlob.BlobName = p, p => _cachedNamespaceBlob.BlobName = p, value);
                 _cloudNamespaceBlob.BlobName = value;
                 if (CacheIsEnabled)
                 {
@@ -137,15 +135,6 @@ namespace Microsoft.Dash.Common.Handlers
         public async Task<bool> ExistsAsync(bool forceRefresh = false)
         {
             return await _cloudNamespaceBlob.ExistsAsync(forceRefresh);
-        }
-
-        private void SetProperty<T>(Action<T> cloudAction, Action<T> cacheAction, T value)
-        {
-            cloudAction(value);
-            if (CacheIsEnabled)
-            {
-                cacheAction(value);
-            }
         }
     }
 }
