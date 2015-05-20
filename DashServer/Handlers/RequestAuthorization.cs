@@ -1,11 +1,11 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Dash.Common.Diagnostics;
@@ -65,12 +65,24 @@ namespace Microsoft.Dash.Server.Handlers
             var account = parts[1];
             var signature = parts[2];
 
-            // Pull out the MVC controller part of the path
+            if (!String.Equals(account, SharedKeySignature.AccountName, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            // We have to deal with multiple encodings (the spec is a bit ambiguous on what an 'encoded' path actually is).
+            // Only run the validation if the encodings result in different strings
             var requestUriParts = request.UriParts;
-            string uriPath = requestUriParts.OriginalUriPath;
-            var uriUnencodedPath = requestUriParts.PublicUriPath;
-            bool runUnencodedComparison = uriPath != uriUnencodedPath;
-
+            var pathsToCheck = new List<string>() { requestUriParts.OriginalUriPath };
+            var unencodedPath = requestUriParts.PublicUriPath;
+            if (unencodedPath != pathsToCheck[0])
+            {
+                pathsToCheck.Add(unencodedPath);
+            }
+            var alternateEncodingPath = AlternateEncodeString(pathsToCheck[0]);
+            if (!String.IsNullOrEmpty(alternateEncodingPath))
+            {
+                pathsToCheck.Add(alternateEncodingPath);
+            }
             // For some verbs we can't tell if the Content-Length header was specified as 0 or that IIS/UrlRewrite/ASP.NET has constructed
             // the header value for us. The difference is significant to the signature as content length is included for SharedKey
             bool fullKeyAlgorithm = parts[0] == SharedKeySignature.AlgorithmSharedKey;
@@ -86,57 +98,85 @@ namespace Microsoft.Dash.Server.Handlers
                     runBlankContentLengthComparison = !method.Equals(WebRequestMethods.Http.Put, StringComparison.OrdinalIgnoreCase);
                 }
             }
-            if (!String.Equals(account, SharedKeySignature.AccountName, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-            var evaluationResult = TaskUtils.WaitAnyWithPredicate<bool>(result => result, 
-                () => VerifyRequestAuthorization(signature, true, !fullKeyAlgorithm, method, uriPath, uriUnencodedPath, headers, queryParams, dateHeader, contentLength, runBlankContentLengthComparison, runUnencodedComparison),
-                () => VerifyRequestAuthorization(signature, false, !fullKeyAlgorithm, method, uriPath, uriUnencodedPath, headers, queryParams, dateHeader, contentLength, runBlankContentLengthComparison, runUnencodedComparison)
-            );
-            if (evaluationResult.CompletedIndex >= 0 && evaluationResult.Value)
+            var validationChecks = pathsToCheck.SelectMany(uriPath => new[] {
+                    runBlankContentLengthComparison ? Tuple.Create(true, uriPath, String.Empty) : null,
+                    Tuple.Create(true, uriPath, contentLength),
+                    runBlankContentLengthComparison ? Tuple.Create(false, uriPath, String.Empty) : null,
+                    Tuple.Create(false, uriPath, contentLength),
+                })
+                .Where(check => check != null)
+                .ToArray();
+            var evaluationResult = validationChecks
+                .FirstOrDefault(validatationCheck => 
+                    VerifyRequestAuthorization(signature, validatationCheck.Item1, !fullKeyAlgorithm, method, validatationCheck.Item2, headers, queryParams, dateHeader, validatationCheck.Item3));
+            if (evaluationResult != null)
             { 
                 // Remember the Auth Scheme & Key for when we have to sign the response
                 request.AuthenticationScheme = parts[0];
-                request.AuthenticationKey = evaluationResult.CompletedIndex == 0 ? SharedKeySignature.PrimaryAccountKey : SharedKeySignature.SecondaryAccountKey;
+                request.AuthenticationKey = evaluationResult.Item1 ? SharedKeySignature.PrimaryAccountKey : SharedKeySignature.SecondaryAccountKey;
                 return true;
             }
-            DashTrace.TraceWarning("Failed to authenticate request: {0}:{1}:{2}:{3}", account, method, uriPath, signature);
+            DashTrace.TraceWarning("Failed to authenticate request: {0}:{1}:{2}:{3}", account, method, request.Url, signature);
 
             return false;
         }
 
-        private static bool VerifyRequestAuthorization(string signature, bool usePrimaryKey, bool liteAlgorithm, string method, string uriPath, string uriUnencodedPath, 
-            RequestHeaders headers, RequestQueryParameters queryParams, string requestDate, string contentLength,
-            bool runBlankContentLengthComparison, bool runUnencodedComparison)
+        private static bool VerifyRequestAuthorization(string signature, bool usePrimaryKey, bool liteAlgorithm, string method, string uriPath, 
+            RequestHeaders headers, RequestQueryParameters queryParams, string requestDate, string contentLength)
         {
             if (!SharedKeySignature.HasKey(usePrimaryKey))
             {
                 return false;
             }
-            // Both encoding schemes are valid for the signature
-            // Evaluations are ordered by most likely match to least likely match to reduce # of hash calculations
-            if (runBlankContentLengthComparison &&
-                signature == GenerateSharedKeySignature(usePrimaryKey, liteAlgorithm, method, uriPath, headers, queryParams, requestDate, String.Empty))
-            {
-                return true;
-            }
             else if (signature == GenerateSharedKeySignature(usePrimaryKey, liteAlgorithm, method, uriPath, headers, queryParams, requestDate, contentLength))
             {
                 return true;
             }
-            else if (runBlankContentLengthComparison &&
-                runUnencodedComparison &&
-                signature == GenerateSharedKeySignature(usePrimaryKey, liteAlgorithm, method, uriUnencodedPath, headers, queryParams, requestDate, String.Empty))
-            {
-                return true;
-            }
-            else if (runUnencodedComparison &&
-                signature == GenerateSharedKeySignature(usePrimaryKey, liteAlgorithm, method, uriUnencodedPath, headers, queryParams, requestDate, contentLength))
-            {
-                return true;
-            }
             return false;
+        }
+
+        static string AlternateEncodeString(string source)
+        {
+            for (int pos = 0; pos < source.Length; pos++)
+            {
+                if (Uri.IsHexEncoding(source, pos))
+                {
+                    Uri.HexUnescape(source, ref pos);
+                    pos--;
+                }
+                else if (IsAlternateEncodingCharacter(source[pos]))
+                {
+                    return AlternateEncodeStringTranslate(source, pos);
+                }
+
+            }
+            return null;
+        }
+
+        static string AlternateEncodeStringTranslate(string source, int pos)
+        {
+            // Allocate enough capacity here to handle worst-case of all remaining characters needing hex encoding
+            // without StringBuilding needing to reallocate its buffer
+            var dest = new StringBuilder(source.Substring(0, pos), pos + (source.Length - pos) * 3);
+            for (; pos < source.Length; pos++)
+            {
+                char ch = source[pos];
+                if (IsAlternateEncodingCharacter(ch))
+                {
+                    dest.Append(Uri.HexEscape(ch));
+                }
+                else
+                {
+                    dest.Append(ch);
+                }
+            }
+            return dest.ToString();
+        }
+
+        static bool IsAlternateEncodingCharacter(char ch)
+        {
+            var category = Char.GetUnicodeCategory(ch);
+            return category == UnicodeCategory.OpenPunctuation || category == UnicodeCategory.ClosePunctuation;
         }
 
         public static string GenerateSharedKeySignature(bool usePrimaryKey, bool liteAlgorithm, string method, string uriPath, 

@@ -56,6 +56,15 @@ namespace Microsoft.Tests
                 "http://localhost/container/test%20encoded", 
                 headers,
                 "SharedKey dashstorage1:w6D7S11x58ueIvRKEWZGe1MRVvMkQFO+18wPlfm6f+A="));
+            // Alternate encoding - some punctuation characters are encoded as well
+            Assert.IsTrue(IsRequestAuthorized("PUT",
+                "http://localhost/container/test%20encoded(1)",
+                headers,
+                "SharedKey dashstorage1:RkJ/SQDzKdpAWVI1fJV+kK715YJ0gigRTnrQdQnx+TU="));
+            Assert.IsTrue(IsRequestAuthorized("PUT",
+                "http://localhost/container/test%20encoded%281%29",
+                headers,
+                "SharedKey dashstorage1:RkJ/SQDzKdpAWVI1fJV+kK715YJ0gigRTnrQdQnx+TU="));
             // Secondary key
             request = new MockHttpRequestWrapper("GET",
                 "http://localhost/container/test?restype=container&comp=list&prefix=te&include=snapshots,uncommittedblobs,metadata,copy",
