@@ -67,7 +67,7 @@ namespace Microsoft.Dash.Server.Handlers
                         string sourceContainer = String.Empty;
                         string sourceBlobName = String.Empty;
                         string sourceQuery = String.Empty;
-                        var requestVersion = new DateTimeOffset(requestWrapper.Headers.Value("x-ms-version", StorageServiceVersions.Version_2009_09_19.UtcDateTime), TimeSpan.FromHours(0));
+                        var requestVersion = requestWrapper.Headers.Value("x-ms-version", StorageServiceVersions.Version_2009_09_19);
                         bool processRelativeSource = false;
                         if (!sourceUri.IsAbsoluteUri)
                         {
@@ -149,7 +149,8 @@ namespace Microsoft.Dash.Server.Handlers
                                 DashConfiguration.GetDataAccountByAccountName(sourceNamespaceBlob.AccountName),
                                 sourceContainer,
                                 sourceBlobName,
-                                false);
+                                false,
+                                String.Empty);
                             sourceUri = sourceUriBuilder.Uri;
                         }
                         else if (await destNamespaceBlob.ExistsAsync())

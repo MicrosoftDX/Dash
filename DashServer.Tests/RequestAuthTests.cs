@@ -113,6 +113,41 @@ namespace Microsoft.Tests
         }
 
         [TestMethod]
+        public void SharedAccessSignatureRequestTest()
+        {
+            // Blob with container SAS based on primary key
+            Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=c&sig=SPMPjAghEhfEX1RvZLJPD2dQ%2B%2BnpH08vrVSUyWfdPwo%3D&st=2015-05-22T20%3A44%3A13Z&se=2015-05-22T21%3A44%3A13Z&sp=r"));
+            Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/blob/test/test1.txt?sv=2014-02-14&sr=c&sig=SPMPjAghEhfEX1RvZLJPD2dQ%2B%2BnpH08vrVSUyWfdPwo%3D&st=2015-05-22T20%3A44%3A13Z&se=2015-05-22T21%3A44%3A13Z&sp=r"));
+            // Blob with container SAS based on secondary key
+            Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=c&sig=OkZlHUAsAzvqvONRiNWIpAW0GA%2F75uHQRWuKzafVdAE%3D&st=2015-05-22T21%3A16%3A24Z&se=2015-05-22T22%3A16%3A24Z&sp=r"));
+            // Blob with blob SAS based on secondary key
+            Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&sig=gXk4Bxt37rv65%2BwpEfuwa6BHz3Gk4hK6072dlUZiX0E%3D&st=2015-05-22T21%3A21%3A29Z&se=2015-05-22T22%3A21%3A29Z&sp=r"));
+            Assert.IsFalse(IsRequestAuthorized("GET", "http://localhost/blob/test/test1.txt?sv=2014-02-14&sr=b&sig=gXk4Bxt37rv65%2BwpEfuwa6BHz3Gk4hK6072dlUZiX0E%3D&st=2015-05-22T21%3A21%3A29Z&se=2015-05-22T22%3A21%3A29Z&sp=r"));
+            // Permissions
+            Assert.IsFalse(IsRequestAuthorized("PUT", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&sig=gXk4Bxt37rv65%2BwpEfuwa6BHz3Gk4hK6072dlUZiX0E%3D&st=2015-05-22T21%3A21%3A29Z&se=2015-05-22T22%3A21%3A29Z&sp=r"));
+            Assert.IsTrue(IsRequestAuthorized("PUT", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&sig=EMWn11cUlm6BuJhWH%2B%2FGdINAwbGvwWm6LscP8ZADUqM%3D&st=2015-05-22T21%3A24%3A37Z&se=2015-05-22T22%3A24%3A37Z&sp=rw"));
+            Assert.IsFalse(IsRequestAuthorized("DELETE", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&sig=EMWn11cUlm6BuJhWH%2B%2FGdINAwbGvwWm6LscP8ZADUqM%3D&st=2015-05-22T21%3A24%3A37Z&se=2015-05-22T22%3A24%3A37Z&sp=rw"));
+            Assert.IsTrue(IsRequestAuthorized("DELETE", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&sig=mH3fmKyYJhmmxc5DMIkN%2FGvszy5ZICnrPmBSJCWgUPU%3D&st=2015-05-22T21%3A25%3A57Z&se=2015-05-22T22%3A25%3A57Z&sp=rwd"));
+            // Container list blob
+            Assert.IsFalse(IsRequestAuthorized("GET", "http://localhost/container/test?restype=container&comp=list&prefix=te&include=snapshots,uncommittedblobs,metadata,copy&sv=2014-02-14&sr=c&sig=SPMPjAghEhfEX1RvZLJPD2dQ%2B%2BnpH08vrVSUyWfdPwo%3D&st=2015-05-22T20%3A44%3A13Z&se=2015-05-22T21%3A44%3A13Z&sp=r"));
+            Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/container/test?restype=container&comp=list&prefix=te&include=snapshots,uncommittedblobs,metadata,copy&sv=2014-02-14&sr=c&sig=KFHvXPWBWxYFWv6lEapqJO%2BZ6WTGrVBdEHVCK7t6SQ0%3D&st=2015-05-22T21%3A28%3A32Z&se=2015-05-22T22%3A28%3A32Z&sp=rl"));
+            // Older version
+            Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2012-02-12&sr=b&sig=i%2FONHWNOfiwr0QBUaAnZ8ppyPKqsGtC%2BHbkBKcgRMFQ%3D&st=2015-05-22T21%3A32%3A13Z&se=2015-05-22T22%3A32%3A13Z&sp=rwd"));
+            // Stored policy
+            Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&si=testpolicy&sig=6VCAjUcL2F%2FVJfBneHvVT4RXv2JcS9jooXaIEKw2fNM%3D"));
+            // Stored policy - attempt to override set expiry time
+            Assert.IsFalse(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&si=testpolicy&sig=wGmBX5GS2dGrbxRVfOPuT0WkhUtKMffarW1mIF7ZmmA%3D&st=2015-05-22T22%3A48%3A46Z&se=2015-05-22T23%3A48%3A46Z&sp=r"));
+            // Stored policy - attempt to override unset expiry time
+            Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&si=testpolicy-nodates&sig=Fvdh21mrNY%2FBGaeVuVAFt0rdnabO6qAYWVWsiG3kTwQ%3D&st=2015-05-22T22%3A53%3A24Z&se=2015-05-22T23%3A53%3A24Z"));
+            // Stored policy - invalid stored policy id
+            Assert.IsFalse(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&si=testpolicy-invalid&sig=meGd900%2BhZrSgu3xqsMR9Np%2Fpl6TSnH%2Bsi6wDxBcRgo%3D"));
+            // Invalid SAS structure - missing expiry
+            Assert.IsFalse(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&sig=Y%2B3LyPR8lozh2Epolb7t4tZBUAGfb9tk6iE6zwA8Udc%3D&st=2015-05-22T23%3A04%3A45Z&sp=r"));
+            // Invalid SAS structure - missing permissions
+            Assert.IsFalse(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&sig=Z3aYFycY54oa73E4efuLUuOdFjPVmdgDrXkPWG0QzRY%3D&st=2015-05-22T23%3A07%3A46Z&se=2015-05-23T00%3A07%3A46Z"));
+        }
+
+        [TestMethod]
         public void RedirectionSignatureTest()
         {
             var request = new MockHttpRequestWrapper("GET", "http://localhost/container/test%20encoded", null)

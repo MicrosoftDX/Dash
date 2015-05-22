@@ -431,7 +431,7 @@ namespace Microsoft.Dash.Server.Controllers
                 .Take(maxResults + 1);                  // Get an extra listing so that we can generate the nextMarker
             var blobResults = new EnumerationResults
             {
-                RequestVersion = new DateTimeOffset(this.Request.GetHeaders().Value("x-ms-version", StorageServiceVersions.Version_2009_09_19.UtcDateTime), TimeSpan.FromHours(0)),
+                RequestVersion = this.Request.GetHeaders().Value("x-ms-version", StorageServiceVersions.Version_2009_09_19),
                 ServiceEndpoint = this.Request.RequestUri.GetComponents(UriComponents.SchemeAndServer, UriFormat.Unescaped),
                 ContainerName = container,
                 MaxResults = maxResults,
