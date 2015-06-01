@@ -36,10 +36,7 @@ namespace Microsoft.Dash.Server.Controllers
         [HttpPut]
         public async Task<HttpResponseMessage> CreateContainer(string container)
         {
-            return (await DoForAllContainersAsync(container, 
-                HttpStatusCode.Created, 
-                async containerObj => await containerObj.CreateAsync(),
-                false)).CreateResponse();
+            return new DelegatedResponse(await ContainerHandler.CreateContainer(container)).CreateResponse();
         }
 
         // Put Container operations, with 'comp' parameter'
@@ -72,49 +69,7 @@ namespace Microsoft.Dash.Server.Controllers
         [HttpDelete]
         public async Task<HttpResponseMessage> DeleteContainer(string container)
         {
-            return (await DoForAllContainersAsync(container, 
-                HttpStatusCode.Accepted, 
-                async containerObj => await containerObj.DeleteAsync(),
-                false)).CreateResponse();
-        }
-
-        async Task<DelegatedResponse> DoForAllContainersAsync(string container, HttpStatusCode successStatus, Func<CloudBlobContainer, Task> action, bool ignoreNotFound)
-        {
-            return await DoForContainersAsync(container, successStatus, action, DashConfiguration.AllAccounts, ignoreNotFound);
-        }
-
-        async Task<DelegatedResponse> DoForDataContainersAsync(string container, HttpStatusCode successStatus, Func<CloudBlobContainer, Task> action, bool ignoreNotFound)
-        {
-            return await DoForContainersAsync(container, successStatus, action, DashConfiguration.DataAccounts, ignoreNotFound);
-        }
-
-        async Task<DelegatedResponse> DoForContainersAsync(string container, 
-            HttpStatusCode successStatus, 
-            Func<CloudBlobContainer, Task> action, 
-            IEnumerable<CloudStorageAccount> accounts,
-            bool ignoreNotFound)
-        {
-            DelegatedResponse retval = new DelegatedResponse
-            {
-                StatusCode = successStatus,
-            };
-            foreach (var account in accounts)
-            {
-                var containerObj = NamespaceHandler.GetContainerByName(account, container);
-                try
-                {
-                    await action(containerObj);
-                }
-                catch (StorageException ex)
-                {
-                    if (!ignoreNotFound || ex.RequestInformation.HttpStatusCode != (int)HttpStatusCode.NotFound)
-                    {
-                        retval.StatusCode = (HttpStatusCode)ex.RequestInformation.HttpStatusCode;
-                        retval.ReasonPhrase = ex.RequestInformation.HttpStatusMessage;
-                    }
-                }
-            }
-            return retval;
+            return new DelegatedResponse(await ContainerHandler.DeleteContainer(container)).CreateResponse();
         }
 
         [AcceptVerbs("GET", "HEAD")]
@@ -197,7 +152,7 @@ namespace Microsoft.Dash.Server.Controllers
                 perms.SharedAccessPolicies.Add(policy);
             }
 
-            var status = await DoForAllContainersAsync(container.Name, 
+            var status = await ContainerHandler.DoForAllContainersAsync(container.Name, 
                 HttpStatusCode.OK, 
                 async containerObj => await containerObj.SetPermissionsAsync(perms),
                 true);
@@ -232,12 +187,11 @@ namespace Microsoft.Dash.Server.Controllers
         {
             const string MetadataPrefix = "x-ms-meta-";
             HttpRequestBase request = RequestFromContext(HttpContextFactory.Current);
-            IEnumerable<KeyValuePair<string, IEnumerable<string>>> metadata = Request.Headers.Where(header => header.Key.StartsWith(MetadataPrefix));
+            container.Metadata.Clear();
+            var metadata = Request.Headers.Where(header => header.Key.StartsWith(MetadataPrefix));
             foreach (var metadatum in metadata)
             {
-                string key = metadatum.Key.Replace(MetadataPrefix, "");
-                string value = metadatum.Value.First();
-                container.Metadata.Add(new KeyValuePair<string, string>(key, value));
+                container.Metadata.Add(metadatum.Key.Substring(MetadataPrefix.Length), metadatum.Value.FirstOrDefault());
             }
             await container.SetMetadataAsync();
             HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -288,7 +242,7 @@ namespace Microsoft.Dash.Server.Controllers
                         return response;
                     }
                     serverLeaseId = await container.AcquireLeaseAsync(leaseDurationSpan, proposedLeaseId);
-                    response = (await DoForDataContainersAsync(container.Name, 
+                    response = new DelegatedResponse(await ContainerHandler.DoForDataContainersAsync(container.Name, 
                         HttpStatusCode.Created, 
                         async containerObj => await containerObj.AcquireLeaseAsync(leaseDurationSpan, serverLeaseId),
                         true)).CreateResponse();
@@ -301,7 +255,7 @@ namespace Microsoft.Dash.Server.Controllers
                     {
                         LeaseId = leaseId
                     };
-                    response = (await DoForAllContainersAsync(container.Name, 
+                    response = new DelegatedResponse(await ContainerHandler.DoForAllContainersAsync(container.Name, 
                         HttpStatusCode.OK, 
                         async containerObj => await containerObj.RenewLeaseAsync(condition),
                         true)).CreateResponse();
@@ -315,7 +269,7 @@ namespace Microsoft.Dash.Server.Controllers
                         LeaseId = leaseId
                     };
                     serverLeaseId = await container.ChangeLeaseAsync(proposedLeaseId, condition);
-                    response = (await DoForDataContainersAsync(container.Name, 
+                    response = new DelegatedResponse(await ContainerHandler.DoForDataContainersAsync(container.Name, 
                         HttpStatusCode.OK, 
                         async containerObj => await containerObj.ChangeLeaseAsync(proposedLeaseId, condition),
                         true)).CreateResponse();
@@ -328,7 +282,7 @@ namespace Microsoft.Dash.Server.Controllers
                     {
                         LeaseId = leaseId
                     };
-                    response = (await DoForAllContainersAsync(container.Name, 
+                    response = new DelegatedResponse(await ContainerHandler.DoForAllContainersAsync(container.Name, 
                         HttpStatusCode.OK, 
                         async containerObj => await containerObj.ReleaseLeaseAsync(condition),
                         true)).CreateResponse();
@@ -343,7 +297,7 @@ namespace Microsoft.Dash.Server.Controllers
                     }
                     TimeSpan breakDurationSpan = new TimeSpan(0, 0, breakDuration);
                     TimeSpan remainingTime = await container.BreakLeaseAsync(breakDurationSpan);
-                    response = (await DoForDataContainersAsync(container.Name, 
+                    response = new DelegatedResponse(await ContainerHandler.DoForDataContainersAsync(container.Name, 
                         HttpStatusCode.Accepted, 
                         async containerObj => await containerObj.BreakLeaseAsync(breakDurationSpan),
                         true)).CreateResponse();

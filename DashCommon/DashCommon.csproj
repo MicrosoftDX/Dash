@@ -76,12 +76,18 @@
   <ItemGroup>
     <Compile Include="Diagnostics\DashErrorInformation.cs" />
     <Compile Include="Diagnostics\DashTrace.cs" />
+    <Compile Include="Diagnostics\OperationRunner.cs" />
     <Compile Include="Diagnostics\TraceMessage.cs" />
+    <Compile Include="Handlers\ContainerHandler.cs" />
     <Compile Include="Handlers\NamespaceBlob.cs" />
     <Compile Include="Handlers\NamespaceHandler.cs" />
+    <Compile Include="Processors\AccountManager.cs" />
+    <Compile Include="Utils\AccountStatus.cs" />
     <Compile Include="Utils\AzureUtils.cs" />
     <Compile Include="Utils\DashConfiguration.cs" />
     <Compile Include="Utils\SharedKeySignature.cs" />
+    <Compile Include="Utils\SimpleHttpResponse.cs" />
+    <Compile Include="Utils\StorageListAsync.cs" />
     <Compile Include="Utils\StorageServiceVersions.cs" />
   </ItemGroup>
   <ItemGroup>
