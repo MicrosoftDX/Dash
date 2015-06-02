@@ -45,7 +45,7 @@ $isActiveHeadNode = Test-IsActiveHDIHeadNode
 
 Write-HDILog "Stopping HDInsight services";
 $hdiservices = Get-HDIServicesRunning
-$output = $hdiservices | Stop-Service | Out-String
+$output = $hdiservices | Stop-Service -verbose *>&1 | Out-String
 Write-HDILog $output
 
 Write-HDILog "Modifying core-site.xml: $core_site_path";
@@ -66,8 +66,6 @@ Write-HDILog $output
 # This is currently not enabled as we need to determine which files need to be copied to default file system if switching after setup
 # $element = $core_site.configuration.property | where { $_.name -eq "fs.defaultFS" } 
 # $element.value = “wasb://$DashContainer@$DashService@cloudapp.net”
-$output = Edit-CoreSiteFile -ConfigFile $core_site -Name "fs.defaultFS" -Value "wasb://$DashContainer@$DashService.cloudapp.net" | Out-String
-Write-HDILog $output
 
 # Update core-site.xml file deleting property configuring custom topology discovery to work around yarn scheduler bug 
 $element = $core_site.configuration.property | where { $_.name -eq "topology.script.file.name" } 
@@ -78,13 +76,13 @@ $core_site.Save($core_site_path)
 
 # Replace storage client library with Dash version
 Write-HDILog "Updating Azure Storage Client SDK"
-$new_jar_uri = "https://www.dash-update.net/client/latest/StorageSDK2.0/dash-azure-storage-2.0.0.jar"
-$directories = "$hadoop_directory\share\hadoop\common\lib", "$hadoop_directory\share\hadoop\tools\lib"
+$new_jar_uri = "https://www.dash-update.net/client/v0.3/StorageSDK2.0/dash-azure-storage-2.0.0.jar"
+$directories = "$hadoop_directory\share\hadoop\common\lib", "$hadoop_directory\share\hadoop\tools\lib", "$hadoop_directory\share\hadoop\yarn\lib"
 foreach ($directory in $directories) 
 {
-    $output = remove-item "$directory\azure-storage-2.0.0.jar" -ErrorAction SilentlyContinue | Out-String
+    $output = remove-item "$directory\azure-storage-2.0.0.jar" -ErrorAction SilentlyContinue  -verbose *>&1 | Out-String
     Write-HDILog $output
-    $output = Invoke-WebRequest -Uri $new_jar_uri -Method Get -OutFile "$directory\dash-azure-storage-2.0.0.jar" | Out-String
+    $output = Invoke-WebRequest -Uri $new_jar_uri -Method Get -OutFile "$directory\dash-azure-storage-2.0.0.jar"  -verbose *>&1 | Out-String
     Write-HDILog $output
 }
 
@@ -94,9 +92,9 @@ $new_jar_uri = "https://www.dash-update.net/client/latest/MapReduce/hadoop-mapre
 $directories = "$hadoop_directory\share\hadoop\mapreduce"
 foreach ($directory in $directories) 
 {
-    $output = remove-item "$directory\hadoop-mapreduce-client-core-*.jar" -ErrorAction SilentlyContinue | Out-String
+    $output = remove-item "$directory\hadoop-mapreduce-client-core-*.jar" -ErrorAction SilentlyContinue  -verbose *>&1 | Out-String
     Write-HDILog $output
-    $output = Invoke-WebRequest -Uri $new_jar_uri -Method Get -OutFile "$directory\hadoop-mapreduce-client-core-2.4.1-SNAPSHOT.jar" | Out-String
+    $output = Invoke-WebRequest -Uri $new_jar_uri -Method Get -OutFile "$directory\hadoop-mapreduce-client-core-2.4.1-SNAPSHOT.jar"  -verbose *>&1 | Out-String
     Write-HDILog $output
 }
 

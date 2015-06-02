@@ -79,8 +79,8 @@ $core_site.Save($core_site_path)
 
 # Replace storage client library with Dash version
 Write-HDILog "Updating Azure Storage Client SDK"
-$new_jar_uri = "https://www.dash-update.net/client/v0.2/StorageSDK2.0/dash-azure-storage-2.0.0.jar"
-$directories = "$hadoop_directory\share\hadoop\common\lib", "$hadoop_directory\share\hadoop\tools\lib", "$hbase_directory\lib"
+$new_jar_uri = "https://www.dash-update.net/client/v0.3/StorageSDK2.0/dash-azure-storage-2.0.0.jar"
+$directories = "$hadoop_directory\share\hadoop\common\lib", "$hadoop_directory\share\hadoop\tools\lib", "$hadoop_directory\share\hadoop\yarn\lib", "$hbase_directory\lib"
 foreach ($directory in $directories) 
 {
     $output = remove-item "$directory\azure-storage-2.0.0.jar" -ErrorAction SilentlyContinue  -verbose *>&1 | Out-String
@@ -100,6 +100,10 @@ foreach ($directory in $directories)
     $output = Invoke-WebRequest -Uri $new_jar_uri -Method Get -OutFile "$directory\hadoop-mapreduce-client-core-2.4.1-SNAPSHOT.jar"  -verbose *>&1 | Out-String
     Write-HDILog $output
 }
+
+Write-HDILog "Restarting HDInsight services";
+$output = $hdiservices | Start-Service | Out-String
+Write-HDILog $output
 
 # Create a container in the Dash account to work from. Given that this script is running on every VM in the cluster
 # this will be a race condition between all script invocations - first one wins, everyone else fails benignly
@@ -141,9 +145,6 @@ if ($isActiveHeadNode -and [bool]$DashContainer) {
     # Copy required files to the default container
 
 }
-Write-HDILog "Restarting HDInsight services";
-$output = $hdiservices | Start-Service  -verbose *>&1 | Out-String
-Write-HDILog $output
 
 Write-HDILog "Done with Dash installation at: $(Get-Date)";
 
