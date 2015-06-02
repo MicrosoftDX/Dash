@@ -89,18 +89,6 @@ foreach ($directory in $directories)
     Write-HDILog $output
 }
 
-# Replace mapreduce jar to fix mapreduce job commit issue
-Write-HDILog "Updating Hadoop Mapreduce client core"
-$new_jar_uri = "https://www.dash-update.net/client/latest/MapReduce/hadoop-mapreduce-client-core-2.4.1-SNAPSHOT.jar"
-$directories = "$hadoop_directory\share\hadoop\mapreduce"
-foreach ($directory in $directories) 
-{
-    $output = remove-item "$directory\hadoop-mapreduce-client-core-*.jar" -ErrorAction SilentlyContinue  -verbose *>&1 | Out-String
-    Write-HDILog $output
-    $output = Invoke-WebRequest -Uri $new_jar_uri -Method Get -OutFile "$directory\hadoop-mapreduce-client-core-2.4.1-SNAPSHOT.jar"  -verbose *>&1 | Out-String
-    Write-HDILog $output
-}
-
 Write-HDILog "Restarting HDInsight services";
 $output = $hdiservices | Start-Service | Out-String
 Write-HDILog $output
