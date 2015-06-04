@@ -157,7 +157,7 @@ namespace Microsoft.Dash.Server.Authorization
                 char ch = source[pos];
                 if (IsAlternateEncodingCharacter(ch))
                 {
-                    dest.Append(Uri.HexEscape(ch));
+                    dest.Append(Uri.HexEscape(ch).ToLower());
                 }
                 else
                 {
@@ -169,6 +169,10 @@ namespace Microsoft.Dash.Server.Authorization
 
         static bool IsAlternateEncodingCharacter(char ch)
         {
+            if (ch == ',')
+            {
+                return true;
+            }
             var category = Char.GetUnicodeCategory(ch);
             return category == UnicodeCategory.OpenPunctuation || category == UnicodeCategory.ClosePunctuation;
         }
