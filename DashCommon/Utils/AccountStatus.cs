@@ -1,14 +1,11 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
+using System;
+using System.Diagnostics;
+using System.Net;
+using System.Threading.Tasks;
 using Microsoft.Dash.Common.Diagnostics;
 using Microsoft.WindowsAzure.Storage.Table;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Net;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Microsoft.Dash.Common.Utils
 {
@@ -78,6 +75,7 @@ namespace Microsoft.Dash.Common.Utils
         const string StatusFieldMessage = "Message";
         const string StatusFieldState   = "State";
 
+        // TODO: Consider storage abstraction if we want to switch between XTable & Redis for this info
         static AccountStatus()
         {
             try

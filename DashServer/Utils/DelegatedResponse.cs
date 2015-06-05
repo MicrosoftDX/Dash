@@ -8,10 +8,8 @@ namespace Microsoft.Dash.Server.Utils
 {
     public class DelegatedResponse : SimpleHttpResponse
     {
-        public DelegatedResponse(SimpleHttpResponse src)
+        public DelegatedResponse(SimpleHttpResponse src) : base(src)
         {
-            this.StatusCode = src.StatusCode;
-            this.ReasonPhrase = src.ReasonPhrase;
         }
 
         public HttpResponseMessage CreateResponse()

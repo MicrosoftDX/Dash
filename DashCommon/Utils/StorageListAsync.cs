@@ -9,14 +9,14 @@ using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace Microsoft.Dash.Common.Utils
 {
-    public class StorageListAsync
+    public static class StorageListAsync
     {
-        public static async Task<bool> ListCallbackAsync(CloudBlobContainer container, Func<IEnumerable<IListBlobItem>, Task<bool>> processBlobs)
+        public static async Task<bool> ListCallbackAsync(this CloudBlobContainer container, Func<IEnumerable<IListBlobItem>, Task<bool>> processBlobs)
         {
-            return await ListCallbackAsync((token) => container.ListBlobsSegmentedAsync(String.Empty, true, BlobListingDetails.All, null, token, null, null), processBlobs); 
+            return await ListBlobsCallbackAsync((token) => container.ListBlobsSegmentedAsync(String.Empty, true, BlobListingDetails.All, null, token, null, null), processBlobs); 
         }
 
-        public static async Task<bool> ListCallbackAsync(Func<BlobContinuationToken, Task<BlobResultSegment>> getListing, Func<IEnumerable<IListBlobItem>, Task<bool>> processBlobs)
+        public static async Task<bool> ListBlobsCallbackAsync(Func<BlobContinuationToken, Task<BlobResultSegment>> getListing, Func<IEnumerable<IListBlobItem>, Task<bool>> processBlobs)
         {
             return await EnumerateObjectsAsync(getListing, 
                 (result) => result.Results,
@@ -24,12 +24,12 @@ namespace Microsoft.Dash.Common.Utils
                 processBlobs);
         }
 
-        public static async Task<bool> ListCallbackAsync(CloudBlobClient client, Func<IEnumerable<CloudBlobContainer>, Task<bool>> processContainers)
+        public static async Task<bool> ListCallbackAsync(this CloudBlobClient client, Func<IEnumerable<CloudBlobContainer>, Task<bool>> processContainers)
         {
-            return await ListCallbackAsync((token) => client.ListContainersSegmentedAsync(token), processContainers);
+            return await ListContainersCallbackAsync((token) => client.ListContainersSegmentedAsync(token), processContainers);
         }
 
-        public static async Task<bool> ListCallbackAsync(Func<BlobContinuationToken, Task<ContainerResultSegment>> getListing, Func<IEnumerable<CloudBlobContainer>, Task<bool>> processContainers)
+        public static async Task<bool> ListContainersCallbackAsync(Func<BlobContinuationToken, Task<ContainerResultSegment>> getListing, Func<IEnumerable<CloudBlobContainer>, Task<bool>> processContainers)
         {
             return await EnumerateObjectsAsync(getListing, 
                 (result) => result.Results,
