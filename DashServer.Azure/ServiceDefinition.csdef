@@ -9,7 +9,7 @@
       </Site>
     </Sites>
     <Endpoints>
-      <InputEndpoint name="Endpoint1" protocol="http" port="80" />
+      <InputEndpoint name="Endpoint1" protocol="http" port="80" loadBalancer="Dash_ILB" />
     </Endpoints>
     <Imports>
       <Import moduleName="Diagnostics" />

@@ -33,6 +33,7 @@
   </PropertyGroup>
   <!-- Items for the project -->
   <ItemGroup>
+    <ServiceConfiguration Include="ServiceConfiguration.VNet - Internal Load Balancer.cscfg" />
     <ServiceDefinition Include="ServiceDefinition.csdef" />
     <ServiceConfiguration Include="ServiceConfiguration.Cloud - East.cscfg" />
     <ServiceConfiguration Include="ServiceConfiguration.Publish.cscfg" />
