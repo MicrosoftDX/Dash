@@ -35,6 +35,8 @@ Project("{CC5FD16D-436D-48AD-A40C-5A424C6E3E79}") = "DashServer.Azure.Https", "D
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DashCommon", "DashCommon\DashCommon.csproj", "{9514A309-45D1-45E1-B77B-A99CD59B8C77}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DashServer.ManagementAPI", "DashServer.ManagementAPI\DashServer.ManagementAPI.csproj", "{FD772AA8-3BD6-4224-9518-2D40E81792BF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -65,6 +67,10 @@ Global
 		{9514A309-45D1-45E1-B77B-A99CD59B8C77}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9514A309-45D1-45E1-B77B-A99CD59B8C77}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9514A309-45D1-45E1-B77B-A99CD59B8C77}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FD772AA8-3BD6-4224-9518-2D40E81792BF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FD772AA8-3BD6-4224-9518-2D40E81792BF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FD772AA8-3BD6-4224-9518-2D40E81792BF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FD772AA8-3BD6-4224-9518-2D40E81792BF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
