@@ -1,10 +1,13 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Diagnostics;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Dash.Common.Handlers;
+using Microsoft.Dash.Common.Utils;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Microsoft.WindowsAzure.Storage.Blob;
 using Moq;
 
 namespace Microsoft.Tests
@@ -12,8 +15,37 @@ namespace Microsoft.Tests
     [TestClass]
     public class NamespaceBlobTests
     {
+        private const string ContainerName = "test-namespaceblobunittest";
+        private static readonly CloudBlobClient CloudBlobClient = DashConfiguration.NamespaceAccount.CreateCloudBlobClient();
+
+        [ClassInitialize]
+        public static void ClassInitialize(TestContext testContext)
+        {
+            var container = CloudBlobClient.GetContainerReference(ContainerName);
+            container.CreateIfNotExists();
+        }
+
+        [ClassCleanup]
+        public static void ClassCleanup()
+        {
+            // delete container
+            var container = CloudBlobClient.GetContainerReference(ContainerName);
+            try
+            {
+                Trace.WriteLine("Deleting test blob container: ", ContainerName);
+                container.FetchAttributes();
+                container.Delete();
+            }
+            catch (Exception e)
+            {
+                Trace.TraceError(e.Message);
+
+                // swallow
+            }
+        }
+
         [TestCleanup]
-        public void Cleanup()
+        public void TestCleanup() 
         {
             NamespaceBlob.CacheIsEnabled = false;
         }
@@ -45,7 +77,7 @@ namespace Microsoft.Tests
         }
 
         [TestMethod]
-        public void SaveTest()
+        public void ToggleCacheFlagSaveMock()
         {
             // setup
             var mockNamespaceCloudBlob = new Mock<INamespaceBlob>(MockBehavior.Strict);
@@ -76,7 +108,7 @@ namespace Microsoft.Tests
         }
 
         [TestMethod]
-        public void ToggleCacheFlagPropertyGetter()
+        public void ToggleCacheFlagPropertyGetterMock()
         {
             var mockNamespaceCloudBlob = new Mock<INamespaceBlob>(MockBehavior.Strict);
             mockNamespaceCloudBlob.SetupAllProperties();
@@ -110,7 +142,7 @@ namespace Microsoft.Tests
         }
 
         [TestMethod]
-        public void ToggleCacheFlagPropertySetter()
+        public void ToggleCacheFlagPropertySetterMock()
         {
             var fakeCloudObj = new TestNamespaceBlob
             {
@@ -163,6 +195,60 @@ namespace Microsoft.Tests
             Assert.AreEqual(fakeCacheObj.BlobName, fakeCloudObj.BlobName);
             Assert.AreEqual(fakeCacheObj.Container, fakeCloudObj.Container);
             Assert.AreEqual(fakeCacheObj.IsMarkedForDeletion, fakeCloudObj.IsMarkedForDeletion);
+        }
+
+        [TestMethod]
+        public void FetchNonExistentBlob()
+        {
+            // setup
+            NamespaceBlob.CacheIsEnabled = true;
+
+            var containerName = Guid.NewGuid().ToString();
+            var blobName = Guid.NewGuid().ToString();
+
+            // execute
+            var namespaceBlob = NamespaceBlob.FetchAsync(containerName, blobName).Result;
+
+            // assert
+            Assert.IsFalse(namespaceBlob.ExistsAsync().Result);
+            Assert.IsNull(namespaceBlob.AccountName);
+            Assert.IsNull(namespaceBlob.BlobName);
+            Assert.IsNull(namespaceBlob.Container);
+            Assert.AreEqual(false, namespaceBlob.IsMarkedForDeletion);
+        }
+
+        [TestMethod]
+        public void Save()
+        {
+            // setup
+            NamespaceBlob.CacheIsEnabled = true;
+
+            var blobName = Guid.NewGuid().ToString();
+
+            var expectedAccountName = Guid.NewGuid().ToString();
+            var expectedBlobName = Guid.NewGuid().ToString();
+            var expectedContainer = Guid.NewGuid().ToString();
+
+            var namespaceBlob = NamespaceBlob.FetchAsync(ContainerName, blobName).Result;
+            namespaceBlob.AccountName = expectedAccountName;
+            namespaceBlob.BlobName = expectedBlobName;
+            namespaceBlob.Container = expectedContainer;
+
+            // execute
+            namespaceBlob.SaveAsync().Wait();
+
+            // assert
+            NamespaceBlob.CacheIsEnabled = false;
+            Assert.IsTrue(namespaceBlob.ExistsAsync().Result);
+            Assert.AreEqual(expectedAccountName, namespaceBlob.AccountName);
+            Assert.AreEqual(expectedBlobName, namespaceBlob.BlobName);
+            Assert.AreEqual(expectedContainer, namespaceBlob.Container);
+
+            NamespaceBlob.CacheIsEnabled = true;
+            Assert.IsTrue(namespaceBlob.ExistsAsync().Result);
+            Assert.AreEqual(expectedAccountName, namespaceBlob.AccountName);
+            Assert.AreEqual(expectedBlobName, namespaceBlob.BlobName);
+            Assert.AreEqual(expectedContainer, namespaceBlob.Container);
         }
     }
 }

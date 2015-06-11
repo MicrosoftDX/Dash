@@ -1,7 +1,6 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
-using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Dash.Common.Utils;
 using Microsoft.WindowsAzure.Storage.Blob;
@@ -44,12 +43,17 @@ namespace Microsoft.Dash.Common.Handlers
 
             if (CacheIsEnabled)
             {
-                cachedNamespaceBlob = await NamespaceBlobCache.FetchAsync(container, blobName, snapshot) as NamespaceBlobCache;
+                cachedNamespaceBlob = await NamespaceBlobCache.FetchAsync(container, blobName, snapshot);
                 if (cachedNamespaceBlob == null)
                 {
-                    // save to cache
+                    // cache miss
                     cachedNamespaceBlob = new NamespaceBlobCache(cloudNamespaceBlob, container, blobName, snapshot);
-                    await cachedNamespaceBlob.SaveAsync();
+
+                    if (await cloudNamespaceBlob.ExistsAsync())
+                    {
+                        // save to cache if the namespace blob actually exists in the cloud
+                        await cachedNamespaceBlob.SaveAsync();
+                    }
                 }
             }
 
