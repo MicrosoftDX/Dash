@@ -11,7 +11,7 @@ namespace Microsoft.Dash.Common.Handlers
     internal class NamespaceBlobCache : INamespaceBlob
     {
         private static readonly Lazy<CacheStore> LazyCacheStore = new Lazy<CacheStore>(() => new CacheStore());
-        private static readonly int CacheExpirationInMinutes = AzureUtils.GetConfigSetting("CacheExpirationInMinutes", 60);
+        private static readonly int CacheExpirationInMinutes = AzureUtils.GetConfigSetting("CacheExpirationInMinutes", 720);
 
         internal static CacheStore CacheStore
         {
