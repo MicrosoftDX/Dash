@@ -62,6 +62,7 @@
   </ItemGroup>
   <ItemGroup>
     <PublishProfile Include="Profiles\DashJbTestProduction.azurePubxml" />
+    <PublishProfile Include="Profiles\wmdashdeployment - internal.azurePubxml" />
     <PublishProfile Include="Profiles\DashTestEastProduction.azurePubxml" />
     <PublishProfile Include="Profiles\DashTestEastProduction3.azurePubxml" />
     <PublishProfile Include="Profiles\DashTestEastProduction2.azurePubxml" />
