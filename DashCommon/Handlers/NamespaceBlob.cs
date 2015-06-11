@@ -1,12 +1,14 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Dash.Common.Utils;
 using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace Microsoft.Dash.Common.Handlers
 {
+    [DataContract]
     public class NamespaceBlob : INamespaceBlob
     {
         private readonly INamespaceBlob _cachedNamespaceBlob;
@@ -55,6 +57,7 @@ namespace Microsoft.Dash.Common.Handlers
             return new NamespaceBlob(cachedNamespaceBlob, cloudNamespaceBlob);
         }
 
+        [DataMember]
         public string AccountName
         {
             get 
@@ -72,6 +75,7 @@ namespace Microsoft.Dash.Common.Handlers
             }
         }
 
+        [DataMember]
         public string Container
         {
             get 
@@ -89,6 +93,7 @@ namespace Microsoft.Dash.Common.Handlers
             }
         }
 
+        [DataMember]
         public string BlobName
         {
             get
@@ -106,6 +111,7 @@ namespace Microsoft.Dash.Common.Handlers
             }
         }
 
+        [DataMember]
         public bool? IsMarkedForDeletion
         {
             get

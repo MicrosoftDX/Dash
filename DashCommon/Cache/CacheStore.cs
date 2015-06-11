@@ -10,18 +10,14 @@ using StackExchange.Redis;
 
 namespace Microsoft.Dash.Common.Cache
 {
-    public class CacheStore : IDisposable
+    public class CacheStore
     {
         private static Lazy<ConnectionMultiplexer> _lazyConnection;
         private readonly string _connectionString;
-        internal Func<IDatabase> GetDatabase = () => Connection.GetDatabase();
 
-        private static ConnectionMultiplexer Connection
+        private IDatabase GetDatabase()
         {
-            get
-            {
-                return _lazyConnection.Value;
-            }
+            return _lazyConnection.Value.GetDatabase();
         }
 
         public CacheStore(string redisEndpointUrl = null, string redisPassword = null, bool useSsl = true)
@@ -61,14 +57,6 @@ namespace Microsoft.Dash.Common.Cache
         public async Task<bool> DeleteAsync(string key)
         {
             return await GetDatabase().KeyDeleteAsync(key);
-        }
-
-        public void Dispose()
-        {
-            if (Connection != null)
-            {
-                Connection.Dispose();
-            }
         }
 
         internal string Serialize<T>(T obj)

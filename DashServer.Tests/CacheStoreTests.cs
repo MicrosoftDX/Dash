@@ -3,8 +3,6 @@
 using System;
 using Microsoft.Dash.Common.Cache;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Moq;
-using StackExchange.Redis;
 
 namespace Microsoft.Tests
 {
@@ -18,8 +16,6 @@ namespace Microsoft.Tests
         public void SerializeDeserializeTest()
         {
             // setup
-            var mockDatabase = new Mock<IDatabase>(MockBehavior.Strict);
-
             var testNamespaceBlob = new NamespaceBlobTests.TestNamespaceBlob
             {
                 AccountName = "account-name",
@@ -28,10 +24,7 @@ namespace Microsoft.Tests
                 IsMarkedForDeletion = false,
             };
 
-            var cacheStore = new CacheStore("someRedisUrl", "someRedisPassword")
-            {
-                GetDatabase = () => mockDatabase.Object
-            };
+            var cacheStore = new CacheStore("someRedisUrl", "someRedisPassword");
 
             // execute
             var serialized = cacheStore.Serialize(testNamespaceBlob);
