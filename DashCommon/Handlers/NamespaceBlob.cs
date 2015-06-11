@@ -8,7 +8,6 @@ using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace Microsoft.Dash.Common.Handlers
 {
-    [DataContract]
     public class NamespaceBlob : INamespaceBlob
     {
         private readonly INamespaceBlob _cachedNamespaceBlob;
@@ -45,7 +44,7 @@ namespace Microsoft.Dash.Common.Handlers
 
             if (CacheIsEnabled)
             {
-                cachedNamespaceBlob = (NamespaceBlobCache) await NamespaceBlobCache.FetchAsync(container, blobName, snapshot);
+                cachedNamespaceBlob = await NamespaceBlobCache.FetchAsync(container, blobName, snapshot) as NamespaceBlobCache;
                 if (cachedNamespaceBlob == null)
                 {
                     // save to cache
@@ -57,7 +56,6 @@ namespace Microsoft.Dash.Common.Handlers
             return new NamespaceBlob(cachedNamespaceBlob, cloudNamespaceBlob);
         }
 
-        [DataMember]
         public string AccountName
         {
             get 
@@ -75,7 +73,6 @@ namespace Microsoft.Dash.Common.Handlers
             }
         }
 
-        [DataMember]
         public string Container
         {
             get 
@@ -93,7 +90,6 @@ namespace Microsoft.Dash.Common.Handlers
             }
         }
 
-        [DataMember]
         public string BlobName
         {
             get
@@ -111,7 +107,6 @@ namespace Microsoft.Dash.Common.Handlers
             }
         }
 
-        [DataMember]
         public bool? IsMarkedForDeletion
         {
             get
@@ -131,16 +126,29 @@ namespace Microsoft.Dash.Common.Handlers
 
         public async Task SaveAsync()
         {
+            await _cloudNamespaceBlob.SaveAsync();
+
             if (CacheIsEnabled)
             {
                 await _cachedNamespaceBlob.SaveAsync();
             }
-            await _cloudNamespaceBlob.SaveAsync();
         }
 
         public async Task<bool> ExistsAsync(bool forceRefresh = false)
         {
-            return await _cloudNamespaceBlob.ExistsAsync(forceRefresh);
+            var exists = false;
+
+            if (CacheIsEnabled)
+            {
+                exists = await _cachedNamespaceBlob.ExistsAsync(forceRefresh);
+            }
+
+            if (!exists)
+            {
+                exists = await _cloudNamespaceBlob.ExistsAsync(forceRefresh);
+            }
+
+            return exists;
         }
     }
 }

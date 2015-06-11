@@ -45,8 +45,8 @@ namespace Microsoft.Dash.Common.Cache
 
         public async Task<T> GetAsync<T>(string key)
         {
-            var byteStream = await GetDatabase().StringGetAsync(key);
-            return Deserialize<T>(byteStream);
+            var json = await GetDatabase().StringGetAsync(key);
+            return Deserialize<T>(json);
         }
 
         public async Task<bool> SetAsync<T>(string key, T value, TimeSpan expiredIn)
@@ -73,13 +73,13 @@ namespace Microsoft.Dash.Common.Cache
 
         internal T Deserialize<T>(string json)
         {
-            if (json == null)
+            if (String.IsNullOrEmpty(json))
             {
                 return default(T);
             }
 
             var serializer = new DataContractJsonSerializer(typeof(T));
-            using (var memoryStream = new MemoryStream(Encoding.ASCII.GetBytes(json)))
+            using (var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(json)))
             {
                 return (T)serializer.ReadObject(memoryStream);
             }

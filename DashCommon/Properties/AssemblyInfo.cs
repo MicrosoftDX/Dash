@@ -2,7 +2,6 @@
 
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 
 [assembly: AssemblyTitle("DashCommon")]
 [assembly: AssemblyDescription("Data at Scale Common Library")]
@@ -10,4 +9,5 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyProduct("Data At Scale Hub")]
 [assembly: AssemblyCopyright("Copyright © Microsoft 2015")]
 
-[assembly: InternalsVisibleToAttribute("DashServer.Tests")]
+[assembly: InternalsVisibleTo("DashServer.Tests")]
+[assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]

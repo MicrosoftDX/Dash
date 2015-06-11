@@ -38,25 +38,25 @@ namespace Microsoft.Dash.Common.Handlers
             }
         }
 
-        public string AccountName
+        public virtual string AccountName
         {
             get { return TryGetMetadataValue(MetadataNameAccount); }
             set { CloudBlockBlob.Metadata[MetadataNameAccount] = value; }
         }
 
-        public string Container
+        public virtual string Container
         {
             get { return TryGetMetadataValue(MetadataNameContainer); }
             set { CloudBlockBlob.Metadata[MetadataNameContainer] = value; }
         }
 
-        public string BlobName
+        public virtual string BlobName
         {
             get { return TryGetMetadataValue(MetadataNameBlobName); }
             set { CloudBlockBlob.Metadata[MetadataNameBlobName] = value; }
         }
 
-        public bool? IsMarkedForDeletion
+        public virtual bool? IsMarkedForDeletion
         {
             get
             {
