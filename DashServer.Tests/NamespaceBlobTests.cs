@@ -1,6 +1,7 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Dash.Common.Handlers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -17,13 +18,21 @@ namespace Microsoft.Tests
             NamespaceBlob.CacheIsEnabled = false;
         }
 
-        [Serializable]
+        [DataContract]
         public class TestNamespaceBlob : INamespaceBlob
         {
+            [DataMember]
             public string AccountName { get; set; }
+
+            [DataMember]
             public string Container { get; set; }
+
+            [DataMember]
             public string BlobName { get; set; }
+
+            [DataMember]
             public bool? IsMarkedForDeletion { get; set; }
+
             public Task SaveAsync()
             {
                 throw new NotImplementedException();

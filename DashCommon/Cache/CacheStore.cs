@@ -1,10 +1,12 @@
-﻿using System.Diagnostics;
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
+using System;
 using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
+using System.Runtime.Serialization.Json;
+using System.Text;
+using System.Threading.Tasks;
 using Microsoft.Dash.Common.Utils;
 using StackExchange.Redis;
-using System;
-using System.Threading.Tasks;
 
 namespace Microsoft.Dash.Common.Cache
 {
@@ -69,34 +71,29 @@ namespace Microsoft.Dash.Common.Cache
             }
         }
 
-        internal byte[] Serialize(object o)
+        internal string Serialize<T>(T obj)
         {
-            if (o == null)
-            {
-                return null;
-            }
+            var serializer = new DataContractJsonSerializer(typeof(T));
 
-            var binaryFormatter = new BinaryFormatter();
             using (var memoryStream = new MemoryStream())
             {
-                binaryFormatter.Serialize(memoryStream, o);
-                byte[] objectDataAsStream = memoryStream.ToArray();
-                return objectDataAsStream;
+                serializer.WriteObject(memoryStream, obj);
+                var bytes = memoryStream.ToArray();
+                return Encoding.UTF8.GetString(bytes, 0, bytes.Length);
             }
         }
 
-        internal T Deserialize<T>(byte[] stream)
+        internal T Deserialize<T>(string json)
         {
-            if (stream == null)
+            if (json == null)
             {
                 return default(T);
             }
 
-            var binaryFormatter = new BinaryFormatter();
-            using (var memoryStream = new MemoryStream(stream))
+            var serializer = new DataContractJsonSerializer(typeof(T));
+            using (var memoryStream = new MemoryStream(Encoding.ASCII.GetBytes(json)))
             {
-                var result = (T) binaryFormatter.Deserialize(memoryStream);
-                return result;
+                return (T)serializer.ReadObject(memoryStream);
             }
         }
     }
