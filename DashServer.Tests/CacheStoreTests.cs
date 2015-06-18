@@ -10,9 +10,6 @@ namespace Microsoft.Tests
     [TestClass]
     public class CacheStoreTests
     {
-        private const string redisUrl = "dashtest.redis.cache.windows.net";
-        private const string redisKey = "TGgq1fErigjkf9Lq9zp9I/+g7hpevYfNZYBPsKoQmeM=";
-
         [TestMethod]
         public void SerializeDeserializeTest()
         {
@@ -25,11 +22,9 @@ namespace Microsoft.Tests
                 IsMarkedForDeletion = false,
             });
 
-            var cacheStore = new CacheStore("someRedisUrl", "someRedisPassword");
-
             // execute
-            var serialized = cacheStore.Serialize(testNamespaceBlob);
-            var deserialized = cacheStore.Deserialize<NamespaceBlobCache>(serialized);
+            var serialized = CacheStore.Serialize(testNamespaceBlob);
+            var deserialized = CacheStore.Deserialize<NamespaceBlobCache>(serialized);
 
             // assert
             Assert.IsNotNull(serialized);
@@ -47,23 +42,21 @@ namespace Microsoft.Tests
             var value = "unit-test-expected-value";
             var expiry = new TimeSpan(0, 1, 0);
 
-            var cacheStore = new CacheStore(redisUrl, redisKey);
-
             // set
-            Assert.IsFalse(cacheStore.ExistsAsync(key).Result);
-            Assert.IsTrue(cacheStore.SetAsync(key, value, expiry).Result);
-            Assert.IsTrue(cacheStore.ExistsAsync(key).Result);
+            Assert.IsFalse(CacheStore.ExistsAsync(key).Result);
+            Assert.IsTrue(CacheStore.SetAsync(key, value, expiry).Result);
+            Assert.IsTrue(CacheStore.ExistsAsync(key).Result);
 
             // get
-            var cacheValue = cacheStore.GetAsync<string>(key).Result;
+            var cacheValue = CacheStore.GetAsync<string>(key).Result;
             Assert.AreEqual(value, cacheValue);
 
             // delete
-            Assert.IsTrue(cacheStore.DeleteAsync(key).Result);
-            Assert.IsFalse(cacheStore.ExistsAsync(key).Result);
+            Assert.IsTrue(CacheStore.DeleteAsync(key).Result);
+            Assert.IsFalse(CacheStore.ExistsAsync(key).Result);
 
             // get
-            cacheValue = cacheStore.GetAsync<string>(key).Result;
+            cacheValue = CacheStore.GetAsync<string>(key).Result;
             Assert.IsNull(cacheValue);
         }
     }

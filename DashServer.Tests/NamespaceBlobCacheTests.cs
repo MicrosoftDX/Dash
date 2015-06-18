@@ -1,6 +1,7 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Configuration;
 using Microsoft.Dash.Common.Handlers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
