@@ -1,4 +1,7 @@
-﻿using System;
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
+using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,35 +16,55 @@ namespace Microsoft.Dash.Common.Utils
         ReplicateProgress = 2
     }
     //Represents a payload of a queue message
-    public abstract class MessagePayload
+    public class QueueMessage
     {
+        public QueueMessage()
+        {
+            this.payload = null;
+        }
+
+        public QueueMessage(MessageTypes type, MessagePayload payload)
+        {
+            this.MessageType = type;
+            this.payload = payload.ToJson();
+        }
+
         public MessageTypes MessageType { get; set; }
+
+        public string payload { get; set; }
+
+        public string ToJson()
+        {
+            return JsonConvert.SerializeObject(this);
+        }
     }
-    //Represents a queue message. Defined separately from the payload in case there is a queue object from the implementation
-    //that needs to be accessed or manipulated
-    public abstract class WorkerMessage
-    {
-        // Concrete definitions of this class should have a reference to the object so that it can be deleted.
-        public MessagePayload Payload { get; set; }
+
+    public abstract class MessagePayload {
+
+        public string ToJson()
+        {
+            return JsonConvert.SerializeObject(this);
+        }
+        //Simple empty class to represent payloads
     }
     //Represents the queue that keeps track of the messages
     public interface MessageQueue
     {
-        void Enqueue(MessagePayload message);
-        WorkerMessage Dequeue();
-        void DeleteMessage(WorkerMessage message);
+        // Add a message to the queue
+        void Enqueue(QueueMessage message);
+        // Get a message from the queue and set it as the currently active message
+        QueueMessage Dequeue();
+        // Delete the currently active message
+        void DeleteCurrentMessage();
+        // Delete the referenced queue
+        void DeleteQueue();
     }
     public class ReplicatePayload : MessagePayload
     {
         public string Source { get; set; }
         public string Destination { get; set; }
-        public ReplicatePayload()
-        {
-            this.MessageType = MessageTypes.BeginReplicate;
-        }
         public ReplicatePayload(string source, string destination)
         {
-            this.MessageType = MessageTypes.BeginReplicate;
             this.Source = source;
             this.Destination = destination;
         }
@@ -49,13 +72,8 @@ namespace Microsoft.Dash.Common.Utils
     public class ReplicateProgressPayload : MessagePayload
     {
         public string CopyID { get; set; }
-        public ReplicateProgressPayload()
-        {
-            this.MessageType = MessageTypes.ReplicateProgress;
-        }
         public ReplicateProgressPayload(string copyId)
         {
-            this.MessageType = MessageTypes.ReplicateProgress;
             this.CopyID = copyId;
         }
     }
