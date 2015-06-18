@@ -1,18 +1,16 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
-using System.IO;
-using System.Runtime.Serialization.Json;
-using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Dash.Common.Utils;
+using Newtonsoft.Json;
 using StackExchange.Redis;
 
 namespace Microsoft.Dash.Common.Cache
 {
     public class CacheStore
     {
-        private static Lazy<ConnectionMultiplexer> _lazyConnection;
+        private readonly Lazy<ConnectionMultiplexer> _lazyConnection;
         private readonly string _connectionString;
 
         private IDatabase GetDatabase()
@@ -61,14 +59,7 @@ namespace Microsoft.Dash.Common.Cache
 
         internal string Serialize<T>(T obj)
         {
-            var serializer = new DataContractJsonSerializer(typeof(T));
-
-            using (var memoryStream = new MemoryStream())
-            {
-                serializer.WriteObject(memoryStream, obj);
-                var bytes = memoryStream.ToArray();
-                return Encoding.UTF8.GetString(bytes, 0, bytes.Length);
-            }
+            return JsonConvert.SerializeObject(obj);
         }
 
         internal T Deserialize<T>(string json)
@@ -78,11 +69,12 @@ namespace Microsoft.Dash.Common.Cache
                 return default(T);
             }
 
-            var serializer = new DataContractJsonSerializer(typeof(T));
-            using (var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(json)))
+            var settings = new JsonSerializerSettings
             {
-                return (T)serializer.ReadObject(memoryStream);
-            }
+                MissingMemberHandling = MissingMemberHandling.Ignore
+            };
+
+            return JsonConvert.DeserializeObject<T>(json, settings);
         }
     }
 }

@@ -3,7 +3,6 @@
 using System;
 using Microsoft.Dash.Common.Handlers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Microsoft.WindowsAzure.Storage.Blob;
 using Moq;
 
 namespace Microsoft.Tests
@@ -37,24 +36,15 @@ namespace Microsoft.Tests
 
         [TestMethod]
         [ExpectedException(typeof (ArgumentNullException))]
-        public void EmptyContainer()
+        public void NullCtor()
         {
-            new NamespaceBlobCache(new NamespaceBlobCloud(() => new CloudBlockBlob(new Uri("http://some-uri.com"))), String.Empty, Guid.NewGuid().ToString());
-        }
-
-        [TestMethod]
-        [ExpectedException(typeof (ArgumentNullException))]
-        public void EmptyBlobName()
-        {
-            new NamespaceBlobCache(new NamespaceBlobCloud(() => new CloudBlockBlob(new Uri("http://some-uri.com"))), Guid.NewGuid().ToString(), String.Empty);
+            new NamespaceBlobCache(null);
         }
 
         [TestMethod]
         public void PropertyInitialization()
         {
             // setup
-            var containerName = Guid.NewGuid().ToString();
-            var blobName = Guid.NewGuid().ToString();
             var expectedAccountName = Guid.NewGuid().ToString();
             var expectedBlobName = Guid.NewGuid().ToString();
             var expectedContainer = Guid.NewGuid().ToString();
@@ -67,7 +57,7 @@ namespace Microsoft.Tests
             mockNamespaceBlobCloud.Setup(c => c.IsMarkedForDeletion).Returns(expectedIsMarkedForDeletion);
 
             // execute
-            var namespaceBlobCache = new NamespaceBlobCache(mockNamespaceBlobCloud.Object, containerName, blobName);
+            var namespaceBlobCache = new NamespaceBlobCache(mockNamespaceBlobCloud.Object);
 
             // assert
             Assert.AreEqual(expectedAccountName, namespaceBlobCache.AccountName);
@@ -94,7 +84,7 @@ namespace Microsoft.Tests
             mockNamespaceBlobCloud.Setup(c => c.IsMarkedForDeletion).Returns(false);
 
             // execute
-            var namespaceBlobCache = new NamespaceBlobCache(mockNamespaceBlobCloud.Object, containerName, blobName);
+            var namespaceBlobCache = new NamespaceBlobCache(mockNamespaceBlobCloud.Object);
 
             // assert
             Assert.IsFalse(namespaceBlobCache.ExistsAsync(false).Result);
@@ -105,20 +95,17 @@ namespace Microsoft.Tests
         public void SaveFetchDelete()
         {
             // setup
-            var containerName = Guid.NewGuid().ToString();
-            var blobName = Guid.NewGuid().ToString();
-
             var expectedAccountName = Guid.NewGuid().ToString();
             var expectedBlobName = Guid.NewGuid().ToString();
             var expectedContainer = Guid.NewGuid().ToString();
 
             var mockNamespaceBlobCloud = new Mock<NamespaceBlobCloud>(null);
             mockNamespaceBlobCloud.Setup(c => c.AccountName).Returns(expectedAccountName);
-            mockNamespaceBlobCloud.Setup(c => c.BlobName).Returns(expectedBlobName);
             mockNamespaceBlobCloud.Setup(c => c.Container).Returns(expectedContainer);
+            mockNamespaceBlobCloud.Setup(c => c.BlobName).Returns(expectedBlobName);
             mockNamespaceBlobCloud.Setup(c => c.IsMarkedForDeletion).Returns(false);
 
-            var namespaceBlobCache = new NamespaceBlobCache(mockNamespaceBlobCloud.Object, containerName, blobName);
+            var namespaceBlobCache = new NamespaceBlobCache(mockNamespaceBlobCloud.Object);
             cleanAction = () => namespaceBlobCache.DeleteAsync().Wait();
 
             Assert.AreEqual(expectedAccountName, namespaceBlobCache.AccountName);
@@ -130,7 +117,8 @@ namespace Microsoft.Tests
             Assert.IsTrue(namespaceBlobCache.ExistsAsync(false).Result);
 
             // fetch
-            var cached = NamespaceBlobCache.FetchAsync(containerName, blobName).Result;
+            var cached = NamespaceBlobCache.FetchAsync(expectedContainer, expectedBlobName).Result;
+            Assert.IsNotNull(cached);
             Assert.AreEqual(expectedAccountName, cached.AccountName);
             Assert.AreEqual(expectedBlobName, cached.BlobName);
             Assert.AreEqual(expectedContainer, cached.Container);

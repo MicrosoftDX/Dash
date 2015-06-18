@@ -2,6 +2,7 @@
 
 using System;
 using Microsoft.Dash.Common.Cache;
+using Microsoft.Dash.Common.Handlers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Microsoft.Tests
@@ -16,19 +17,19 @@ namespace Microsoft.Tests
         public void SerializeDeserializeTest()
         {
             // setup
-            var testNamespaceBlob = new NamespaceBlobTests.TestNamespaceBlob
+            var testNamespaceBlob = new NamespaceBlobCache(new NamespaceBlobTests.TestNamespaceBlob
             {
                 AccountName = "account-name",
                 BlobName = "blob-name",
                 Container = "container",
                 IsMarkedForDeletion = false,
-            };
+            });
 
             var cacheStore = new CacheStore("someRedisUrl", "someRedisPassword");
 
             // execute
             var serialized = cacheStore.Serialize(testNamespaceBlob);
-            var deserialized = cacheStore.Deserialize<NamespaceBlobTests.TestNamespaceBlob>(serialized);
+            var deserialized = cacheStore.Deserialize<NamespaceBlobCache>(serialized);
 
             // assert
             Assert.IsNotNull(serialized);

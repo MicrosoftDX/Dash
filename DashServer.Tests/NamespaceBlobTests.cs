@@ -50,19 +50,14 @@ namespace Microsoft.Tests
             NamespaceBlob.CacheIsEnabled = false;
         }
 
-        [DataContract]
         public class TestNamespaceBlob : INamespaceBlob
         {
-            [DataMember]
             public string AccountName { get; set; }
 
-            [DataMember]
             public string Container { get; set; }
 
-            [DataMember]
             public string BlobName { get; set; }
 
-            [DataMember]
             public bool? IsMarkedForDeletion { get; set; }
 
             public Task SaveAsync()

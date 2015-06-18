@@ -1,14 +1,12 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
-using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Dash.Common.Cache;
 using Microsoft.Dash.Common.Utils;
 
 namespace Microsoft.Dash.Common.Handlers
 {
-    [DataContract]
     internal class NamespaceBlobCache : INamespaceBlob
     {
         private static readonly Lazy<CacheStore> LazyCacheStore = new Lazy<CacheStore>(() => new CacheStore());
@@ -19,38 +17,32 @@ namespace Microsoft.Dash.Common.Handlers
             get { return LazyCacheStore.Value; }
         }
 
-        public Func<string> GetCacheKey;
-
-        [DataMember]
         public string AccountName { get; set; }
 
-        [DataMember]
         public string Container { get; set; }
 
-        [DataMember]
         public string BlobName { get; set; }
 
-        [DataMember]
         public bool? IsMarkedForDeletion { get; set; }
 
-        public NamespaceBlobCache(NamespaceBlobCloud namespaceBlob, string container, string blobName, string snapshot = null)
+        private string Snapshot { get; set; }
+
+        public NamespaceBlobCache()
         {
-            if (String.IsNullOrEmpty(container))
+        }
+
+        public NamespaceBlobCache(INamespaceBlob namespaceBlob, string snapshot = null)
+        {
+            if (namespaceBlob == null)
             {
-                throw new ArgumentNullException("container");
+                throw new ArgumentNullException("namespaceBlob");
             }
 
-            if (String.IsNullOrEmpty(blobName))
-            {
-                throw new ArgumentNullException("blobName");
-            }
-
-            this.AccountName = namespaceBlob.AccountName;
-            this.Container = namespaceBlob.Container;
-            this.BlobName = namespaceBlob.BlobName;
-            this.IsMarkedForDeletion = namespaceBlob.IsMarkedForDeletion;
-
-            this.GetCacheKey = () => BuildCacheKey(container, blobName, snapshot);
+            AccountName = namespaceBlob.AccountName;
+            Container = namespaceBlob.Container;
+            BlobName = namespaceBlob.BlobName;
+            IsMarkedForDeletion = namespaceBlob.IsMarkedForDeletion;
+            Snapshot = snapshot;
         }
 
         public async Task SaveAsync()
@@ -74,9 +66,14 @@ namespace Microsoft.Dash.Common.Handlers
             return await CacheStore.GetAsync<NamespaceBlobCache>(key);
         }
 
+        private string GetCacheKey()
+        {
+            return BuildCacheKey(Container, BlobName, Snapshot);
+        }
+
         private static string BuildCacheKey(string container, string blobName, string snapshot = null)
         {
-            return String.Format("{0}-{1}-{2}", container, blobName, snapshot);
+            return String.Join("|", container, blobName, snapshot);
         }
     }
 }

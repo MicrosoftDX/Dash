@@ -47,7 +47,7 @@ namespace Microsoft.Dash.Common.Handlers
                 if (cachedNamespaceBlob == null)
                 {
                     // cache miss
-                    cachedNamespaceBlob = new NamespaceBlobCache(cloudNamespaceBlob, container, blobName, snapshot);
+                    cachedNamespaceBlob = new NamespaceBlobCache(cloudNamespaceBlob, snapshot);
 
                     if (await cloudNamespaceBlob.ExistsAsync())
                     {
