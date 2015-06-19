@@ -168,7 +168,8 @@ namespace Microsoft.Dash.Server.Controllers
                     sourceRequest.Method.Method,
                     DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName),
                     namespaceBlob.Container,
-                    namespaceBlob.BlobName));
+                    namespaceBlob.BlobName, 
+                    false));
             clonedRequest.Version = sourceRequest.Version;
             foreach (var property in sourceRequest.Properties)
             {

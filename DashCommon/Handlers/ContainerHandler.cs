@@ -72,22 +72,31 @@ namespace Microsoft.Dash.Common.Handlers
             }
             catch (AggregateException aggEx)
             {
-                aggEx.Handle(ex =>
+                aggEx.Handle(ex => ProcessException(ex, ignoreNotFound, retval));
+            }
+            catch (Exception ex)
+            {
+                if (!ProcessException(ex, ignoreNotFound, retval))
                 {
-                    if (ex is StorageException)
-                    {
-                        var storeEx = (StorageException)ex;
-                        if (!ignoreNotFound || storeEx.RequestInformation.HttpStatusCode != (int)HttpStatusCode.NotFound)
-                        {
-                            retval.StatusCode = (HttpStatusCode)storeEx.RequestInformation.HttpStatusCode;
-                            retval.ReasonPhrase = storeEx.RequestInformation.HttpStatusMessage;
-                        }
-                        return true;
-                    }
-                    return false;
-                });
+                    throw;
+                }
             }
             return retval;
+        }
+
+        private static bool ProcessException(Exception ex, bool ignoreNotFound, SimpleHttpResponse response)
+        {
+            if (ex is StorageException)
+            {
+                var storeEx = (StorageException)ex;
+                if (!ignoreNotFound || storeEx.RequestInformation.HttpStatusCode != (int)HttpStatusCode.NotFound)
+                {
+                    response.StatusCode = (HttpStatusCode)storeEx.RequestInformation.HttpStatusCode;
+                    response.ReasonPhrase = storeEx.RequestInformation.HttpStatusMessage;
+                }
+                return true;
+            }
+            return false;
         }
     }
 }
