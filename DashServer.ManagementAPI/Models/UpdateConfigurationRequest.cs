@@ -1,6 +1,6 @@
 ﻿namespace DashServer.ManagementAPI.Models
 {
-    public class DeleteAccountRequest: BaseRequest
+    public class UpdateConfigurationRequest
     {
 
     }
