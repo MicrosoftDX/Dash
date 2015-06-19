@@ -4,12 +4,14 @@
     <Sites>
       <Site name="Web">
         <Bindings>
-          <Binding name="Endpoint1" endpointName="Endpoint1" />
+          <Binding name="HttpInternal" endpointName="HttpInternal" />
+          <Binding name="HttpExternal" endpointName="HttpExternal" />
         </Bindings>
       </Site>
     </Sites>
     <Endpoints>
-      <InputEndpoint name="Endpoint1" protocol="http" port="80" loadBalancer="Dash_ILB" />
+      <InputEndpoint name="HttpExternal" protocol="http" port="80" />
+      <InputEndpoint name="HttpInternal" protocol="http" port="80" loadBalancer="Dash_ILB" />
     </Endpoints>
     <Imports>
       <Import moduleName="Diagnostics" />

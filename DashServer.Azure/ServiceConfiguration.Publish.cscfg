@@ -3,27 +3,27 @@
   <Role name="DashServer">
     <Instances count="2" />
     <ConfigurationSettings>
-      <Setting name="Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString" value="" />
-      <Setting name="AccountName" value="" />
-      <Setting name="AccountKey" value="" />
-      <Setting name="SecondaryAccountKey" value="" />
-      <Setting name="StorageConnectionStringMaster" value="" />
-      <Setting name="ScaleoutStorage0" value="" />
-      <Setting name="ScaleoutStorage1" value="" />
-      <Setting name="ScaleoutStorage2" value="" />
-      <Setting name="ScaleoutStorage3" value="" />
-      <Setting name="ScaleoutStorage4" value="" />
-      <Setting name="ScaleoutStorage5" value="" />
-      <Setting name="ScaleoutStorage6" value="" />
-      <Setting name="ScaleoutStorage7" value="" />
-      <Setting name="ScaleoutStorage8" value="" />
-      <Setting name="ScaleoutStorage9" value="" />
-      <Setting name="ScaleoutStorage10" value="" />
-      <Setting name="ScaleoutStorage11" value="" />
-      <Setting name="ScaleoutStorage12" value="" />
-      <Setting name="ScaleoutStorage13" value="" />
-      <Setting name="ScaleoutStorage14" value="" />
-      <Setting name="ScaleoutStorage15" value="" />
+      <Setting name="Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString" value="DefaultEndpointsProtocol=https;AccountName=hdiscaleout;AccountKey=1PihW/0aC5/iBCqUkkkvHtYsh654jSFIMqNbrIgYAglZ6Hc60AcwDcezU1ziLbCXF/orWP85oYoNNd8v/RrJ/A==" />
+      <Setting name="AccountName" value="wmdashstorage" />
+      <Setting name="AccountKey" value="FcHZv9P2D0KtXR/pr6Lt0xFOx5c76ZRIn2/Ezzr2pWY0x2k892p7T4jB83dsY/Cr71CsZOLD6UKOTQTLpUBryw==" />
+      <Setting name="SecondaryAccountKey" value="MIcs64H+1kqIYO5nQNmiGM1+vD8W1ERJjPhgLNgvefo8Jtis0bs0QpSJsGUTVdOHpVjw+o6hQk+tHQOtJ8Qw9Q==" />
+      <Setting name="StorageConnectionStringMaster" value="DefaultEndpointsProtocol=http;AccountName=awmdashnamespacepinned;AccountKey=3APOHmT43sOrLO0IP4dlp+pWmaGCffe950eZkQGEEVul09PZhFjGIcD5MVoZ7+6nqma7XoFDpYRiyhPa9QwmJg==" />
+      <Setting name="ScaleoutStorage0" value="DefaultEndpointsProtocol=http;AccountName=bwmdashwalm;AccountKey=C4W2nBLHKsiRERx/0wuWvQqlzCQbcRrHWBwwuBH3evdPH7MmSdD5FH+P6u1lrJHU4UOXkg41MVASkV54rg0Smw==" />
+      <Setting name="ScaleoutStorage1" value="DefaultEndpointsProtocol=http;AccountName=dwmdashwalm;AccountKey=D9+dI8QBV+PiuSDi+N9kgIGtTsUBWE5EKFYd5UbN+0WMTRZKA0ZE5Si9wDJlu4aybABBmitu0/pkOjaL3X8psg==" />
+      <Setting name="ScaleoutStorage2" value="DefaultEndpointsProtocol=http;AccountName=ewmdashwalm;AccountKey=PEUhiAloD6Wz3fbRJ6n9VeXh6GIqjhJZwaBpo7nkdc+jNBhEm2BBy3czs58NS8qXYsuecArnDeSQgACpme4edg==" />
+      <Setting name="ScaleoutStorage3" value="DefaultEndpointsProtocol=http;AccountName=gwmdashwalm;AccountKey=93ZL3w5Gmyvs49tvraTsyO9pge/BTYaMePmaJF7JhI6PfeIWPpjJWiX2Wl0y4kVjzyoJUPhn5RAbQ9rxs79MOg==" />
+      <Setting name="ScaleoutStorage4" value="DefaultEndpointsProtocol=http;AccountName=hwmdashwalm;AccountKey=96Cm8A1QSx187T/Vhm56jK8s551PoSJvGChmkNGtziln7qDkZ6p+Zzt7R/YscipsGzf/ZUhabLnU+JYwF0VNYg==" />
+      <Setting name="ScaleoutStorage5" value="DefaultEndpointsProtocol=http;AccountName=jwmdashwalm;AccountKey=+Haik6u30WdrcJFpKQwhBGD7Kk7VjnsdWk/ALSkQnQaOhFKSjUzb3Eqi8qr6LO9ygw2gdovkYU/DJnXxJiGrRg==" />
+      <Setting name="ScaleoutStorage6" value="DefaultEndpointsProtocol=http;AccountName=kwmdashwalm;AccountKey=IlU8onX+yzMSc+OygaD6oMAjhpk/MJzRoaXMLbyTYOmTktJRO985DgW/mxu+H0n/Jvu/YqpN7KghP3mr0gNCrg==" />
+      <Setting name="ScaleoutStorage7" value="DefaultEndpointsProtocol=http;AccountName=mwmdashwalm;AccountKey=wVboDgvUZY0IymHD4WyGQhdm+5uRjvP/upwyeppCcbUmZx5960FbtI8Hfe22HP1fZwrg6lgrS+9y0cPnyXOnQw==" />
+      <Setting name="ScaleoutStorage8" value="DefaultEndpointsProtocol=http;AccountName=nwmdashwalm;AccountKey=fyprY7Fltka4cjfoirM4SDK9WPvbad+DxcSKZ+Jmtpi2qy91aP7Z0BZnrXjVU0UEDeWw9COWaseRzaDzxvitdA==" />
+      <Setting name="ScaleoutStorage9" value="DefaultEndpointsProtocol=http;AccountName=pwmdashwalm;AccountKey=2XhLpcrqtT7Zs5B+SjGvU5eNu4tPWmJc2dRIMcCpqkUS0B+VqMGSRWhjV4Rghyq6ctT3q1X1h3JAyGMHUZ6A5w==" />
+      <Setting name="ScaleoutStorage10" value="DefaultEndpointsProtocol=http;AccountName=rwmdashwalm;AccountKey=LXj+9NKahvUdWdG1UZz9agHVk0mX4q9DE7wgM7qzbyoWk++ogvRqL5DeDrqBQUd/+fuGsKwBqC/wKxT/zmLlXA==" />
+      <Setting name="ScaleoutStorage11" value="DefaultEndpointsProtocol=http;AccountName=swmdashwalm;AccountKey=MnRfCPhEqHuypy+J43zfBr3TnafeEsoHHoUyD5/Eqd4f6xLkPcTmujdXZn6LGo5DTyKIAynuzh95wL4js90Wog==" />
+      <Setting name="ScaleoutStorage12" value="DefaultEndpointsProtocol=http;AccountName=uwmdashwalm;AccountKey=CMNR9G0uRJ2v3KgGzhEEhWRqFy13TwjCcGeGtQJKMBL96acvLd+sG8d4UJ+feqkzHK6fdpP37uyjw2BbwdcoDw==" />
+      <Setting name="ScaleoutStorage13" value="DefaultEndpointsProtocol=http;AccountName=vwmdashwalm;AccountKey=9zt7L2GDn5uhSMXr+A+tdLjiRD/qe6qLfHPbFUS3p6dQQLjFfJQb0AhGLKAs2SSJAYkiWg9XTc+fkH7b7r8cXA==" />
+      <Setting name="ScaleoutStorage14" value="DefaultEndpointsProtocol=http;AccountName=wwmdashwalm;AccountKey=SNAdMxas5Q+ZTTLBJ+kc3SS8SaCJeAjljzZLUBHEwo5vXtcr1ekWOKCoV07r7itJhyNVRP/rfZ0fSlbxPm8tMw==" />
+      <Setting name="ScaleoutStorage15" value="DefaultEndpointsProtocol=http;AccountName=xwmdashwalm;AccountKey=Kf7OXLrPk9KCdrTAosCIqjG+sRsA1bwZXIc6Jq5gR5pdz+sp07c7/u3c24a2HhdoGNlefjf2JESW879pjm9ONA==" />
       <Setting name="LogNormalOperations" value="false" />
     </ConfigurationSettings>
     <Certificates>
