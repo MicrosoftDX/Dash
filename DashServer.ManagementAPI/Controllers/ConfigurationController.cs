@@ -74,7 +74,7 @@ namespace DashServer.ManagementAPI.Controllers
                 var updateConfig = await computeClient.Deployments.ChangeConfigurationBySlotAsync(serviceName, DeploymentSlot.Production,
                     new DeploymentChangeConfigurationParameters()
                     {
-                        Configuration = Convert.ToBase64String(Encoding.Unicode.GetBytes(scaleoutSettings.ToString()))
+                        Configuration = Convert.ToBase64String(Encoding.Unicode.GetBytes(newSettings.ToString()))
                     });
 
                 var responseMessage = new HttpResponseMessage(HttpStatusCode.OK)
