@@ -1,4 +1,6 @@
-﻿using Microsoft.Dash.Common.Utils;
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
+using Microsoft.Dash.Common.Platform;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -13,9 +15,13 @@ namespace DashAsync
         static void Main(string[] args)
         {
             MessageQueue queue = new AzureMessageQueue();
-            QueueMessage payload = queue.Dequeue();
-            if (payload != null)
+            while (true)
             {
+                QueueMessage payload = queue.Dequeue();
+                if (payload == null)
+                {
+                    break;
+                }
                 // Right now, success/failure is indicated through a bool
                 // Do we want to surround this with a try/catch and use exceptions instead?
                 if (ProcessMessage(payload))
@@ -23,6 +29,7 @@ namespace DashAsync
                     queue.DeleteCurrentMessage();
                 } //Else leave it in the queue
             }
+            
         }
 
         static bool ProcessMessage(QueueMessage message)
@@ -32,10 +39,10 @@ namespace DashAsync
             switch (message.MessageType)
             {
                 case MessageTypes.BeginReplicate:
-                    success = DoReplicateJob(JsonConvert.DeserializeObject<ReplicatePayload>(message.payload));
+                    success = DoReplicateJob(message.payload);
                     break;
                 case MessageTypes.ReplicateProgress:
-                    success = DoReplicateProgressJob(JsonConvert.DeserializeObject<ReplicateProgressPayload>(message.payload));
+                    success = DoReplicateProgressJob(message.payload);
                     break;
                 case MessageTypes.Unknown:
                     break;
@@ -43,13 +50,13 @@ namespace DashAsync
             return success;
         }
 
-        static bool DoReplicateJob(ReplicatePayload payload)
+        static bool DoReplicateJob(Dictionary<string, string> payload)
         {
             //TODO
             return true;
         }
 
-        static bool DoReplicateProgressJob(ReplicateProgressPayload payload)
+        static bool DoReplicateProgressJob(Dictionary<string, string> payload)
         {
             //TODO
             return true;

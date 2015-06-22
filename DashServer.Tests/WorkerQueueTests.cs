@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Microsoft.Dash.Common.Utils;
+using Microsoft.Dash.Common.Platform;
 using Newtonsoft.Json;
 
 namespace Microsoft.Tests
@@ -34,15 +34,17 @@ namespace Microsoft.Tests
         [TestMethod]
         public void BasicQueueTest()
         {
-            ReplicatePayload payload = new ReplicatePayload("foo", "bar");
+            Dictionary<string, string> payload = new Dictionary<string, string>();
+            payload.Add(ReplicatePayload.Source, "foo");
+            payload.Add(ReplicatePayload.Destination, "bar");
             QueueMessage message = new QueueMessage(MessageTypes.BeginReplicate, payload);
             _queue.Enqueue(message);
 
             QueueMessage fromServer = _queue.Dequeue();
             Assert.AreEqual(fromServer.MessageType, MessageTypes.BeginReplicate);
-            ReplicatePayload servPayload = JsonConvert.DeserializeObject<ReplicatePayload>(fromServer.payload);
-            Assert.AreEqual(servPayload.Source, payload.Source);
-            Assert.AreEqual(servPayload.Destination, payload.Destination);
+            Dictionary<string, string> servPayload = fromServer.payload;
+            Assert.AreEqual(servPayload[ReplicatePayload.Source], payload[ReplicatePayload.Source]);
+            Assert.AreEqual(servPayload[ReplicatePayload.Destination], payload[ReplicatePayload.Destination]);
             _queue.DeleteCurrentMessage();
         }
 

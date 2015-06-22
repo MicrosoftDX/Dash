@@ -82,11 +82,10 @@
     <Compile Include="Diagnostics\TraceMessage.cs" />
     <Compile Include="Handlers\NamespaceBlob.cs" />
     <Compile Include="Handlers\NamespaceHandler.cs" />
-    <Compile Include="Utils\AzureMessageQueue.cs" />
     <Compile Include="Utils\AzureUtils.cs" />
     <Compile Include="Utils\DashConfiguration.cs" />
     <Compile Include="Utils\SharedKeySignature.cs" />
-    <Compile Include="Utils\MessageQueue.cs" />
+    <Compile Include="Platform\MessageQueue.cs" />
     <Compile Include="Utils\StorageServiceVersions.cs" />
     <Compile Include="Utils\TaskUtils.cs" />
   </ItemGroup>
