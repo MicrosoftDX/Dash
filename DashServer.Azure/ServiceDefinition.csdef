@@ -1,17 +1,17 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <ServiceDefinition name="DashServer.Azure" xmlns="http://schemas.microsoft.com/ServiceHosting/2008/10/ServiceDefinition" schemaVersion="2014-06.2.4">
-  <WebRole name="DashServer" vmsize="A7">
+  <WebRole name="DashServer" vmsize="Standard_D3">
     <Sites>
       <Site name="Web">
         <Bindings>
-          <!--<Binding name="HttpInternal" endpointName="HttpInternal" />-->
-          <Binding name="HttpExternal" endpointName="HttpExternal" />
+          <Binding name="HttpInternal" endpointName="HttpInternal" />
+          <!--<Binding name="HttpExternal" endpointName="HttpExternal" />-->
         </Bindings>
       </Site>
     </Sites>
     <Endpoints>
-      <InputEndpoint name="HttpExternal" protocol="http" port="80" />
-      <!--<InputEndpoint name="HttpInternal" protocol="http" port="80" loadBalancer="Dash_ILB" />-->
+      <!--<InputEndpoint name="HttpExternal" protocol="http" port="80" />-->
+      <InputEndpoint name="HttpInternal" protocol="http" port="80" loadBalancer="Dash_ILB" />
     </Endpoints>
     <Imports>
       <Import moduleName="Diagnostics" />
