@@ -42,7 +42,7 @@ namespace Microsoft.Tests
 
             QueueMessage fromServer = _queue.Dequeue();
             Assert.AreEqual(fromServer.MessageType, MessageTypes.BeginReplicate);
-            Dictionary<string, string> servPayload = fromServer.payload;
+            var servPayload = fromServer.Payload;
             Assert.AreEqual(servPayload[ReplicatePayload.Source], payload[ReplicatePayload.Source]);
             Assert.AreEqual(servPayload[ReplicatePayload.Destination], payload[ReplicatePayload.Destination]);
             _queue.DeleteCurrentMessage();

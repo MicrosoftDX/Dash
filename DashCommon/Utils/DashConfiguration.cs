@@ -130,5 +130,15 @@ namespace Microsoft.Dash.Common.Utils
         {
             get { return Convert.FromBase64String(ConfigurationSource.GetSetting("SecondaryAccountKey", "")); }
         }
+
+        public static string WorkerQueueName
+        {
+            get { return ConfigurationSource.GetSetting("WorkerQueueName", "dashworkerqueue"); }
+        }
+
+        public static int WorkerQueueTimeout
+        {
+            get { return ConfigurationSource.GetSetting("WorkerQueueTimeout", 30); }
+        }
     }
 }

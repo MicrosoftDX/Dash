@@ -39,10 +39,10 @@ namespace DashAsync
             switch (message.MessageType)
             {
                 case MessageTypes.BeginReplicate:
-                    success = DoReplicateJob(message.payload);
+                    success = DoReplicateJob(message.Payload);
                     break;
                 case MessageTypes.ReplicateProgress:
-                    success = DoReplicateProgressJob(message.payload);
+                    success = DoReplicateProgressJob(message.Payload);
                     break;
                 case MessageTypes.Unknown:
                     break;
