@@ -12,7 +12,7 @@ namespace Microsoft.Dash.Common.Platform
     {
         public QueueMessage()
         {
-            this.Payload = new Dictionary<string, string>;
+            this.Payload = new Dictionary<string, string>();
         }
 
         public QueueMessage(MessageTypes type, Dictionary<string, string> payload)

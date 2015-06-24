@@ -35,7 +35,6 @@ namespace DashAsync
         static bool ProcessMessage(QueueMessage message)
         {
             var success = false;
-            //TODO: Implement body of function
             switch (message.MessageType)
             {
                 case MessageTypes.BeginReplicate:
@@ -50,13 +49,13 @@ namespace DashAsync
             return success;
         }
 
-        static bool DoReplicateJob(Dictionary<string, string> payload)
+        static bool DoReplicateJob(IDictionary<string, string> payload)
         {
             //TODO
             return true;
         }
 
-        static bool DoReplicateProgressJob(Dictionary<string, string> payload)
+        static bool DoReplicateProgressJob(IDictionary<string, string> payload)
         {
             //TODO
             return true;
