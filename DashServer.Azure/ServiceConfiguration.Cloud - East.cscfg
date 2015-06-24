@@ -25,14 +25,8 @@
       <Setting name="ScaleoutStorage14" value="DefaultEndpointsProtocol=http;AccountName=x271c9ccdash3east14;AccountKey=RphpG2EuA7wRvka2MmBoqQP5U6iRgEJ1qXUPc156uJKNelhV4tAuiets8gkFtFRXkiBm58lMVDuRkpTDBwrfuw==" />
       <Setting name="ScaleoutStorage15" value="DefaultEndpointsProtocol=http;AccountName=yec27347dash3east15;AccountKey=TKTMpjlzfHvs67hZMSZtZKn0jy2rXicaHSIywgMq30ECjZqAUs/P4urIVEUbIZHamwSF0mWOc4X0k0vnbOBRJQ==" />
       <Setting name="LogNormalOperations" value="false" />
-      <Setting name="Microsoft.WindowsAzure.Plugins.RemoteAccess.Enabled" value="" />
-      <Setting name="Microsoft.WindowsAzure.Plugins.RemoteAccess.AccountUsername" value="" />
-      <Setting name="Microsoft.WindowsAzure.Plugins.RemoteAccess.AccountEncryptedPassword" value="" />
-      <Setting name="Microsoft.WindowsAzure.Plugins.RemoteAccess.AccountExpiration" value="" />
-      <Setting name="Microsoft.WindowsAzure.Plugins.RemoteForwarder.Enabled" value="" />
     </ConfigurationSettings>
     <Certificates>
-      <Certificate name="Microsoft.WindowsAzure.Plugins.RemoteAccess.PasswordEncryption" thumbprint="" thumbprintAlgorithm="sha1" />
     </Certificates>
   </Role>
 </ServiceConfiguration>
