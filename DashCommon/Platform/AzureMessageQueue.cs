@@ -1,4 +1,6 @@
-﻿using Microsoft.Dash.Common.Handlers;
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
+using Microsoft.Dash.Common.Handlers;
 using Microsoft.Dash.Common.Utils;
 using Microsoft.WindowsAzure.Storage.Queue;
 using Newtonsoft.Json;
@@ -12,7 +14,7 @@ namespace Microsoft.Dash.Common.Platform
 {
     public class AzureMessageQueue : MessageQueue
     {
-        private int Timeout;
+        private static readonly int Timeout = DashConfiguration.WorkerQueueTimeout;
         private CloudQueue Queue { get; set; }
         private CloudQueueMessage CurrentMessage { get; set; }
 
@@ -21,7 +23,6 @@ namespace Microsoft.Dash.Common.Platform
             this.Queue = NamespaceHandler.GetQueueByName(DashConfiguration.NamespaceAccount, queueName);
             this.Queue.CreateIfNotExists();
             this.CurrentMessage = null;
-            this.Timeout = DashConfiguration.WorkerQueueTimeout;
         }
 
         public AzureMessageQueue()
