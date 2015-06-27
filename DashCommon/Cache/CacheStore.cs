@@ -13,7 +13,6 @@ namespace Microsoft.Dash.Common.Cache
     public static class CacheStore
     {
         private static readonly ConnectionMultiplexer Connection;
-        private const bool UseSsl = true;
 
         static CacheStore()
         {
@@ -29,13 +28,18 @@ namespace Microsoft.Dash.Common.Cache
                 throw new ConfigurationErrorsException("redisEndpointUrl");
             }
 
-            var connectionString = String.Format("{0},abortConnect=false,ssl={1},password={2},allowAdmin=true", redisEndpointUrl, UseSsl, redisPassword);
+            var options = ConfigurationOptions.Parse(redisEndpointUrl);
+            options.Password = redisPassword;
+            options.AbortOnConnectFail = false;
+            options.Ssl = true;
+            options.AllowAdmin = true;
+
             DashTrace.TraceInformation(new TraceMessage
             {
-                Message = "Redis ConnectionString =" + connectionString,
+                Message = "Redis Connection Options =" + options,
             });
 
-            Connection = ConnectionMultiplexer.Connect(connectionString);
+            Connection = ConnectionMultiplexer.Connect(options);
         }
 
         public static async Task<bool> ExistsAsync(string key)
