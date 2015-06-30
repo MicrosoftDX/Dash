@@ -62,12 +62,14 @@
   </ItemGroup>
   <ItemGroup>
     <PublishProfile Include="Profiles\DashJbTestProduction.azurePubxml" />
+    <PublishProfile Include="Profiles\dashweststorage - external.azurePubxml" />
     <PublishProfile Include="Profiles\wmdashstorage - internal.azurePubxml" />
     <PublishProfile Include="Profiles\DashTestEastProduction.azurePubxml" />
     <PublishProfile Include="Profiles\DashTestEastProduction3.azurePubxml" />
     <PublishProfile Include="Profiles\DashTestEastProduction2.azurePubxml" />
     <PublishProfile Include="Profiles\DashTestEastProduction4.azurePubxml" />
     <PublishProfile Include="Profiles\wmdashstorage - external.azurePubxml" />
+    <PublishProfile Include="Profiles\dashweststorage - internal.azurePubxml" />
   </ItemGroup>
   <!-- Import the target files for this project template -->
   <PropertyGroup>
