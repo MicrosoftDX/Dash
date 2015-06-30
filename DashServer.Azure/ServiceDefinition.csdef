@@ -36,6 +36,9 @@
       <Setting name="ScaleoutStorage14" />
       <Setting name="ScaleoutStorage15" />
       <Setting name="LogNormalOperations" />
+      <Setting name="ReplicationPathPattern" />
+      <Setting name="ReplicationMetadataName" />
+      <Setting name="ReplicationMetadataValue" />
     </ConfigurationSettings>
   </WebRole>
 </ServiceDefinition>

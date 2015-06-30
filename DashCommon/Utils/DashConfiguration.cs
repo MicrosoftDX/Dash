@@ -130,5 +130,29 @@ namespace Microsoft.Dash.Common.Utils
         {
             get { return Convert.FromBase64String(ConfigurationSource.GetSetting("SecondaryAccountKey", "")); }
         }
+
+        public static bool IsBlobReplicationEnabled
+        {
+            get 
+            {
+                return !String.IsNullOrWhiteSpace(DashConfiguration.ReplicationPathPattern) ||
+                    !String.IsNullOrWhiteSpace(DashConfiguration.ReplicationMetadataName);
+            }
+        }
+
+        public static string ReplicationPathPattern
+        {
+            get { return ConfigurationSource.GetSetting("ReplicationPathPattern", ""); }
+        }
+
+        public static string ReplicationMetadataName
+        {
+            get { return ConfigurationSource.GetSetting("ReplicationMetadataName", ""); }
+        }
+
+        public static string ReplicationMetadataValue
+        {
+            get { return ConfigurationSource.GetSetting("ReplicationMetadataValue", "true"); }
+        }
     }
 }

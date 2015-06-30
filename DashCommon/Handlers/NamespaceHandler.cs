@@ -25,7 +25,7 @@ namespace Microsoft.Dash.Common.Handlers
                 }
                 //getting storage account name and account key from file account, by using simple hashing algorithm to choose account storage
                 var dataAccount = GetDataStorageAccountForBlob(blob);
-                namespaceBlob.AccountName = dataAccount.Credentials.AccountName;
+                namespaceBlob.PrimaryAccountName = dataAccount.Credentials.AccountName;
                 namespaceBlob.Container = container;
                 namespaceBlob.BlobName = blob;
                 namespaceBlob.IsMarkedForDeletion = false;

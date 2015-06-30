@@ -1,6 +1,8 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.WindowsAzure.Storage;
@@ -15,10 +17,15 @@ namespace Microsoft.Dash.Common.Handlers
         const string MetadataNameBlobName   = "blobname";
         const string MetadataNameDeleteFlag = "todelete";
 
+        const string AccountDelimiter       = "|";
+
+        static Random _dataAccountSelector  = new Random();
+
         CloudBlockBlob _namespaceBlob;
         bool _blobExists;
+        IList<string> _dataAccounts;
 
-        private NamespaceBlob(CloudBlockBlob namespaceBlob)
+        public NamespaceBlob(CloudBlockBlob namespaceBlob)
         {
             _namespaceBlob = namespaceBlob;
         }
@@ -38,6 +45,10 @@ namespace Microsoft.Dash.Common.Handlers
 
         public async Task SaveAsync()
         {
+            if (_dataAccounts != null)
+            {
+                _namespaceBlob.Metadata[MetadataNameAccount] = String.Join(AccountDelimiter, _dataAccounts);
+            }
             if (!_blobExists)
             {
                 await _namespaceBlob.UploadTextAsync("", Encoding.UTF8, AccessCondition.GenerateIfNoneMatchCondition("*"), null, null);
@@ -71,10 +82,52 @@ namespace Microsoft.Dash.Common.Handlers
             return retval;
         }
 
-        public string AccountName
+        public string PrimaryAccountName
         {
-            get { return TryGetMetadataValue(MetadataNameAccount); }
-            set { _namespaceBlob.Metadata[MetadataNameAccount] = value; }
+            get { return this.DataAccounts.FirstOrDefault(); }
+            set
+            {
+                var accounts = this.DataAccounts;
+                accounts.Clear();
+                accounts.Add(value);
+            }
+        }
+
+        public IList<string> DataAccounts
+        {
+            get 
+            {
+                if (_dataAccounts == null)
+                {
+                    lock (this)
+                    {
+                        if (_dataAccounts == null)
+                        {
+                            _dataAccounts = TryGetMetadataValue(MetadataNameAccount)
+                                .Split(AccountDelimiter[0]);
+                        }
+                    }
+                }
+                return _dataAccounts; 
+            }
+        }
+
+        public string SelectDataAccount
+        {
+            get
+            {
+                var dataAccounts = this.DataAccounts;
+                if (!dataAccounts.Any())
+                {
+                    return String.Empty;
+                }
+                return dataAccounts[_dataAccountSelector.Next(dataAccounts.Count())];
+            }
+        }
+
+        public bool IsReplicated
+        {
+            get { return this.DataAccounts.Count > 1; }
         }
 
         public string Container

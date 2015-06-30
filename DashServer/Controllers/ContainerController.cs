@@ -422,13 +422,25 @@ namespace Microsoft.Dash.Server.Controllers
 
             var blobTasks = DashConfiguration.DataAccounts
                 .Select(account => ChildBlobListAsync(account, container, prefix, delim, includedDataSets));
+            var namespaceTask = ChildBlobListAsync(DashConfiguration.NamespaceAccount, container, prefix, delim, BlobListingDetails.Metadata.ToString());
             var blobs = await Task.WhenAll(blobTasks);
+            var namespaceBlobs = await namespaceTask;
             var sortedBlobs = blobs
                 .SelectMany(blobList => blobList)
                 .OrderBy(blob => blob.Uri.AbsolutePath, StringComparer.Ordinal)  
-                .Distinct(new BlobComparer())
-                .SkipWhile(blob => !String.IsNullOrWhiteSpace(marker) && GetMarkerForBlob(blob) != marker)
-                .Take(maxResults + 1);                  // Get an extra listing so that we can generate the nextMarker
+                .SkipWhile(blob => !String.IsNullOrWhiteSpace(marker) && GetMarkerForBlob(blob) != marker);
+            var sortedNamespace = namespaceBlobs
+                .OrderBy(blob => blob.Uri.AbsolutePath, StringComparer.Ordinal)  
+                .SkipWhile(blob => !String.IsNullOrWhiteSpace(marker) && GetMarkerForBlob(blob) != marker);
+            var resultsList = sortedBlobs
+                .Join(sortedNamespace,
+                    blob => blob.Uri.AbsolutePath,
+                    blob => blob.Uri.AbsolutePath,
+                    (dataBlob, namespaceBlob) => Tuple.Create(dataBlob, namespaceBlob),
+                    StringComparer.OrdinalIgnoreCase)
+                .Where(blobPair => MatchPrimaryDataBlob(blobPair.Item2 as CloudBlockBlob, blobPair.Item1 as ICloudBlob))
+                .Take(maxResults + 1)                  // Get an extra listing so that we can generate the nextMarker
+                .Select(blobPair => blobPair.Item1);
             var blobResults = new EnumerationResults
             {
                 RequestVersion = this.Request.GetHeaders().Value("x-ms-version", StorageServiceVersions.Version_2009_09_19),
@@ -439,7 +451,7 @@ namespace Microsoft.Dash.Server.Controllers
                 Delimiter = delim,
                 Marker = marker,
                 Prefix = prefix,
-                Blobs = sortedBlobs,
+                Blobs = resultsList,
                 IncludeDetails = String.IsNullOrWhiteSpace(includedDataSets) ? BlobListingDetails.None : (BlobListingDetails)Enum.Parse(typeof(BlobListingDetails), includedDataSets, true),
             };
             return CreateResponse(blobResults);
@@ -484,6 +496,22 @@ namespace Microsoft.Dash.Server.Controllers
 
             return results
                 .SelectMany(segmentResults => segmentResults);
+        }
+
+        static bool MatchPrimaryDataBlob(CloudBlockBlob namespaceEntry, ICloudBlob dataBlob)
+        {
+            // Handle listing of CloudBlobDirectory objects
+            if (namespaceEntry == null || dataBlob == null)
+            {
+                return true;
+            }
+            // The blob listing included metadata for the namespace entry, so we don't need to refresh
+            var namespaceBlob = new NamespaceBlob(namespaceEntry);
+            if (namespaceBlob.IsReplicated)
+            {
+                return String.Equals(namespaceBlob.PrimaryAccountName, dataBlob.ServiceClient.Credentials.AccountName, StringComparison.OrdinalIgnoreCase);
+            }
+            return true;
         }
 
         class BlobComparer : IEqualityComparer<IListBlobItem>

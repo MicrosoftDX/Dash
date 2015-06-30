@@ -22,7 +22,7 @@ namespace Microsoft.Dash.Server.Handlers
         /// <summary>
         /// Generic function to redirect a put request for properties of a blob
         /// </summary>
-        public static async Task<HandlerResult> BasicBlobAsync(IHttpRequestWrapper requestWrapper, string container, string blob)
+        public static async Task<HandlerResult> BasicBlobAsync(IHttpRequestWrapper requestWrapper, string container, string blob, bool operationCanReplicateBlob)
         {
             return await OperationRunner.DoHandlerAsync("BlobHandler.BasicBlobAsync", async () =>
                 {
@@ -34,22 +34,37 @@ namespace Microsoft.Dash.Server.Handlers
                             StatusCode = HttpStatusCode.NotFound,
                         };
                     }
+                    string accountName = namespaceBlob.SelectDataAccount;
+                    if (operationCanReplicateBlob)
+                    {
+                        if (BlobReplicationHandler.ShouldReplicateBlob(requestWrapper.Headers, container, blob))
+                        {
+                            accountName = namespaceBlob.PrimaryAccountName;
+                            await BlobReplicationHandler.EnqueueBlobReplication(namespaceBlob, false);
+                        }
+                    }
                     return HandlerResult.Redirect(requestWrapper, 
                         ControllerOperations.GetRedirectUri(HttpContextFactory.Current.Request,
-                            DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName),
+                            DashConfiguration.GetDataAccountByAccountName(accountName),
                             namespaceBlob.Container,
                             namespaceBlob.BlobName));
                 });
         }
 
-        public static async Task<HandlerResult> PutBlobAsync(IHttpRequestWrapper requestWrapper, string container, string blob)
+        public static async Task<HandlerResult> PutBlobAsync(IHttpRequestWrapper requestWrapper, string container, string blob, bool operationCanReplicateBlob)
         {
             return await OperationRunner.DoHandlerAsync("BlobHandler.PutBlobAsync", async () =>
                 {
                     var namespaceBlob = await NamespaceHandler.CreateNamespaceBlobAsync(container, blob);
-                    //redirection code
+                    if (operationCanReplicateBlob)
+                    {
+                        if (BlobReplicationHandler.ShouldReplicateBlob(requestWrapper.Headers, container, blob))
+                        {
+                            await BlobReplicationHandler.EnqueueBlobReplication(namespaceBlob, false);
+                        }
+                    }
                     Uri redirect = ControllerOperations.GetRedirectUri(HttpContextFactory.Current.Request,
-                        DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName),
+                        DashConfiguration.GetDataAccountByAccountName(namespaceBlob.PrimaryAccountName),
                         container,
                         blob);
                     return HandlerResult.Redirect(requestWrapper, redirect);
@@ -143,10 +158,10 @@ namespace Microsoft.Dash.Server.Handlers
                             // This is effectively an intra-account copy which is expected to be atomic. Therefore, even if the destination already
                             // exists, we need to place the destination in the same data account as the source.
                             // If the destination blob already exists, we delete it below to prevent an orphaned data blob
-                            destAccount = sourceNamespaceBlob.AccountName;
+                            destAccount = sourceNamespaceBlob.PrimaryAccountName;
                             var sourceUriBuilder = ControllerOperations.GetRedirectUriBuilder("GET",
                                 requestWrapper.Url.Scheme,
-                                DashConfiguration.GetDataAccountByAccountName(sourceNamespaceBlob.AccountName),
+                                DashConfiguration.GetDataAccountByAccountName(destAccount),
                                 sourceContainer,
                                 sourceBlobName,
                                 false,
@@ -155,19 +170,19 @@ namespace Microsoft.Dash.Server.Handlers
                         }
                         else if (await destNamespaceBlob.ExistsAsync())
                         {
-                            destAccount = destNamespaceBlob.AccountName;
+                            destAccount = destNamespaceBlob.PrimaryAccountName;
                         }
                         else
                         {
                             destAccount = NamespaceHandler.GetDataStorageAccountForBlob(destBlob).Credentials.AccountName;
                         }
-                        if (await destNamespaceBlob.ExistsAsync() && destNamespaceBlob.AccountName != destAccount)
+                        if (await destNamespaceBlob.ExistsAsync() && destNamespaceBlob.PrimaryAccountName != destAccount)
                         {
                             // Delete the existing blob to prevent orphaning it
                             var dataBlob = NamespaceHandler.GetBlobByName(DashConfiguration.GetDataAccountByAccountName(destNamespaceBlob.AccountName), destContainer, destBlob);
                             await dataBlob.DeleteIfExistsAsync();
                         }
-                        destNamespaceBlob.AccountName = destAccount;
+                        destNamespaceBlob.PrimaryAccountName = destAccount;
                         destNamespaceBlob.Container = destContainer;
                         destNamespaceBlob.BlobName = destBlob;
                         destNamespaceBlob.IsMarkedForDeletion = false;
@@ -207,7 +222,10 @@ namespace Microsoft.Dash.Server.Handlers
                 {
                     var destNamespaceBlob = await NamespaceHandler.FetchNamespaceBlobAsync(destContainer, destBlob);
 
-                    var destCloudBlob = NamespaceHandler.GetBlobByName(DashConfiguration.GetDataAccountByAccountName(destNamespaceBlob.AccountName), destContainer, destBlob);
+                    var destCloudBlob = NamespaceHandler.GetBlobByName(
+                        DashConfiguration.GetDataAccountByAccountName(destNamespaceBlob.PrimaryAccountName), 
+                        destContainer, 
+                        destBlob);
                     await destCloudBlob.AbortCopyAsync(copyId);
                     return new HandlerResult
                     {
