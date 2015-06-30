@@ -25,6 +25,7 @@
       <Setting name="ScaleoutStorage14" value="" />
       <Setting name="ScaleoutStorage15" value="" />
       <Setting name="LogNormalOperations" value="true" />
+      <!--<Setting name="WorkerQueue" value="WorkerQueue"/>-->
     </ConfigurationSettings>
     <Certificates>
     </Certificates>

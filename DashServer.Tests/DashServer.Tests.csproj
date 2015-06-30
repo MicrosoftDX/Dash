@@ -97,6 +97,7 @@
     <Compile Include="WebApiTestRunner.cs" />
     <Compile Include="ContainerTests.cs" />
     <Compile Include="BlobControllerTests.cs" />
+    <Compile Include="WorkerQueueTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DashCommon\DashCommon.csproj">
