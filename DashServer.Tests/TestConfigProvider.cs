@@ -23,14 +23,22 @@ namespace Microsoft.Tests
             {
                 _namespaceAccount = CloudStorageAccount.Parse(connectionString);
             }
-            int numDataAccounts = GetSetting("ScaleoutNumberOfAccounts", 0);
-            _dataAccounts = new CloudStorageAccount[numDataAccounts];
-            for (int accountIndex = 0; accountIndex < numDataAccounts; accountIndex++)
-            {
-                _dataAccounts[accountIndex] = CloudStorageAccount.Parse(GetSetting("ScaleoutStorage" + accountIndex.ToString(), ""));
-            }
+            _dataAccounts = GetDataStorageAccountsFromConfig().ToArray();
             _dataAccountsByName = _dataAccounts
                 .ToDictionary(account => account.Credentials.AccountName, StringComparer.OrdinalIgnoreCase);
+        }
+
+        IEnumerable<CloudStorageAccount> GetDataStorageAccountsFromConfig()
+        {
+            for (int accountIndex = 0; true; accountIndex++)
+            {
+                var connectString = GetSetting("ScaleoutStorage" + accountIndex.ToString(), "");
+                if (String.IsNullOrWhiteSpace(connectString))
+                {
+                    yield break;
+                }
+                yield return CloudStorageAccount.Parse(connectString);
+            }
         }
 
         public IList<CloudStorageAccount> DataAccounts

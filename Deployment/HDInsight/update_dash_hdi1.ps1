@@ -80,7 +80,7 @@ $core_site.Save($core_site_path)
 # Replace storage client library with Dash version
 Write-HDILog "Updating Azure Storage Client SDK"
 $new_jar_uri = "https://www.dash-update.net/client/v0.2/StorageSDK2.0/dash-azure-storage-2.0.0.jar"
-$directories = "$hadoop_directory\share\hadoop\common\lib", "$hadoop_directory\share\hadoop\tools\lib", "$hbase_directory\lib"
+$directories = "$hadoop_directory\share\hadoop\common\lib", "$hadoop_directory\share\hadoop\tools\lib", "$hbase_directory\lib", "$hadoop_directory\share\hadoop\yarn\lib"
 foreach ($directory in $directories) 
 {
     $output = remove-item "$directory\azure-storage-2.0.0.jar" -ErrorAction SilentlyContinue  -verbose *>&1 | Out-String

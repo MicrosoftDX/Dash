@@ -11,12 +11,12 @@ using System.Web;
 namespace Microsoft.Tests
 {
     [TestClass]
-    public class BlobPipelineTests
+    public class BlobPipelineTests : PipelineTestBase
     {
         [TestInitialize]
         public void Init()
         {
-            WebApiTestRunner.InitializeConfig(new Dictionary<string, string>()
+            InitializeConfig(new Dictionary<string, string>()
                 {
                     { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=https;AccountName=dashtestnamespace;AccountKey=N+BMOAp/bswfqp4dxoQYLLwmYnERysm1Xxv3qSf5H9RVhQ0q+f/QKNHhXX4Z/P67mZ+5QwT6RZv9qKV834pOqQ==" },
                     { "ScaleoutStorage0", "DefaultEndpointsProtocol=https;AccountName=dashtestdata1;AccountKey=IatOQyIdf8x3HcCZuhtGGLv/nS0v/SwXu2vBS6E9/5/+GYllhdmFFX6YqMXmR7U6UyFYQt4pdZnlLCM+bPcJ4A==" },
@@ -232,21 +232,6 @@ namespace Microsoft.Tests
                 Tuple.Create("User-Agent", "WA-Storage/2.0.6.1"),
             });
             Assert.IsNull(result);
-        }
-
-        public static HandlerResult BlobRequest(string method, string uri)
-        {
-            return BlobRequest(method, uri, new[] {
-                Tuple.Create("User-Agent", "WA-Storage/2.0.6.1"),
-                Tuple.Create("Expect", "100-Continue")
-            });
-        }
-
-        public static HandlerResult BlobRequest(string method, string uri, IEnumerable<Tuple<string, string>> headers = null)
-        {
-            WebApiTestRunner.SetupRequest(uri, method);
-            return StorageOperationsHandler.HandlePrePipelineOperationAsync(
-                new MockHttpRequestWrapper(method, uri, headers)).Result;
         }
     }
 }

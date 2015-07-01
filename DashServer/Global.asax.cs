@@ -11,6 +11,7 @@ using Microsoft.Dash.Server.Handlers;
 using Microsoft.Dash.Server.Utils;
 using Microsoft.Dash.Common.Utils;
 using Microsoft.Dash.Common.Diagnostics;
+using Microsoft.Dash.Common.Processors;
 
 namespace Microsoft.Dash.Server
 {
@@ -30,6 +31,12 @@ namespace Microsoft.Dash.Server
             AzureUtils.AddAzureDiagnosticsListener();
             DashTrace.TraceInformation("Starting application instance");
             GlobalConfiguration.Configure(WebApiConfig.Register);
+            // Import any statically configured accounts
+            var importAccounts = DashConfiguration.ImportAccounts;
+            if (importAccounts.Any())
+            {
+                Task.Factory.StartNew(() => AccountManager.ImportAccounts(importAccounts));
+            }
         }
 
         async Task AuthorizeRequestAsync(Object sender, EventArgs e)
@@ -56,7 +63,7 @@ namespace Microsoft.Dash.Server
             // Insert handling here for any requests which can potentially contain a body and that we intend to redirect. We must 
             // process the request here because if the client is using the Expect: 100-Continue header, then we should issue our 
             // final (redirect) status BEFORE IIS sends the 100 Continue response. This way the blob content is never sent to us.
-            var result = await OperationRunner.DoHandlerAsync("App.PreRequestHandlerExecuteAsync", 
+            var result = await WebOperationRunner.DoHandlerAsync("App.PreRequestHandlerExecuteAsync", 
                 async () => await StorageOperationsHandler.HandlePrePipelineOperationAsync(DashHttpRequestWrapper.Create(this.Request, true)));
             if (result != null)
             {

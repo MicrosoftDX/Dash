@@ -131,6 +131,34 @@ namespace Microsoft.Dash.Common.Utils
             get { return Convert.FromBase64String(ConfigurationSource.GetSetting("SecondaryAccountKey", "")); }
         }
 
+        public static bool LogNormalOperations
+        {
+            get { return ConfigurationSource.GetSetting("LogNormalOperations", false); }
+        }
+
+        public static IEnumerable<string> ImportAccounts
+        {
+            get
+            {
+                // Account can be specified either by zero-based index or account name
+                var accounts = DashConfiguration.DataAccounts;
+                foreach (var item in ConfigurationSource.GetSetting("ImportAccounts", "").Split(',', ';'))
+                {
+                    string accountName;
+                    int index;
+                    if (int.TryParse(item, out index) && index >= 0 && index < accounts.Count)
+                    {
+                        accountName = DashConfiguration.DataAccounts[index].Credentials.AccountName;
+                    }
+                    else
+                    {
+                        accountName = item;
+                    }
+                    yield return accountName;
+                }
+            }
+        }
+
         public static string WorkerQueueName
         {
             get { return ConfigurationSource.GetSetting("WorkerQueueName", "dashworkerqueue"); }

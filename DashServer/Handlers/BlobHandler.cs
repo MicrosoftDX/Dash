@@ -24,7 +24,7 @@ namespace Microsoft.Dash.Server.Handlers
         /// </summary>
         public static async Task<HandlerResult> BasicBlobAsync(IHttpRequestWrapper requestWrapper, string container, string blob)
         {
-            return await OperationRunner.DoHandlerAsync("BlobHandler.BasicBlobAsync", async () =>
+            return await WebOperationRunner.DoHandlerAsync("BlobHandler.BasicBlobAsync", async () =>
                 {
                     var namespaceBlob = await NamespaceHandler.FetchNamespaceBlobAsync(container, blob);
                     if (!await namespaceBlob.ExistsAsync())
@@ -44,7 +44,7 @@ namespace Microsoft.Dash.Server.Handlers
 
         public static async Task<HandlerResult> PutBlobAsync(IHttpRequestWrapper requestWrapper, string container, string blob)
         {
-            return await OperationRunner.DoHandlerAsync("BlobHandler.PutBlobAsync", async () =>
+            return await WebOperationRunner.DoHandlerAsync("BlobHandler.PutBlobAsync", async () =>
                 {
                     var namespaceBlob = await NamespaceHandler.CreateNamespaceBlobAsync(container, blob);
                     //redirection code
@@ -58,7 +58,7 @@ namespace Microsoft.Dash.Server.Handlers
 
         public static async Task<HandlerResult> CopyBlobAsync(IHttpRequestWrapper requestWrapper, string destContainer, string destBlob, string source)
         {
-            return await OperationRunner.DoHandlerAsync("BlobHandler.CopyBlobAsync", async () =>
+            return await WebOperationRunner.DoHandlerAsync("BlobHandler.CopyBlobAsync", async () =>
                 {
                     // source is a naked URI supplied by client
                     Uri sourceUri;
@@ -67,7 +67,7 @@ namespace Microsoft.Dash.Server.Handlers
                         string sourceContainer = String.Empty;
                         string sourceBlobName = String.Empty;
                         string sourceQuery = String.Empty;
-                        var requestVersion = new DateTimeOffset(requestWrapper.Headers.Value("x-ms-version", StorageServiceVersions.Version_2009_09_19.UtcDateTime), TimeSpan.FromHours(0));
+                        var requestVersion = requestWrapper.Headers.Value("x-ms-version", StorageServiceVersions.Version_2009_09_19);
                         bool processRelativeSource = false;
                         if (!sourceUri.IsAbsoluteUri)
                         {
@@ -149,7 +149,8 @@ namespace Microsoft.Dash.Server.Handlers
                                 DashConfiguration.GetDataAccountByAccountName(sourceNamespaceBlob.AccountName),
                                 sourceContainer,
                                 sourceBlobName,
-                                false);
+                                false,
+                                String.Empty);
                             sourceUri = sourceUriBuilder.Uri;
                         }
                         else if (await destNamespaceBlob.ExistsAsync())
@@ -202,7 +203,7 @@ namespace Microsoft.Dash.Server.Handlers
 
         public static async Task<HandlerResult> AbortCopyBlobAsync(IHttpRequestWrapper requestWrapper, string destContainer, string destBlob, string copyId)
         {
-            return await OperationRunner.DoHandlerAsync("BlobHandler.AbortCopyBlobAsync", async () =>
+            return await WebOperationRunner.DoHandlerAsync("BlobHandler.AbortCopyBlobAsync", async () =>
                 {
                     var destNamespaceBlob = await NamespaceHandler.FetchNamespaceBlobAsync(destContainer, destBlob);
 
