@@ -17,7 +17,7 @@ namespace Microsoft.Dash.Common.Platform
     {
         // Add a message to the queue
         void Enqueue(QueueMessage message);
-        void EnqueueAsync(QueueMessage message);
+        Task EnqueueAsync(QueueMessage message);
         // Get a message from the queue and set it as the currently active message
         QueueMessage Dequeue();
         // Delete the currently active message
