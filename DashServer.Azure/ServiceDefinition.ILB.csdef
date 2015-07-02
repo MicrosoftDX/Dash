@@ -4,14 +4,14 @@
     <Sites>
       <Site name="Web">
         <Bindings>
+          <Binding name="HttpInternal" endpointName="HttpInternal" />
           <Binding name="HttpExternal" endpointName="HttpExternal" />
-          <Binding name="HttpsExternal" endpointName="HttpsExternal" />
         </Bindings>
       </Site>
     </Sites>
     <Endpoints>
-      <InputEndpoint name="HttpExternal" protocol="http" port="80" />
-      <InputEndpoint name="HttpsExternal" protocol="https" port="443" certificate="TlsCertificate" />
+      <InputEndpoint name="HttpInternal" protocol="http" port="80" loadBalancer="Dash_ILB" />
+      <InputEndpoint name="HttpExternal" protocol="http" port="8080" />
     </Endpoints>
     <Imports>
       <Import moduleName="Diagnostics" />
@@ -39,20 +39,5 @@
       <Setting name="ScaleoutStorage15" />
       <Setting name="LogNormalOperations" />
     </ConfigurationSettings>
-    <Certificates>
-      <Certificate name="TlsCertificate" storeLocation="LocalMachine" storeName="My" />
-    </Certificates>
-    <Startup>
-      <Task commandLine=".\startup\RunWorkerQueue.cmd" executionContext="elevated" taskType="simple">
-        <Environment>
-          <Variable name="StartupLogs">
-            <RoleInstanceValue xpath="/RoleEnvironment/CurrentInstance/LocalResources/LocalResource[@name='StartupLogs']/@path" />
-          </Variable>
-        </Environment>
-      </Task>
-    </Startup>
-    <LocalResources>
-      <LocalStorage name="StartupLogs" cleanOnRoleRecycle="false" sizeInMB="10" />
-    </LocalResources>
   </WebRole>
 </ServiceDefinition>
