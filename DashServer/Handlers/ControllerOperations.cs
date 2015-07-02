@@ -32,17 +32,24 @@ namespace Microsoft.Dash.Server.Handlers
             return GetRedirectUri(request.Url, request.HttpMethod, account, containerName, blobName);
         }
 
-        public static Uri GetRedirectUri(Uri originalUri, string method, CloudStorageAccount account, string containerName, string blobName)
+        public static Uri GetRedirectUri(Uri originalUri, string method, CloudStorageAccount account, string containerName, string blobName, bool decodeQueryParams = true)
         {
-            var redirectUri = GetRedirectUriBuilder(method, originalUri.Scheme, account, containerName, blobName, true, originalUri.Query);
+            var redirectUri = GetRedirectUriBuilder(method, originalUri.Scheme, account, containerName, blobName, true, originalUri.Query, decodeQueryParams);
             return redirectUri.Uri;
         }
 
-        public static UriBuilder GetRedirectUriBuilder(string method, string scheme, CloudStorageAccount account, string containerName, string blobName, bool useSas, string queryString)
+        public static UriBuilder GetRedirectUriBuilder(string method, 
+            string scheme, 
+            CloudStorageAccount account, 
+            string containerName, 
+            string blobName, 
+            bool useSas, 
+            string queryString, 
+            bool decodeQueryParams = true)
         {
             CloudBlobContainer container = NamespaceHandler.GetContainerByName(account, containerName);
             // Strip any existing SAS query params as we'll replace them with our own SAS calculation
-            var queryParams = RequestQueryParameters.Create(queryString);
+            var queryParams = RequestQueryParameters.Create(queryString, decodeQueryParams);
             SharedAccessSignature.RemoveSasQueryParameters(queryParams);
             if (useSas)
             {

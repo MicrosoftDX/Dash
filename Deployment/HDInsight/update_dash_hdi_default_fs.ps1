@@ -91,7 +91,7 @@ foreach ($directory in $directories)
 
 Write-HDILog "Restarting HDInsight services";
 $output = $hdiservices | Start-Service | Out-String
-Write-HDILog $output
+    Write-HDILog $output
 
 # Create a container in the Dash account to work from. Given that this script is running on every VM in the cluster
 # this will be a race condition between all script invocations - first one wins, everyone else fails benignly
