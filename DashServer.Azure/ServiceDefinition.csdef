@@ -40,5 +40,17 @@
       <Setting name="ReplicationMetadataName" />
       <Setting name="ReplicationMetadataValue" />
     </ConfigurationSettings>
+    <Startup>
+      <Task commandLine=".\startup\RunWorkerQueue.cmd" executionContext="elevated" taskType="simple">
+        <Environment>
+          <Variable name="StartupLogs">
+            <RoleInstanceValue xpath="/RoleEnvironment/CurrentInstance/LocalResources/LocalResource[@name='StartupLogs']/@path" />
+          </Variable>
+        </Environment>
+      </Task>
+    </Startup>
+    <LocalResources>
+      <LocalStorage name="StartupLogs" cleanOnRoleRecycle="false" sizeInMB="10" />
+    </LocalResources>
   </WebRole>
 </ServiceDefinition>

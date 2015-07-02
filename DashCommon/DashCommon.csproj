@@ -2,6 +2,8 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
+    <MyProgramFiles>$(ProgramW6432)</MyProgramFiles>
+    <MyProgramFiles Condition="$(MyProgramFiles) == ''">$(ProgramFiles)</MyProgramFiles>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{9514A309-45D1-45E1-B77B-A99CD59B8C77}</ProjectGuid>
@@ -50,7 +52,7 @@
     </Reference>
     <Reference Include="Microsoft.WindowsAzure.Diagnostics, Version=2.4.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>$(ProgramFiles)\Microsoft SDKs\Azure\.NET SDK\v2.4\ref\Microsoft.WindowsAzure.Diagnostics.dll</HintPath>
+      <HintPath>$(MyProgramFiles)\Microsoft SDKs\Azure\.NET SDK\v2.4\ref\Microsoft.WindowsAzure.Diagnostics.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.WindowsAzure.Storage">
       <HintPath>..\packages\WindowsAzure.Storage.4.3.0\lib\net40\Microsoft.WindowsAzure.Storage.dll</HintPath>
@@ -76,12 +78,24 @@
   <ItemGroup>
     <Compile Include="Diagnostics\DashErrorInformation.cs" />
     <Compile Include="Diagnostics\DashTrace.cs" />
+    <Compile Include="Diagnostics\OperationRunner.cs" />
     <Compile Include="Diagnostics\TraceMessage.cs" />
+    <Compile Include="Handlers\ContainerHandler.cs" />
     <Compile Include="Handlers\NamespaceBlob.cs" />
     <Compile Include="Handlers\NamespaceHandler.cs" />
+    <Compile Include="Processors\AccountManager.cs" />
+    <Compile Include="Utils\AccountStatus.cs" />
+    <Compile Include="Platform\AzureMessageQueue.cs" />
+    <Compile Include="Platform\MessageTypes.cs" />
+    <Compile Include="Platform\QueueMessage.cs" />
+    <Compile Include="Platform\ReplicatePayload.cs" />
+    <Compile Include="Platform\ReplicateProgressPayload.cs" />
     <Compile Include="Utils\AzureUtils.cs" />
     <Compile Include="Utils\DashConfiguration.cs" />
     <Compile Include="Utils\SharedKeySignature.cs" />
+    <Compile Include="Utils\SimpleHttpResponse.cs" />
+    <Compile Include="Utils\StorageListAsync.cs" />
+    <Compile Include="Platform\MessageQueue.cs" />
     <Compile Include="Utils\StorageServiceVersions.cs" />
   </ItemGroup>
   <ItemGroup>
