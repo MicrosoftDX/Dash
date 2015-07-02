@@ -31,14 +31,21 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <TargetProfile Condition=" '$(TargetProfile)' == '' ">Cloud</TargetProfile>
+    <IsILBProfile Condition=" '$(IsILBProfile)' == '' ">$(TargetProfile.ToLower().Contains('.ilb'))</IsILBProfile>
+  </PropertyGroup>
   <!-- Items for the project -->
   <ItemGroup>
-    <ServiceConfiguration Include="ServiceConfiguration.VNet - Internal Load Balancer.cscfg" />
-    <ServiceDefinition Include="ServiceDefinition.csdef" />
-    <ServiceConfiguration Include="ServiceConfiguration.Cloud - East.cscfg" />
     <ServiceConfiguration Include="ServiceConfiguration.Publish.cscfg" />
+    <ServiceConfiguration Include="ServiceConfiguration.Publish.ILB.cscfg" />
+    <ServiceConfiguration Include="ServiceConfiguration.Cloud - East.cscfg" />
     <ServiceConfiguration Include="ServiceConfiguration.Local.cscfg" />
     <ServiceConfiguration Include="ServiceConfiguration.Cloud.cscfg" />
+  </ItemGroup>
+  <ItemGroup>
+    <ServiceDefinition Condition="!$(IsILBProfile)" Include="ServiceDefinition.csdef" />
+    <ServiceDefinition Condition="$(IsILBProfile)" Include="ServiceDefinition.ILB.csdef" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DashServer\DashServer.csproj">

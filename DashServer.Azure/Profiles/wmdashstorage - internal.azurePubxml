@@ -13,7 +13,7 @@
     <AzureHostedServiceName>wmdashstorage-internal</AzureHostedServiceName>
     <AzureEnableIntelliTrace>False</AzureEnableIntelliTrace>
     <AzureEnableProfiling>False</AzureEnableProfiling>
-    <AzureServiceConfiguration>VNet - Internal Load Balancer</AzureServiceConfiguration>
+    <AzureServiceConfiguration>Publish.ILB</AzureServiceConfiguration>
     <AzureSolutionConfiguration>Release</AzureSolutionConfiguration>
     <AzureStorageAccountLabel>hdiscaleout</AzureStorageAccountLabel>
     <AzureStorageAccountName>hdiscaleout</AzureStorageAccountName>

@@ -13,7 +13,7 @@
     <AzureHostedServiceName>wmdashweststorage-internal</AzureHostedServiceName>
     <AzureEnableIntelliTrace>False</AzureEnableIntelliTrace>
     <AzureEnableProfiling>False</AzureEnableProfiling>
-    <AzureServiceConfiguration>VNet - Internal Load Balancer</AzureServiceConfiguration>
+    <AzureServiceConfiguration>Publish.ILB</AzureServiceConfiguration>
     <AzureSolutionConfiguration>Release</AzureSolutionConfiguration>
     <AzureStorageAccountLabel>wmdashdeployment</AzureStorageAccountLabel>
     <AzureStorageAccountName>wmdashdeployment</AzureStorageAccountName>
