@@ -72,10 +72,10 @@ namespace Microsoft.Dash.Server.Authorization
             {
                 pathsToCheck.Add(unencodedPath);
             }
-            var alternateEncodingPath = AlternateEncodeString(pathsToCheck[0]);
-            if (!String.IsNullOrEmpty(alternateEncodingPath))
+            var alternateEncodingPaths = AlternateEncodeString(pathsToCheck[0]);
+            if (alternateEncodingPaths != null)
             {
-                pathsToCheck.Add(alternateEncodingPath);
+                pathsToCheck.AddRange(alternateEncodingPaths);
             }
             // For some verbs we can't tell if the Content-Length header was specified as 0 or that IIS/UrlRewrite/ASP.NET has constructed
             // the header value for us. The difference is significant to the signature as content length is included for SharedKey
@@ -129,7 +129,7 @@ namespace Microsoft.Dash.Server.Authorization
             return false;
         }
 
-        static string AlternateEncodeString(string source)
+        static IEnumerable<string> AlternateEncodeString(string source)
         {
             for (int pos = 0; pos < source.Length; pos++)
             {
@@ -140,14 +140,17 @@ namespace Microsoft.Dash.Server.Authorization
                 }
                 else if (IsAlternateEncodingCharacter(source[pos]))
                 {
-                    return AlternateEncodeStringTranslate(source, pos);
+                    return new[] {
+                        AlternateEncodeStringTranslate(source, pos, true),
+                        AlternateEncodeStringTranslate(source, pos, false),
+                    };
                 }
 
             }
             return null;
         }
 
-        static string AlternateEncodeStringTranslate(string source, int pos)
+        static string AlternateEncodeStringTranslate(string source, int pos, bool upperCase)
         {
             // Allocate enough capacity here to handle worst-case of all remaining characters needing hex encoding
             // without StringBuilding needing to reallocate its buffer
@@ -157,7 +160,14 @@ namespace Microsoft.Dash.Server.Authorization
                 char ch = source[pos];
                 if (IsAlternateEncodingCharacter(ch))
                 {
-                    dest.Append(Uri.HexEscape(ch));
+                    if (upperCase)
+                    {
+                        dest.Append(Uri.HexEscape(ch));
+                    }
+                    else
+                    {
+                        dest.Append(Uri.HexEscape(ch).ToLowerInvariant());
+                    }
                 }
                 else
                 {
@@ -169,6 +179,10 @@ namespace Microsoft.Dash.Server.Authorization
 
         static bool IsAlternateEncodingCharacter(char ch)
         {
+            if (ch == ',')
+            {
+                return true;
+            }
             var category = Char.GetUnicodeCategory(ch);
             return category == UnicodeCategory.OpenPunctuation || category == UnicodeCategory.ClosePunctuation;
         }
