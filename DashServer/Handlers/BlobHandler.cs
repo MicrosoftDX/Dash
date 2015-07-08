@@ -34,11 +34,12 @@ namespace Microsoft.Dash.Server.Handlers
                             StatusCode = HttpStatusCode.NotFound,
                         };
                     }
-                    return HandlerResult.Redirect(requestWrapper, 
-                        ControllerOperations.GetRedirectUri(HttpContextFactory.Current.Request,
-                            DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName),
-                            namespaceBlob.Container,
-                            namespaceBlob.BlobName));
+                    Uri redirect = ControllerOperations.GetRedirectUri(HttpContextFactory.Current.Request,
+                        DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName),
+                        namespaceBlob.Container,
+                        namespaceBlob.BlobName,
+                        false);
+                    return HandlerResult.Redirect(requestWrapper, redirect);
                 });
         }
 
@@ -51,7 +52,8 @@ namespace Microsoft.Dash.Server.Handlers
                     Uri redirect = ControllerOperations.GetRedirectUri(HttpContextFactory.Current.Request,
                         DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName),
                         container,
-                        blob);
+                        blob,
+                        false);
                     return HandlerResult.Redirect(requestWrapper, redirect);
                 });
         }
