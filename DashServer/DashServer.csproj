@@ -123,7 +123,7 @@
     <Compile Include="Controllers\CommonController.cs" />
     <Compile Include="Diagnostics\WebOperationRunner.cs" />
     <Compile Include="Handlers\BlobHandler.cs" />
-    <Compile Include="Handlers\BlobReplicationHandler.cs" />
+    <Compile Include="Handlers\BlobReplicationOperations.cs" />
     <Compile Include="Handlers\ControllerOperations.cs" />
     <Compile Include="Controllers\ContainerController.cs" />
     <Compile Include="Handlers\DashClientCapabilities.cs" />

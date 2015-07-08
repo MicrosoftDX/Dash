@@ -32,7 +32,7 @@ namespace Microsoft.Dash.Server.Handlers
                         result = await BlobHandler.BasicBlobAsync(requestWrapper, 
                             containerName, 
                             blobName, 
-                            BlobReplicationHandler.DoesOperationTriggerReplication(requestOperation));
+                            BlobReplicationOperations.DoesOperationTriggerReplication(requestOperation));
                     }
                     break;
 
@@ -42,7 +42,7 @@ namespace Microsoft.Dash.Server.Handlers
                         result = await BlobHandler.BasicBlobAsync(requestWrapper, 
                             containerName, 
                             blobName,
-                            BlobReplicationHandler.DoesOperationTriggerReplication(requestOperation));
+                            BlobReplicationOperations.DoesOperationTriggerReplication(requestOperation));
                     }
                     break;
 
@@ -54,7 +54,7 @@ namespace Microsoft.Dash.Server.Handlers
                         result = await BlobHandler.PutBlobAsync(requestWrapper, 
                             containerName, 
                             blobName,
-                            BlobReplicationHandler.DoesOperationTriggerReplication(requestOperation));
+                            BlobReplicationOperations.DoesOperationTriggerReplication(requestOperation));
                     }
                     break;
 

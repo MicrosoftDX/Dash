@@ -12,6 +12,7 @@ namespace Microsoft.Dash.Common.Platform
     {
         Unknown = 0,
         BeginReplicate = 1,
-        ReplicateProgress = 2
+        ReplicateProgress = 2,
+        DeleteReplica = 3,
     }
 }

@@ -37,10 +37,11 @@ namespace Microsoft.Dash.Server.Handlers
                     string accountName = namespaceBlob.SelectDataAccount;
                     if (operationCanReplicateBlob)
                     {
-                        if (BlobReplicationHandler.ShouldReplicateBlob(requestWrapper.Headers, container, blob))
+                        if (namespaceBlob.IsReplicated || 
+                            BlobReplicationHandler.ShouldReplicateBlob(requestWrapper.Headers, container, blob))
                         {
                             accountName = namespaceBlob.PrimaryAccountName;
-                            await BlobReplicationHandler.EnqueueBlobReplication(namespaceBlob, false);
+                            await BlobReplicationHandler.EnqueueBlobReplicationAsync(namespaceBlob, false);
                         }
                     }
                     return HandlerResult.Redirect(requestWrapper, 
@@ -60,7 +61,7 @@ namespace Microsoft.Dash.Server.Handlers
                     {
                         if (BlobReplicationHandler.ShouldReplicateBlob(requestWrapper.Headers, container, blob))
                         {
-                            await BlobReplicationHandler.EnqueueBlobReplication(namespaceBlob, false);
+                            await BlobReplicationHandler.EnqueueBlobReplicationAsync(namespaceBlob, false);
                         }
                     }
                     Uri redirect = ControllerOperations.GetRedirectUri(HttpContextFactory.Current.Request,

@@ -56,7 +56,8 @@ namespace Microsoft.Dash.Common.Processors
                         var blob = (ICloudBlob)blobItem;
                         var namespaceBlob = await NamespaceBlob.FetchForBlobAsync(
                             (CloudBlockBlob)NamespaceHandler.GetBlobByName(DashConfiguration.NamespaceAccount, blob.Container.Name, blob.Name, blob.IsSnapshot ? blob.SnapshotTime.ToString() : String.Empty));
-                        alreadyImported = await namespaceBlob.ExistsAsync(true) && String.Equals(accountName, namespaceBlob.AccountName, StringComparison.OrdinalIgnoreCase);
+                        alreadyImported = await namespaceBlob.ExistsAsync(true) &&
+                            namespaceBlob.DataAccounts.Contains(accountName, StringComparer.OrdinalIgnoreCase);
                         return false;
                     });
                 if (alreadyImported)
@@ -127,7 +128,7 @@ namespace Microsoft.Dash.Common.Processors
                             (CloudBlockBlob)NamespaceHandler.GetBlobByName(DashConfiguration.NamespaceAccount, blob.Container.Name, blob.Name, blob.IsSnapshot ? blob.SnapshotTime.ToString() : String.Empty));
                         if (await namespaceBlob.ExistsAsync())
                         {
-                            if (!String.Equals(namespaceBlob.AccountName, accountName, StringComparison.OrdinalIgnoreCase))
+                            if (!String.Equals(namespaceBlob.PrimaryAccountName, accountName, StringComparison.OrdinalIgnoreCase))
                             {
                                 await status.UpdateStatusWarning("Importing storage account: {0}. Adding blob: {1}/{2} would result in a duplicate blob entry. This blob will NOT be imported into the virtual account. Manually add the contents of this blob to the virtual account.",
                                     accountName, 
@@ -138,7 +139,7 @@ namespace Microsoft.Dash.Common.Processors
                         }
                         else
                         {
-                            namespaceBlob.AccountName = accountName;
+                            namespaceBlob.PrimaryAccountName = accountName;
                             namespaceBlob.Container = blob.Container.Name;
                             namespaceBlob.BlobName = blob.Name;
                             namespaceBlob.IsMarkedForDeletion = false;

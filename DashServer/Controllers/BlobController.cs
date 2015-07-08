@@ -67,9 +67,9 @@ namespace Microsoft.Dash.Server.Controllers
                         return forwardedResponse;
                     }
                     // See if we need to delete any replicas
-                    if (BlobReplicationHandler.ShouldReplicateBlob(headers, namespaceBlob)) 
+                    if (namespaceBlob.IsReplicated) 
                     {
-                        await BlobReplicationHandler.EnqueueBlobReplication(namespaceBlob, true, false);
+                        await BlobReplicationHandler.EnqueueBlobReplicationAsync(namespaceBlob, true, false);
                     }
                     // Mark the namespace blob for deletion
                     await namespaceBlob.MarkForDeletionAsync();
@@ -144,10 +144,11 @@ namespace Microsoft.Dash.Server.Controllers
                     {
                         return this.CreateResponse(HttpStatusCode.NotFound, (RequestHeaders)null);
                     }
-                    if (BlobReplicationHandler.DoesOperationTriggerReplication(operation) &&
-                        BlobReplicationHandler.ShouldReplicateBlob(requestWrapper.Headers, namespaceBlob))
+                    if (BlobReplicationOperations.DoesOperationTriggerReplication(operation) &&
+                        (namespaceBlob.IsReplicated || 
+                         BlobReplicationHandler.ShouldReplicateBlob(requestWrapper.Headers, namespaceBlob)))
                     {
-                        await BlobReplicationHandler.EnqueueBlobReplication(namespaceBlob, false);
+                        await BlobReplicationHandler.EnqueueBlobReplicationAsync(namespaceBlob, false);
                     }
                     return await ForwardRequestHandler(namespaceBlob, operation);
                 });
@@ -159,10 +160,10 @@ namespace Microsoft.Dash.Server.Controllers
                 async () =>
                 {
                     var namespaceBlob = await NamespaceHandler.CreateNamespaceBlobAsync(container, blob);
-                    if (BlobReplicationHandler.DoesOperationTriggerReplication(operation) &&
+                    if (BlobReplicationOperations.DoesOperationTriggerReplication(operation) &&
                         BlobReplicationHandler.ShouldReplicateBlob(requestWrapper.Headers, namespaceBlob))
                     {
-                        await BlobReplicationHandler.EnqueueBlobReplication(namespaceBlob, false);
+                        await BlobReplicationHandler.EnqueueBlobReplicationAsync(namespaceBlob, false);
                     }
                     return await ForwardRequestHandler(namespaceBlob, operation);
                 });
