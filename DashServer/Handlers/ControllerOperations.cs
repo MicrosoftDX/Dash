@@ -1,7 +1,9 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Web;
 using Microsoft.Dash.Common.Diagnostics;
 using Microsoft.Dash.Common.Handlers;
@@ -15,6 +17,9 @@ namespace Microsoft.Dash.Server.Handlers
 {
     public static class ControllerOperations
     {
+        // TODO: Possibly move this to config in future - however, still need to handle per request
+        const string StandardPathDelimiter  = "/";
+
         public static Uri ForwardUriToNamespace(HttpRequestBase request)
         {
             UriBuilder forwardUri = new UriBuilder()
@@ -27,12 +32,21 @@ namespace Microsoft.Dash.Server.Handlers
             return forwardUri.Uri;
         }
 
-        public static Uri GetRedirectUri(HttpRequestBase request, CloudStorageAccount account, string containerName, string blobName)
+        public static Uri GetRedirectUri(HttpRequestBase request, 
+            CloudStorageAccount account, 
+            string containerName, 
+            string blobName,
+            bool decodeQueryParams = true)
         {
-            return GetRedirectUri(request.Url, request.HttpMethod, account, containerName, blobName);
+            return GetRedirectUri(request.Url, request.HttpMethod, account, containerName, blobName, decodeQueryParams);
         }
 
-        public static Uri GetRedirectUri(Uri originalUri, string method, CloudStorageAccount account, string containerName, string blobName, bool decodeQueryParams = true)
+        public static Uri GetRedirectUri(Uri originalUri, 
+            string method, 
+            CloudStorageAccount account, 
+            string containerName, 
+            string blobName,
+            bool decodeQueryParams = true)
         {
             var redirectUri = GetRedirectUriBuilder(method, originalUri.Scheme, account, containerName, blobName, true, originalUri.Query, decodeQueryParams);
             return redirectUri.Uri;
@@ -60,9 +74,32 @@ namespace Microsoft.Dash.Server.Handlers
             {
                 Scheme = scheme,
                 Host = account.BlobEndpoint.Host,
-                Path = containerName + "/" + blobName.TrimStart('/'),
+                Path = containerName + StandardPathDelimiter + PathEncode(blobName.TrimStart(StandardPathDelimiter[0])),
                 Query = queryParams.ToString(),
             };
+        }
+
+        static readonly MethodInfo _IsUrlSafeChar = Assembly.GetAssembly(typeof(HttpUtility))
+            .GetType("System.Web.Util.HttpEncoderUtility", false)
+            .GetMethod("IsUrlSafeChar", BindingFlags.Static | BindingFlags.Public);
+        static string PathEncode(string path)
+        {
+            // Pulling apart the path, encoding each segment & re-assembling it is a potentially expensive operation.
+            // It's worth doing the pre-check, even if it involves scanning the string twice
+            if (String.IsNullOrWhiteSpace(path))
+            {
+                return path;
+            }
+            char folderSplit = StandardPathDelimiter[0];
+            if (_IsUrlSafeChar != null && 
+                !path.Any(ch => ch != folderSplit && !(bool)_IsUrlSafeChar.Invoke(null, new object[] { ch })))
+            {
+                return path;
+            }
+            var segments = path.Split(new[] { folderSplit }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(segment => HttpUtility.UrlEncode(segment))
+                .ToArray();
+            return String.Join(StandardPathDelimiter, segments);
         }
 
         //calculates Shared Access Signature (SAS) string based on type of request (GET, HEAD, DELETE, PUT)

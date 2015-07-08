@@ -44,11 +44,12 @@ namespace Microsoft.Dash.Server.Handlers
                             await BlobReplicationHandler.EnqueueBlobReplicationAsync(namespaceBlob, false);
                         }
                     }
-                    return HandlerResult.Redirect(requestWrapper, 
-                        ControllerOperations.GetRedirectUri(HttpContextFactory.Current.Request,
-                            DashConfiguration.GetDataAccountByAccountName(accountName),
-                            namespaceBlob.Container,
-                            namespaceBlob.BlobName));
+                    Uri redirect = ControllerOperations.GetRedirectUri(HttpContextFactory.Current.Request,
+                        DashConfiguration.GetDataAccountByAccountName(accountName),
+                        namespaceBlob.Container,
+                        namespaceBlob.BlobName,
+                        false);
+                    return HandlerResult.Redirect(requestWrapper, redirect);
                 });
         }
 
@@ -67,7 +68,8 @@ namespace Microsoft.Dash.Server.Handlers
                     Uri redirect = ControllerOperations.GetRedirectUri(HttpContextFactory.Current.Request,
                         DashConfiguration.GetDataAccountByAccountName(namespaceBlob.PrimaryAccountName),
                         container,
-                        blob);
+                        blob,
+                        false);
                     return HandlerResult.Redirect(requestWrapper, redirect);
                 });
         }

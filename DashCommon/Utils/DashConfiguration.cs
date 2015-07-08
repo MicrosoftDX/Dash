@@ -142,7 +142,7 @@ namespace Microsoft.Dash.Common.Utils
             {
                 // Account can be specified either by zero-based index or account name
                 var accounts = DashConfiguration.DataAccounts;
-                foreach (var item in ConfigurationSource.GetSetting("ImportAccounts", "").Split(',', ';'))
+                foreach (var item in ConfigurationSource.GetSetting("ImportAccounts", "").Split(new [] {',', ';'}, StringSplitOptions.RemoveEmptyEntries))
                 {
                     string accountName;
                     int index;
