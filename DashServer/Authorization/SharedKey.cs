@@ -163,9 +163,9 @@ namespace Microsoft.Dash.Server.Authorization
                     if (upperCase)
                     {
                         dest.Append(Uri.HexEscape(ch));
-                }
-                else
-                {
+                    }
+                    else
+                    {
                         dest.Append(Uri.HexEscape(ch).ToLowerInvariant());
                     }
                 }
