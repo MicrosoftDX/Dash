@@ -40,9 +40,9 @@ namespace Microsoft.Dash.Common.Platform
             CloudQueueMessage message = new CloudQueueMessage(payload.ToJson());
             await this.Queue.AddMessageAsync(message);
         }
-        public QueueMessage Dequeue()
+        public QueueMessage Dequeue(int? invisibilityTimeout = null)
         {
-            this.CurrentMessage = Queue.GetMessage(new TimeSpan(0, 0, Timeout));
+            this.CurrentMessage = Queue.GetMessage(new TimeSpan(0, 0, invisibilityTimeout ?? Timeout));
             if (this.CurrentMessage != null)
             {
                 return JsonConvert.DeserializeObject<QueueMessage>(this.CurrentMessage.AsString);

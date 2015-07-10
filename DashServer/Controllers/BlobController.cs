@@ -179,10 +179,12 @@ namespace Microsoft.Dash.Server.Controllers
         {
             // Clone the inbound request
             var sourceRequest = this.Request;
+            // We always target the primary data account for forwarded messages. If the operation invalidates the replicas, then
+            // separate logic will enqueue the new blob to be replicated.
             var clonedRequest = new HttpRequestMessage(sourceRequest.Method,
                 ControllerOperations.GetRedirectUri(sourceRequest.RequestUri,
                     sourceRequest.Method.Method,
-                    DashConfiguration.GetDataAccountByAccountName(namespaceBlob.SelectDataAccount),
+                    DashConfiguration.GetDataAccountByAccountName(namespaceBlob.PrimaryAccountName),
                     namespaceBlob.Container,
                     namespaceBlob.BlobName, 
                     false));

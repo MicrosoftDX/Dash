@@ -105,10 +105,7 @@ namespace Microsoft.Dash.Server.Handlers
                             (String.Equals(sourceUri.Host, requestWrapper.Url.Host, StringComparison.OrdinalIgnoreCase) &&
                             ((sourceUri.IsDefaultPort && requestWrapper.Url.IsDefaultPort) || (sourceUri.Port == requestWrapper.Url.Port))))
                         {
-                            var segments = sourceUri.Segments
-                                .Select(segment => segment.Trim('/'))
-                                .Where(segment => !String.IsNullOrWhiteSpace(segment))
-                                .ToList();
+                            var segments = PathUtils.GetPathSegments(sourceUri.AbsolutePath);
                             if (processRelativeSource)
                             {
                                 // Blob in named container: /accountName/containerName/blobName
@@ -135,13 +132,13 @@ namespace Microsoft.Dash.Server.Handlers
                                 else if (segments.Count() > 2)
                                 {
                                     sourceContainer = segments[1];
-                                    sourceBlobName = String.Join("/", segments.Skip(2));
+                                    sourceBlobName = PathUtils.CombinePathSegments(segments.Skip(2));
                                 }
                             }
                             else
                             {
                                 sourceContainer = segments.FirstOrDefault();
-                                sourceBlobName = String.Join("/", segments.Skip(1));
+                                sourceBlobName = PathUtils.CombinePathSegments(segments.Skip(1));
                             }
                         }
                         var destNamespaceBlob = await NamespaceHandler.FetchNamespaceBlobAsync(destContainer, destBlob);
@@ -182,7 +179,13 @@ namespace Microsoft.Dash.Server.Handlers
                         if (await destNamespaceBlob.ExistsAsync() && destNamespaceBlob.PrimaryAccountName != destAccount)
                         {
                             // Delete the existing blob to prevent orphaning it
-                            var dataBlob = NamespaceHandler.GetBlobByName(DashConfiguration.GetDataAccountByAccountName(destNamespaceBlob.AccountName), destContainer, destBlob);
+                            if (destNamespaceBlob.IsReplicated)
+                            {
+                                // Enqueue deletion of replicas
+                                await BlobReplicationHandler.EnqueueBlobReplicationAsync(destNamespaceBlob, true, false);
+                            }
+                            var dataBlob = NamespaceHandler.GetBlobByName(
+                                DashConfiguration.GetDataAccountByAccountName(destNamespaceBlob.PrimaryAccountName), destContainer, destBlob);
                             await dataBlob.DeleteIfExistsAsync();
                         }
                         destNamespaceBlob.PrimaryAccountName = destAccount;
@@ -202,6 +205,11 @@ namespace Microsoft.Dash.Server.Handlers
                                 RetryPolicy = new NoRetry(),
                             },
                             new OperationContext());
+                        // Check if we should replicate the copied destination blob
+                        if (BlobReplicationHandler.ShouldReplicateBlob(requestWrapper.Headers, destContainer, destBlob))
+                        {
+                            await BlobReplicationHandler.EnqueueBlobReplicationAsync(destContainer, destBlob, false);
+                        }
                         return new HandlerResult
                         {
                             StatusCode = requestVersion >= StorageServiceVersions.Version_2012_02_12 ? HttpStatusCode.Accepted : HttpStatusCode.Created,

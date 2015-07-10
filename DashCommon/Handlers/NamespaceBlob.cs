@@ -12,12 +12,13 @@ namespace Microsoft.Dash.Common.Handlers
 {
     public class NamespaceBlob
     {
-        const string MetadataNameAccount    = "accountname";
-        const string MetadataNameContainer  = "container";
-        const string MetadataNameBlobName   = "blobname";
-        const string MetadataNameDeleteFlag = "todelete";
+        const string MetadataNameAccount            = "accountname";
+        const string MetadataNameContainer          = "container";
+        const string MetadataNameBlobName           = "blobname";
+        const string MetadataNameDeleteFlag         = "todelete";
 
-        const string AccountDelimiter       = "|";
+        const string AccountDelimiter               = "|";
+        static readonly char AccountDelimiterChar   = AccountDelimiter[0];
 
         static Random _dataAccountSelector  = new Random();
 
@@ -57,6 +58,7 @@ namespace Microsoft.Dash.Common.Handlers
             {
                 await _namespaceBlob.SetMetadataAsync(AccessCondition.GenerateIfMatchCondition(_namespaceBlob.Properties.ETag), null, null);
             }
+            _blobExists = true;
         }
 
         public async Task MarkForDeletionAsync()
@@ -103,8 +105,18 @@ namespace Microsoft.Dash.Common.Handlers
                     {
                         if (_dataAccounts == null)
                         {
-                            _dataAccounts = TryGetMetadataValue(MetadataNameAccount)
-                                .Split(AccountDelimiter[0]);
+                            string accounts = TryGetMetadataValue(MetadataNameAccount);
+                            if (String.IsNullOrWhiteSpace(accounts))
+                            {
+                                _dataAccounts = new List<string>();
+                            }
+                            else
+                            {
+                                _dataAccounts = accounts
+                                    .Split(AccountDelimiterChar)
+                                    .Select(account => account.Trim())
+                                    .ToList();
+                            }
                         }
                     }
                 }

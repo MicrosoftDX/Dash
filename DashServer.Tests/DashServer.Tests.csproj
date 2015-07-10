@@ -87,6 +87,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AccountManagementTests.cs" />
+    <Compile Include="BlobReplicationTests.cs" />
     <Compile Include="MockHttpWrapper.cs" />
     <Compile Include="PipelineTestBase.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

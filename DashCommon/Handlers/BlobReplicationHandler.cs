@@ -3,10 +3,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Microsoft.Dash.Common.Diagnostics;
 using Microsoft.Dash.Common.Platform;
 using Microsoft.Dash.Common.Utils;
-using System.Text.RegularExpressions;
 
 namespace Microsoft.Dash.Common.Handlers
 {
@@ -33,9 +34,10 @@ namespace Microsoft.Dash.Common.Handlers
                 string replicaMetadata = DashConfiguration.ReplicationMetadataName;
                 if (headers != null && !String.IsNullOrWhiteSpace(replicaMetadata))
                 {
-                    if (headers.Contains(replicaMetadata))
+                    string replicateHeader = "x-ms-meta-" + replicaMetadata;
+                    if (headers.Contains(replicateHeader))
                     {
-                        retval = String.Equals(DashConfiguration.ReplicationMetadataValue, headers[replicaMetadata].First(), StringComparison.OrdinalIgnoreCase);
+                        retval = String.Equals(DashConfiguration.ReplicationMetadataValue, headers[replicateHeader].First(), StringComparison.OrdinalIgnoreCase);
                         evaluated = true;
                     }
                 }
@@ -43,7 +45,7 @@ namespace Microsoft.Dash.Common.Handlers
                 {
                     if (_replicationPathExpression != null)
                     {
-                        retval = _replicationPathExpression.IsMatch(container + "/" + blob);
+                        retval = _replicationPathExpression.IsMatch(PathUtils.CombineContainerAndBlob(container, blob));
                     }
                 }
 
@@ -84,14 +86,28 @@ namespace Microsoft.Dash.Common.Handlers
             var task = Task.Factory.StartNew(() =>
             {
                 var queue = new AzureMessageQueue();
-                DashConfiguration.DataAccounts
+                var tasks = DashConfiguration.DataAccounts
                     .Where(dataAccount => !dataAccount.Credentials.AccountName.Equals(primaryAccount, StringComparison.OrdinalIgnoreCase))
-                    .ToList()
-                    .ForEach(async dataAccount => await queue.EnqueueAsync(ConstructReplicationMessage(deleteReplica, 
+                    .Select(async dataAccount => await queue.EnqueueAsync(ConstructReplicationMessage(deleteReplica, 
                                                                                                         primaryAccount, 
                                                                                                         dataAccount.Credentials.AccountName, 
                                                                                                         namespaceBlob.Container,
                                                                                                         namespaceBlob.BlobName)));
+                Task.WhenAll(tasks)
+                    .ContinueWith(antecedent =>
+                        {
+                            if (antecedent.Exception != null)
+                            {
+                                DashTrace.TraceWarning("Error queueing replication message for blob: {0}. Details: {1}",
+                                    PathUtils.CombineContainerAndBlob(namespaceBlob.Container, namespaceBlob.BlobName),
+                                    antecedent.Exception.Flatten());
+                            }
+                            else
+                            {
+                                DashTrace.TraceInformation("Blob: {0} has been enqueued for replication.",
+                                    PathUtils.CombineContainerAndBlob(namespaceBlob.Container, namespaceBlob.BlobName));
+                            }
+                        });
 
             });
         }
@@ -101,7 +117,7 @@ namespace Microsoft.Dash.Common.Handlers
             return new QueueMessage(deleteReplica ? MessageTypes.DeleteReplica : MessageTypes.BeginReplicate, 
                 new Dictionary<string, string> 
                 {
-                    { ReplicatePayload.Source, sourceAccount },
+                    { ReplicatePayload.Source, deleteReplica ? destinationAccount : sourceAccount },
                     { ReplicatePayload.Destination, destinationAccount },
                     { ReplicatePayload.Container, container },
                     { ReplicatePayload.BlobName, blob },

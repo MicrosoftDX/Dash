@@ -93,6 +93,7 @@
     <Compile Include="Platform\ReplicateProgressPayload.cs" />
     <Compile Include="Utils\AzureUtils.cs" />
     <Compile Include="Utils\DashConfiguration.cs" />
+    <Compile Include="Utils\PathUtils.cs" />
     <Compile Include="Utils\SharedKeySignature.cs" />
     <Compile Include="Utils\SimpleHttpResponse.cs" />
     <Compile Include="Utils\StorageListAsync.cs" />

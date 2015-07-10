@@ -11,6 +11,7 @@ namespace Microsoft.Tests
     class TestConfigurationProvider : IDashConfigurationSource
     {
         IDictionary<string, string> _testConfig;
+        IDictionary<string, string> _tempConfig;
         CloudStorageAccount _namespaceAccount;
         IList<CloudStorageAccount> _dataAccounts;
         Dictionary<string, CloudStorageAccount> _dataAccountsByName;
@@ -26,6 +27,16 @@ namespace Microsoft.Tests
             _dataAccounts = GetDataStorageAccountsFromConfig().ToArray();
             _dataAccountsByName = _dataAccounts
                 .ToDictionary(account => account.Credentials.AccountName, StringComparer.OrdinalIgnoreCase);
+        }
+
+        public void SetTemporaryConfig(IDictionary<string, string> config)
+        {
+            _tempConfig = config;
+        }
+
+        public void ResetTemporaryConfig()
+        {
+            _tempConfig = null;
         }
 
         IEnumerable<CloudStorageAccount> GetDataStorageAccountsFromConfig()
@@ -60,7 +71,16 @@ namespace Microsoft.Tests
         {
             try
             {
-                string configValue = _testConfig[settingName];
+                bool settingFound = false;
+                string configValue = null;
+                if (_tempConfig != null)
+                {
+                    settingFound = _tempConfig.TryGetValue(settingName, out configValue);
+                }
+                if (!settingFound)
+                {
+                    configValue = _testConfig[settingName];
+                }
                 if (typeof(T).IsEnum)
                 {
                     return (T)Enum.Parse(typeof(T), configValue);

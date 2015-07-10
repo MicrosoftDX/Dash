@@ -19,7 +19,7 @@ namespace Microsoft.Dash.Common.Platform
         void Enqueue(QueueMessage message);
         Task EnqueueAsync(QueueMessage message);
         // Get a message from the queue and set it as the currently active message
-        QueueMessage Dequeue();
+        QueueMessage Dequeue(int? invisibilityTimeout = null);
         // Delete the currently active message
         void DeleteCurrentMessage();
         // Delete the referenced queue
