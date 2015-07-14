@@ -345,7 +345,7 @@ namespace Microsoft.Tests
                     // Specify 0 wait time will cause a progress message to be enqueued
                     Assert.IsTrue(BlobReplicator.BeginBlobReplication(dataAccountName, dataAccount.Credentials.AccountName, ContainerName, blobName, 0));
                 }
-                AssertReplicationWorker(ContainerName, blobName, dataAccountName, false, false);
+                AssertReplicationWorker(ContainerName, blobName, dataAccountName, false);
                 // Cleanup 
                 _runner.ExecuteRequest(blobUri,
                     "DELETE",
@@ -381,7 +381,11 @@ namespace Microsoft.Tests
                 replicaAccounts[replicateMessage.Payload[messageType == MessageTypes.BeginReplicate ? ReplicatePayload.Destination : ReplicatePayload.Source]] = true;
                 queue.DeleteCurrentMessage();
             }
-            Assert.IsFalse(replicaAccounts.Any(account => !account.Value));
+            Assert.IsFalse(replicaAccounts.Any(account => !account.Value), 
+                "Data accounts detected with no replication enqueued: {0}", 
+                String.Join(", ", replicaAccounts
+                    .Where(account => !account.Value)
+                    .Select(account => account.Key)));
         }
 
         void AssertQueueIsDrained()
@@ -411,17 +415,14 @@ namespace Microsoft.Tests
             return Convert.ToBase64String(Guid.NewGuid().ToByteArray());
         }
 
-        void AssertReplicationWorker(string container, string blobName, string primaryAccount, bool isDeleteReplica, bool verifyProcessCount = true)
+        void AssertReplicationWorker(string container, string blobName, string primaryAccount, bool isDeleteReplica)
         {
             // Wait for the messages to be fully enqueued
             Task.Delay(1000).Wait();
             int processed = 0, errors = 0;
             MessageProcessor.ProcessMessageLoop(ref processed, ref errors, 0);
             Assert.AreEqual(0, errors);
-            if (verifyProcessCount)
-            {
-                Assert.AreEqual(DashConfiguration.DataAccounts.Count - 1, processed);
-            }
+            Assert.IsTrue(DashConfiguration.DataAccounts.Count - 1 <= processed);
             foreach (var account in DashConfiguration.DataAccounts
                                         .Where(dataAccount => !String.Equals(dataAccount.Credentials.AccountName, primaryAccount, StringComparison.OrdinalIgnoreCase)))
             {
