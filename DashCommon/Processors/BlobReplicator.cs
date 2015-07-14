@@ -14,7 +14,7 @@ namespace Microsoft.Dash.Common.Processors
 {
     public class BlobReplicator
     {
-        public static bool BeginBlobReplication(string sourceAccount, string destAccount, string container, string blobName, int waitDelay = 10)
+        public static bool BeginBlobReplication(string sourceAccount, string destAccount, string container, string blobName, int? waitDelay = null)
         {
             bool retval = false;
             try
@@ -44,7 +44,7 @@ namespace Microsoft.Dash.Common.Processors
                         Permissions = SharedAccessBlobPermissions.Read,
                     }).TrimStart('?');
                 string copyId = destBlob.StartCopyFromBlob(sasUri.Uri);
-                DateTime waitForCompleteGiveUp = DateTime.UtcNow.AddSeconds(waitDelay);
+                DateTime waitForCompleteGiveUp = DateTime.UtcNow.AddSeconds(waitDelay ?? (DashConfiguration.AsyncWorkerTimeout / 2));
                 while (DateTime.UtcNow < waitForCompleteGiveUp)
                 {
                     DashTrace.TraceInformation("Fetching attributes for [{0}]", destBlob.Uri);
@@ -77,14 +77,14 @@ namespace Microsoft.Dash.Common.Processors
             return retval;
         }
 
-        public static bool ProgressBlobReplication(string sourceAccount, string destAccount, string container, string blobName, string copyId)
+        public static bool ProgressBlobReplication(string sourceAccount, string destAccount, string container, string blobName, string copyId, int? waitDelay = null)
         {
             bool retval = false;
             try
             {
                 var destContainer = DashConfiguration.GetDataAccountByAccountName(destAccount).CreateCloudBlobClient().GetContainerReference(container);
                 var destBlob = destContainer.GetBlobReferenceFromServer(blobName);
-                retval = ProcessBlobCopyStatus(destBlob, sourceAccount, copyId);
+                retval = ProcessBlobCopyStatus(destBlob, sourceAccount, copyId, waitDelay);
             }
             catch (StorageException ex)
             {
@@ -137,7 +137,7 @@ namespace Microsoft.Dash.Common.Processors
             return retval;
         }
 
-        static bool ProcessBlobCopyStatus(ICloudBlob destBlob, string sourceAccount, string copyId, int waitDelay = 10)
+        static bool ProcessBlobCopyStatus(ICloudBlob destBlob, string sourceAccount, string copyId, int? waitDelay = null)
         {
             bool retval = false;
             string destAccount = destBlob.ServiceClient.Credentials.AccountName;
@@ -174,7 +174,8 @@ namespace Microsoft.Dash.Common.Processors
                                     { ReplicateProgressPayload.Container, destBlob.Container.Name },
                                     { ReplicateProgressPayload.BlobName, destBlob.Name },
                                     { ReplicateProgressPayload.CopyID, copyId },
-                                }), waitDelay);
+                                }),
+                            waitDelay ?? (DashConfiguration.WorkerQueueInitialDelay + 10));
                         retval = true;
                         break;
 

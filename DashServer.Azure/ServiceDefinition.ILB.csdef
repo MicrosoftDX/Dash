@@ -42,7 +42,8 @@
       <Setting name="ReplicationMetadataName" />
       <Setting name="ReplicationMetadataValue" />
       <Setting name="WorkerQueueName" />
-      <Setting name="WorkerQueueTimeout" />
+      <Setting name="AsyncWorkerTimeout" />
+      <Setting name="WorkerQueueInitialDelay" />
       <Setting name="WorkerQueueDequeueLimit" />
     </ConfigurationSettings>
     <Startup>

@@ -12,7 +12,7 @@ namespace Microsoft.Dash.Common.Platform
 {
     public class AzureMessageQueue : IMessageQueue
     {
-        private static readonly int _timeout    = DashConfiguration.WorkerQueueTimeout;
+        private static readonly int _timeout    = DashConfiguration.AsyncWorkerTimeout;
         private static readonly int _dequeLimit = DashConfiguration.WorkerQueueDequeueLimit;
 
         private CloudQueue Queue { get; set; }
@@ -38,11 +38,7 @@ namespace Microsoft.Dash.Common.Platform
         public async Task EnqueueAsync(QueueMessage payload, int? initialInvisibilityDelay = null)
         {
             CloudQueueMessage message = new CloudQueueMessage(payload.ToJson());
-            TimeSpan? invisibilityDelay = null;
-            if (initialInvisibilityDelay.HasValue)
-            {
-                invisibilityDelay = TimeSpan.FromSeconds(initialInvisibilityDelay.Value);
-            }
+            TimeSpan? invisibilityDelay = TimeSpan.FromSeconds(initialInvisibilityDelay ?? DashConfiguration.WorkerQueueInitialDelay);
             await this.Queue.AddMessageAsync(message, null, invisibilityDelay, null, null);
         }
 

@@ -45,6 +45,7 @@
   </ItemGroup>
   <ItemGroup>
     <ServiceDefinition Condition="!$(IsILBProfile)" Include="ServiceDefinition.csdef" />
+    <None Condition="!$(IsILBProfile)" Include="ServiceDefinition.ILB.csdef" />
     <ServiceDefinition Condition="$(IsILBProfile)" Include="ServiceDefinition.ILB.csdef" />
   </ItemGroup>
   <ItemGroup>

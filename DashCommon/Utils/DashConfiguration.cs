@@ -164,9 +164,14 @@ namespace Microsoft.Dash.Common.Utils
             get { return ConfigurationSource.GetSetting("WorkerQueueName", "dashworkerqueue"); }
         }
 
-        public static int WorkerQueueTimeout
+        public static int AsyncWorkerTimeout
         {
-            get { return ConfigurationSource.GetSetting("WorkerQueueTimeout", 30); }
+            get { return ConfigurationSource.GetSetting("AsyncWorkerTimeout", 60); }
+        }
+
+        public static int WorkerQueueInitialDelay
+        {
+            get { return ConfigurationSource.GetSetting("WorkerQueueInitialDelay", 0); }
         }
 
         public static int WorkerQueueDequeueLimit

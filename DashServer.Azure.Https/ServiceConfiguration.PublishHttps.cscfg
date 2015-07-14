@@ -29,7 +29,8 @@
       <Setting name="ReplicationMetadataName" value="" />
       <Setting name="ReplicationMetadataValue" value="" />
       <Setting name="WorkerQueueName" value="" />
-      <Setting name="WorkerQueueTimeout" value="" />
+      <Setting name="AsyncWorkerTimeout" value="" />
+      <Setting name="WorkerQueueInitialDelay"  value="" />
       <Setting name="WorkerQueueDequeueLimit" value="" />
     </ConfigurationSettings>
     <Certificates>

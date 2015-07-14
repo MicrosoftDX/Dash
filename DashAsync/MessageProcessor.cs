@@ -21,7 +21,7 @@ namespace Microsoft.Dash.Async
                 }
                 // Right now, success/failure is indicated through a bool
                 // Do we want to surround this with a try/catch and use exceptions instead?
-                if (ProcessMessage(payload))
+                if (ProcessMessage(payload, invisibilityTimeout))
                 {
                     queue.DeleteCurrentMessage();
                     msgProcessed++;
@@ -34,21 +34,21 @@ namespace Microsoft.Dash.Async
             }
         }
 
-        static bool ProcessMessage(QueueMessage message)
+        static bool ProcessMessage(QueueMessage message, int? invisibilityTimeout = null)
         {
             var messageProcessed = false;
             switch (message.MessageType)
             {
                 case MessageTypes.BeginReplicate:
-                    messageProcessed = DoReplicateJob(message);
+                    messageProcessed = DoReplicateJob(message, invisibilityTimeout);
                     break;
 
                 case MessageTypes.ReplicateProgress:
-                    messageProcessed = DoReplicateProgressJob(message);
+                    messageProcessed = DoReplicateProgressJob(message, invisibilityTimeout);
                     break;
 
                 case MessageTypes.DeleteReplica:
-                    messageProcessed = DoDeleteReplicaJob(message);
+                    messageProcessed = DoDeleteReplicaJob(message, invisibilityTimeout);
                     break;
 
                 case MessageTypes.Unknown:
@@ -65,26 +65,28 @@ namespace Microsoft.Dash.Async
             return messageProcessed;
         }
 
-        static bool DoReplicateJob(QueueMessage message)
+        static bool DoReplicateJob(QueueMessage message, int? invisibilityTimeout = null)
         {
             return BlobReplicator.BeginBlobReplication(
                 message.Payload[ReplicatePayload.Source],
                 message.Payload[ReplicatePayload.Destination],
                 message.Payload[ReplicatePayload.Container],
-                message.Payload[ReplicatePayload.BlobName]);
+                message.Payload[ReplicatePayload.BlobName], 
+                invisibilityTimeout);
         }
 
-        static bool DoReplicateProgressJob(QueueMessage message)
+        static bool DoReplicateProgressJob(QueueMessage message, int? invisibilityTimeout = null)
         {
             return BlobReplicator.ProgressBlobReplication(
                 message.Payload[ReplicateProgressPayload.Source],
                 message.Payload[ReplicateProgressPayload.Destination],
                 message.Payload[ReplicateProgressPayload.Container],
                 message.Payload[ReplicateProgressPayload.BlobName],
-                message.Payload[ReplicateProgressPayload.CopyID]);
+                message.Payload[ReplicateProgressPayload.CopyID],
+                invisibilityTimeout);
         }
 
-        static bool DoDeleteReplicaJob(QueueMessage message)
+        static bool DoDeleteReplicaJob(QueueMessage message, int? invisibilityTimeout = null)
         {
             return BlobReplicator.DeleteReplica(
                 message.Payload[ReplicateProgressPayload.Source],

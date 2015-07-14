@@ -10,8 +10,6 @@ namespace Microsoft.Dash.Common.Diagnostics
 {
     public class OperationRunner : IDisposable
     {
-        static readonly bool _configLogSuccess = DashConfiguration.LogNormalOperations;
-
         Stopwatch _watch;
         string _operation;
         bool _logSuccess;
@@ -98,7 +96,7 @@ namespace Microsoft.Dash.Common.Diagnostics
             }
             else
             {
-                _logSuccess = _configLogSuccess;
+                _logSuccess = DashConfiguration.LogNormalOperations;
             }
             if (_logSuccess)
             {
