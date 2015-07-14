@@ -31,5 +31,10 @@ namespace Microsoft.Dash.Common.Platform
         {
             return JsonConvert.SerializeObject(this);
         }
+
+        public override string ToString()
+        {
+            return ToJson();
+        }
     }
 }

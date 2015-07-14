@@ -14,6 +14,8 @@ using System.Threading.Tasks;
 using System.Net.Http;
 using System.Xml.Linq;
 using Microsoft.Dash.Common.Handlers;
+using Microsoft.Dash.Async;
+using Microsoft.Dash.Common.Processors;
 
 namespace Microsoft.Tests
 {
@@ -34,9 +36,11 @@ namespace Microsoft.Tests
                     { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=https;AccountName=dashtestnamespace;AccountKey=N+BMOAp/bswfqp4dxoQYLLwmYnERysm1Xxv3qSf5H9RVhQ0q+f/QKNHhXX4Z/P67mZ+5QwT6RZv9qKV834pOqQ==" },
                     { "ScaleoutStorage0", "DefaultEndpointsProtocol=https;AccountName=dashtestdata1;AccountKey=IatOQyIdf8x3HcCZuhtGGLv/nS0v/SwXu2vBS6E9/5/+GYllhdmFFX6YqMXmR7U6UyFYQt4pdZnlLCM+bPcJ4A==" },
                     { "ScaleoutStorage1", "DefaultEndpointsProtocol=https;AccountName=dashtestdata2;AccountKey=OOXSVWWpImRf79sbiEtpIwFsggv7VAhdjtKdt7o0gOLr2krzVXwZ+cb/gJeMqZRlXHTniRN6vnKKjs1glijihA==" },
+                    { "ScaleoutStorage2", "DefaultEndpointsProtocol=https;AccountName=dashtestdata3;AccountKey=wXrVhqMZF/E5sJCstDUNMNG6AoVakaJHC5XkkNnAYeT/b0h9JGh7WxTEpblqGZx9pjXviHRBKBSVODhX4hGT7A==" },
                     { "WorkerQueueName", Guid.NewGuid().ToString() },
                     { "ReplicationMetadataName", ReplicateMetadataName },
                     { "ReplicationPathPattern", "^.*/test22(/.*|$)" },
+                    { "LogNormalOperations", "true" }
                 });
         }
 
@@ -276,6 +280,80 @@ namespace Microsoft.Tests
             AssertQueueIsDrained();
         }
 
+        [TestMethod]
+        public void ReplicateWithAsyncWorkerTest()
+        {
+            // We need exclusive access to the queue to validate queue behavior
+            lock (this)
+            {
+                // Throw in the encodable name challenge here as well - unfortunately, the steps we've taken to ensure double-encoding works with IIS
+                // doesn't apply when we're using HttpClient in direct mode - we have to have 2 encoded forms of the same name
+                string blobSegment = "workernode2.jokleinhbase.d6.internal.cloudapp.net%2C60020%2C1436223739284.1436223741878";
+                string encodedBlobSegment = WebUtility.UrlEncode(blobSegment);
+                string baseBlobName = "test22/" + Guid.NewGuid().ToString() + "/workernode2.jokleinhbase.d6.internal.cloudapp.net,60020,1436223739284/";
+                string blobName = baseBlobName + blobSegment;
+                string encodedBlobName = baseBlobName + encodedBlobSegment;
+                string baseBlobUri = "http://localhost/blob/" + ContainerName + "/" + baseBlobName;
+                string blobUri = baseBlobUri + blobSegment;
+                string encodedBlobUri = baseBlobUri + encodedBlobSegment;
+                var content = new StringContent("hello world", System.Text.Encoding.UTF8, "text/plain");
+                content.Headers.Add("x-ms-version", "2013-08-15");
+                content.Headers.Add("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT");
+                content.Headers.Add("x-ms-blob-type", "BlockBlob");
+                var response = _runner.ExecuteRequest(encodedBlobUri,
+                    "PUT",
+                    content,
+                    HttpStatusCode.Created);
+                // Fetch the blob so that we can determine it's primary data account
+                var result = BlobRequest("HEAD", blobUri);
+                string dataAccountName = new Uri(result.Location).Host.Split('.')[0];
+                // Verify that the blob is replicated by the async worker
+                AssertReplicationWorker(ContainerName, blobName, dataAccountName, false);
+                // Cleanup 
+                _runner.ExecuteRequest(encodedBlobUri,
+                    "DELETE",
+                    expectedStatusCode: HttpStatusCode.Accepted);
+                // Verify the delete replica behavior
+                AssertReplicationWorker(ContainerName, blobName, dataAccountName, true);
+            }
+        }
+
+        [TestMethod]
+        public void ReplicateWithAsyncWorkerProgressTest()
+        {
+            // We need exclusive access to the queue to validate queue behavior
+            lock (this)
+            {
+                // The initial write doesn't replicate - we trigger that manually & then
+                // directly invoke the replication progress methods to verify the progress behavior
+                string blobName = "test/" + Guid.NewGuid().ToString();
+                string blobUri = "http://localhost/blob/" + ContainerName + "/" + blobName;
+                var content = new StringContent(new String('b', 1024 * 1024 * 20), System.Text.Encoding.UTF8, "text/plain");
+                content.Headers.Add("x-ms-version", "2013-08-15");
+                content.Headers.Add("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT");
+                content.Headers.Add("x-ms-blob-type", "BlockBlob");
+                var response = _runner.ExecuteRequest(blobUri,
+                    "PUT",
+                    content,
+                    HttpStatusCode.Created);
+                // Fetch the blob so that we can determine it's primary data account
+                var result = BlobRequest("HEAD", blobUri);
+                string dataAccountName = new Uri(result.Location).Host.Split('.')[0];
+                foreach (var dataAccount in DashConfiguration.DataAccounts
+                                                .Where(account => !String.Equals(account.Credentials.AccountName, dataAccountName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    // Specify 0 wait time will cause a progress message to be enqueued
+                    Assert.IsTrue(BlobReplicator.BeginBlobReplication(dataAccountName, dataAccount.Credentials.AccountName, ContainerName, blobName, 0));
+                }
+                AssertReplicationWorker(ContainerName, blobName, dataAccountName, false, false);
+                // Cleanup 
+                _runner.ExecuteRequest(blobUri,
+                    "DELETE",
+                    expectedStatusCode: HttpStatusCode.Accepted);
+                AssertReplicationWorker(ContainerName, blobName, dataAccountName, true);
+            }
+        }
+
         void AssertReplicationMessageIsEnqueued(MessageTypes messageType, string container, string blobName, string primaryAccount)
         {
             // Wait for the messages to be fully enqueued
@@ -331,6 +409,25 @@ namespace Microsoft.Tests
         static string GetBlockId()
         {
             return Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+        }
+
+        void AssertReplicationWorker(string container, string blobName, string primaryAccount, bool isDeleteReplica, bool verifyProcessCount = true)
+        {
+            // Wait for the messages to be fully enqueued
+            Task.Delay(1000).Wait();
+            int processed = 0, errors = 0;
+            MessageProcessor.ProcessMessageLoop(ref processed, ref errors, 0);
+            Assert.AreEqual(0, errors);
+            if (verifyProcessCount)
+            {
+                Assert.AreEqual(DashConfiguration.DataAccounts.Count - 1, processed);
+            }
+            foreach (var account in DashConfiguration.DataAccounts
+                                        .Where(dataAccount => !String.Equals(dataAccount.Credentials.AccountName, primaryAccount, StringComparison.OrdinalIgnoreCase)))
+            {
+                var dataBlob = NamespaceHandler.GetBlobByName(account, container, blobName);
+                Assert.AreEqual(!isDeleteReplica, dataBlob.Exists());
+            }
         }
     }
 }

@@ -137,6 +137,29 @@ namespace Microsoft.Dash.Common.Handlers
             }
         }
 
+        public bool AddDataAccount(string dataAccount)
+        {
+            var dataAccounts = this.DataAccounts;
+            if (!dataAccounts.Contains(dataAccount, StringComparer.OrdinalIgnoreCase))
+            {
+                dataAccounts.Add(dataAccount);
+                return true;
+            }
+            return false;
+        }
+
+        public bool RemoveDataAccount(string dataAccount)
+        {
+            var dataAccounts = this.DataAccounts;
+            if (dataAccounts.Contains(dataAccount, StringComparer.OrdinalIgnoreCase))
+            {
+                dataAccounts.RemoveAt(((List<string>)dataAccounts)
+                                            .FindIndex(account => String.Equals(account, dataAccount, StringComparison.OrdinalIgnoreCase)));
+                return true;
+            }
+            return false;
+        }
+
         public bool IsReplicated
         {
             get { return this.DataAccounts.Count > 1; }

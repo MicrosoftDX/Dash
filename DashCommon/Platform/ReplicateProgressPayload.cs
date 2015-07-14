@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Microsoft.Dash.Common.Platform
 {
-    public class ReplicateProgressPayload
+    public class ReplicateProgressPayload : ReplicatePayload
     {
         public const string CopyID = "copyid";
     }

@@ -1,20 +1,20 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
+using System;
+using System.Threading.Tasks;
+using Microsoft.Dash.Common.Diagnostics;
 using Microsoft.Dash.Common.Handlers;
 using Microsoft.Dash.Common.Utils;
 using Microsoft.WindowsAzure.Storage.Queue;
 using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Microsoft.Dash.Common.Platform
 {
-    public class AzureMessageQueue : MessageQueue
+    public class AzureMessageQueue : IMessageQueue
     {
-        private static readonly int Timeout = DashConfiguration.WorkerQueueTimeout;
+        private static readonly int _timeout    = DashConfiguration.WorkerQueueTimeout;
+        private static readonly int _dequeLimit = DashConfiguration.WorkerQueueDequeueLimit;
+
         private CloudQueue Queue { get; set; }
         private CloudQueueMessage CurrentMessage { get; set; }
 
@@ -30,22 +30,50 @@ namespace Microsoft.Dash.Common.Platform
         {
         }
 
-        public void Enqueue(QueueMessage payload)
+        public void Enqueue(QueueMessage payload, int? initialInvisibilityDelay = null)
+        {
+            EnqueueAsync(payload, initialInvisibilityDelay).Wait();
+        }
+
+        public async Task EnqueueAsync(QueueMessage payload, int? initialInvisibilityDelay = null)
         {
             CloudQueueMessage message = new CloudQueueMessage(payload.ToJson());
-            this.Queue.AddMessage(message);
+            TimeSpan? invisibilityDelay = null;
+            if (initialInvisibilityDelay.HasValue)
+            {
+                invisibilityDelay = TimeSpan.FromSeconds(initialInvisibilityDelay.Value);
+            }
+            await this.Queue.AddMessageAsync(message, null, invisibilityDelay, null, null);
         }
-        public async Task EnqueueAsync(QueueMessage payload)
-        {
-            CloudQueueMessage message = new CloudQueueMessage(payload.ToJson());
-            await this.Queue.AddMessageAsync(message);
-        }
+
         public QueueMessage Dequeue(int? invisibilityTimeout = null)
         {
-            this.CurrentMessage = Queue.GetMessage(new TimeSpan(0, 0, invisibilityTimeout ?? Timeout));
-            if (this.CurrentMessage != null)
+            while (true)
             {
-                return JsonConvert.DeserializeObject<QueueMessage>(this.CurrentMessage.AsString);
+                invisibilityTimeout = invisibilityTimeout ?? _timeout;
+                if (invisibilityTimeout.Value < 1)
+                {
+                    invisibilityTimeout = 1;
+                }
+                this.CurrentMessage = Queue.GetMessage(new TimeSpan(0, 0, invisibilityTimeout.Value));
+                if (this.CurrentMessage != null)
+                {
+                    if (this.CurrentMessage.DequeueCount >= _dequeLimit)
+                    {
+                        DashTrace.TraceWarning("Discarding message after exceeding deque limit of {0}. Message details: {1}",
+                            this.CurrentMessage.DequeueCount,
+                            this.CurrentMessage.AsString);
+                        DeleteCurrentMessage();
+                    }
+                    else
+                    {
+                        return JsonConvert.DeserializeObject<QueueMessage>(this.CurrentMessage.AsString);
+                    }
+                }
+                else
+                {
+                    break;
+                }
             }
             return null;
         }

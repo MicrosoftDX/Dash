@@ -169,6 +169,10 @@ namespace Microsoft.Dash.Common.Utils
             get { return ConfigurationSource.GetSetting("WorkerQueueTimeout", 30); }
         }
 
+        public static int WorkerQueueDequeueLimit
+        {
+            get { return ConfigurationSource.GetSetting("WorkerQueueDequeueLimit", 10); }
+        }
 
         public static bool IsBlobReplicationEnabled
         {

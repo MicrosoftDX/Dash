@@ -85,6 +85,7 @@ namespace Microsoft.Dash.Server.Handlers
                         string sourceContainer = String.Empty;
                         string sourceBlobName = String.Empty;
                         string sourceQuery = String.Empty;
+                        BlobType sourceBlobType = BlobType.BlockBlob;
                         var requestVersion = requestWrapper.Headers.Value("x-ms-version", StorageServiceVersions.Version_2009_09_19);
                         bool processRelativeSource = false;
                         if (!sourceUri.IsAbsoluteUri)
@@ -155,6 +156,9 @@ namespace Microsoft.Dash.Server.Handlers
                                     StatusCode = HttpStatusCode.NotFound,
                                 };
                             }
+                            var sourceCloudContainer = NamespaceHandler.GetContainerByName(
+                                DashConfiguration.GetDataAccountByAccountName(sourceNamespaceBlob.PrimaryAccountName), sourceContainer);
+                            sourceBlobType = sourceCloudContainer.GetBlobReferenceFromServer(sourceBlobName).BlobType;
                             // This is effectively an intra-account copy which is expected to be atomic. Therefore, even if the destination already
                             // exists, we need to place the destination in the same data account as the source.
                             // If the destination blob already exists, we delete it below to prevent an orphaned data blob
@@ -195,7 +199,15 @@ namespace Microsoft.Dash.Server.Handlers
                         await destNamespaceBlob.SaveAsync();
                         // Now that we've got the metadata tucked away - do the actual copy
                         var destCloudContainer = NamespaceHandler.GetContainerByName(DashConfiguration.GetDataAccountByAccountName(destAccount), destContainer);
-                        var destCloudBlob = destCloudContainer.GetBlockBlobReference(destBlob);
+                        ICloudBlob destCloudBlob = null;
+                        if (sourceBlobType == BlobType.PageBlob)
+                        {
+                            destCloudBlob = destCloudContainer.GetPageBlobReference(destBlob);
+                        }
+                        else
+                        {
+                            destCloudBlob = destCloudContainer.GetBlockBlobReference(destBlob);
+                        }
                         // Storage client will retry failed copy. Let our clients decide that.
                         var copyId = await destCloudBlob.StartCopyFromBlobAsync(sourceUri,
                             AccessCondition.GenerateEmptyCondition(),

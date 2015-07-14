@@ -41,6 +41,9 @@
       <Setting name="ReplicationPathPattern" />
       <Setting name="ReplicationMetadataName" />
       <Setting name="ReplicationMetadataValue" />
+      <Setting name="WorkerQueueName" />
+      <Setting name="WorkerQueueTimeout" />
+      <Setting name="WorkerQueueDequeueLimit" />
     </ConfigurationSettings>
     <Certificates>
       <Certificate name="TlsCertificate" storeLocation="LocalMachine" storeName="My" />

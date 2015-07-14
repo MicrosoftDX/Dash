@@ -28,6 +28,9 @@
       <Setting name="ReplicationPathPattern" value="" />
       <Setting name="ReplicationMetadataName" value="" />
       <Setting name="ReplicationMetadataValue" value="" />
+      <Setting name="WorkerQueueName" value="" />
+      <Setting name="WorkerQueueTimeout" value="" />
+      <Setting name="WorkerQueueDequeueLimit" value="" />
     </ConfigurationSettings>
     <Certificates>
     </Certificates>

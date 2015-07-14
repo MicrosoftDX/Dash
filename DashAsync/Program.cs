@@ -1,64 +1,28 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
-using Microsoft.Dash.Common.Platform;
-using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Reflection;
+using Microsoft.Dash.Common.Diagnostics;
+using Microsoft.Dash.Common.Utils;
 
-namespace DashAsync
+namespace Microsoft.Dash.Async
 {
     class Program
     {
         static void Main(string[] args)
         {
-            MessageQueue queue = new AzureMessageQueue();
-            while (true)
+            if (!Trace.Listeners.OfType<ConsoleTraceListener>().Any())
             {
-                QueueMessage payload = queue.Dequeue();
-                if (payload == null)
-                {
-                    break;
-                }
-                // Right now, success/failure is indicated through a bool
-                // Do we want to surround this with a try/catch and use exceptions instead?
-                if (ProcessMessage(payload))
-                {
-                    queue.DeleteCurrentMessage();
-                } //Else leave it in the queue
+                Trace.Listeners.Add(new ConsoleTraceListener());
             }
-            
-        }
+            AzureUtils.AddAzureDiagnosticsListener();
+            DashTrace.TraceInformation("DashAsync (version: {0}): Asynchronous worker starting up.", Assembly.GetEntryAssembly().GetName().Version);
 
-        static bool ProcessMessage(QueueMessage message)
-        {
-            var success = false;
-            switch (message.MessageType)
-            {
-                case MessageTypes.BeginReplicate:
-                    success = DoReplicateJob(message.Payload);
-                    break;
-                case MessageTypes.ReplicateProgress:
-                    success = DoReplicateProgressJob(message.Payload);
-                    break;
-                case MessageTypes.Unknown:
-                    break;
-            }
-            return success;
-        }
-
-        static bool DoReplicateJob(IDictionary<string, string> payload)
-        {
-            //TODO
-            return true;
-        }
-
-        static bool DoReplicateProgressJob(IDictionary<string, string> payload)
-        {
-            //TODO
-            return true;
+            int msgProcessed = 0, msgErrors = 0;
+            MessageProcessor.ProcessMessageLoop(ref msgProcessed, ref msgErrors);
+            DashTrace.TraceInformation("DashAsync completed. Messages processed [{0}], messages unprocessed [{1}]", msgProcessed, msgErrors);
         }
     }
 }
