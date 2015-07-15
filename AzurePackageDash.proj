@@ -26,6 +26,7 @@ Also writes the required package.manifest to upload to the Update Service's stor
   'Version' : '$(PackageVersion)',
   'Description' : '',
   'Severity' : 'Important',
+  'Disabled' : 'true',
   'AvailablePackages' : [
     {
       'PackageName' : 'HTTP',
