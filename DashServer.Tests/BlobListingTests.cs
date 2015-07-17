@@ -36,6 +36,7 @@ namespace Microsoft.Tests
         [TestMethod]
         public void BlobListFlatAllIncludeTest()
         {
+            // The blob data includes 2 snapshots + 1 replicated blob
             var response = _runner.ExecuteRequestWithHeaders(
                 "http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&include=uncommittedblobs&include=metadata%2Ccopy",
                 "GET",
@@ -52,14 +53,20 @@ namespace Microsoft.Tests
             Assert.IsNull(enumerationResults.Element("Marker"));
             Assert.IsNull(enumerationResults.Element("MaxResults"));
             Assert.IsNull(enumerationResults.Element("Delimiter"));
-            Assert.AreEqual(21, enumerationResults.Element("Blobs").Elements().Count());
+            Assert.AreEqual(22, enumerationResults.Element("Blobs").Elements().Count());
             var firstBlob = (XElement)enumerationResults.Element("Blobs").FirstNode;
             Assert.AreEqual(".gitignore", firstBlob.Element("Name").Value);
-            var blobInSubDir = (XElement)enumerationResults.Element("Blobs").Elements().Skip(5).First();
+            Assert.IsNotNull(firstBlob.Element("Snapshot").Value);
+            Assert.IsNull(((XElement)firstBlob.NextNode).Element("Snapshot"));
+            var replicatedBlob = (XElement)enumerationResults.Element("Blobs").Elements().Skip(2).First();
+            Assert.AreEqual("DataAtScaleHub.sln", replicatedBlob.Element("Name").Value);
+            Assert.AreEqual("Dpe Ted-Landcestry Application-O365 Azure-AAD Gateway-Gateway Development -- DLan-Gsx Ring-Movies-Graph API Test-6-26-2014-credentials.publishsettings", 
+                ((XElement)replicatedBlob.NextNode).Element("Name").Value);
+            var blobInSubDir = (XElement)enumerationResults.Element("Blobs").Elements().Skip(6).First();
             Assert.AreEqual("Package/Console/Package/UpdatePackage/console.zip", blobInSubDir.Element("Name").Value);
             Assert.AreEqual("application/x-zip-compressed", blobInSubDir.Descendants("Content-Type").First().Value);
             Assert.AreEqual("", blobInSubDir.Descendants("Content-Encoding").First().Value);
-            var snapshotBlob = (XElement)enumerationResults.Element("Blobs").Elements().Skip(19).First();
+            var snapshotBlob = (XElement)enumerationResults.Element("Blobs").Elements().Skip(20).First();
             Assert.IsNotNull(snapshotBlob.Element("Snapshot").Value);
             Assert.IsNotNull(snapshotBlob.Element("Metadata"));
             Assert.IsNotNull(snapshotBlob.Descendants("fred"));
@@ -91,12 +98,12 @@ namespace Microsoft.Tests
             Assert.IsNotNull(enumerationResults.Element("NextMarker"));
 
             doc = _runner.ExecuteRequestResponse(
-                "http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&maxresults=18&marker=" + enumerationResults.Element("NextMarker").Value,
+                "http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&maxresults=19&marker=" + enumerationResults.Element("NextMarker").Value,
                 "GET");
             enumerationResults = doc.Root;
-            Assert.AreEqual(18, enumerationResults.Element("Blobs").Elements().Count());
+            Assert.AreEqual(19, enumerationResults.Element("Blobs").Elements().Count());
             var firstBlob = (XElement)enumerationResults.Element("Blobs").FirstNode;
-            Assert.AreEqual("Dpe Ted-Landcestry Application-O365 Azure-AAD Gateway-Gateway Development -- DLan-Gsx Ring-Movies-Graph API Test-6-26-2014-credentials.publishsettings", firstBlob.Element("Name").Value);
+            Assert.AreEqual("DataAtScaleHub.sln", firstBlob.Element("Name").Value);
             var lastBlob = (XElement)enumerationResults.Element("Blobs").LastNode;
             Assert.IsNotNull(lastBlob.Element("Snapshot").Value);
             Assert.AreEqual("test.txt", lastBlob.Element("Name").Value);
@@ -120,7 +127,7 @@ namespace Microsoft.Tests
             var enumerationResults = doc.Root;
             Assert.AreEqual("/", enumerationResults.Element("Delimiter").Value);
             var blobs = enumerationResults.Element("Blobs");
-            Assert.AreEqual(11, blobs.Elements().Count());
+            Assert.AreEqual(12, blobs.Elements().Count());
             var directory = blobs.Element("BlobPrefix");
             Assert.IsNotNull(directory);
             Assert.AreEqual("Package/", directory.Element("Name").Value);

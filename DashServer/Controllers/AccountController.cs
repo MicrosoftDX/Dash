@@ -84,7 +84,7 @@ namespace Microsoft.Dash.Server.Controllers
             Enum.TryParse(includeFlags, true, out listDetails);
             var retval = new ContainerListResults
             {
-                RequestVersion = new DateTimeOffset(this.Request.GetHeaders().Value("x-ms-version", StorageServiceVersions.Version_2009_09_19.UtcDateTime), TimeSpan.FromHours(0)),
+                RequestVersion = this.Request.GetHeaders().Value("x-ms-version", StorageServiceVersions.Version_2009_09_19),
                 ServiceEndpoint = this.Request.RequestUri.GetComponents(UriComponents.SchemeAndServer, UriFormat.Unescaped),
                 Prefix = queryParams.Value<string>("prefix"),
                 Marker = queryParams.Value<string>("marker"),

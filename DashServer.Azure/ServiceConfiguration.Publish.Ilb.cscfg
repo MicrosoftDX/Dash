@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ServiceConfiguration serviceName="DashServer.Azure" xmlns="http://schemas.microsoft.com/ServiceHosting/2008/10/ServiceConfiguration" osFamily="4" osVersion="*" schemaVersion="2014-06.2.4">
+  <Role name="DashServer">
+    <Instances count="4" />
+    <ConfigurationSettings>
+      <Setting name="Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString" value="" />
+      <Setting name="AccountName" value="" />
+      <Setting name="AccountKey" value="" />
+      <Setting name="SecondaryAccountKey" value="" />
+      <Setting name="StorageConnectionStringMaster" value="" />
+      <Setting name="ScaleoutStorage0" value="" />
+      <Setting name="ScaleoutStorage1" value="" />
+      <Setting name="ScaleoutStorage2" value="" />
+      <Setting name="ScaleoutStorage3" value="" />
+      <Setting name="ScaleoutStorage4" value="" />
+      <Setting name="ScaleoutStorage5" value="" />
+      <Setting name="ScaleoutStorage6" value="" />
+      <Setting name="ScaleoutStorage7" value="" />
+      <Setting name="ScaleoutStorage8" value="" />
+      <Setting name="ScaleoutStorage9" value="" />
+      <Setting name="ScaleoutStorage10" value="" />
+      <Setting name="ScaleoutStorage11" value="" />
+      <Setting name="ScaleoutStorage12" value="" />
+      <Setting name="ScaleoutStorage13" value="" />
+      <Setting name="ScaleoutStorage14" value="" />
+      <Setting name="ScaleoutStorage15" value="" />
+      <Setting name="LogNormalOperations" value="false" />
+      <Setting name="ReplicationPathPattern" value="" />
+      <Setting name="ReplicationMetadataName" value="" />
+      <Setting name="ReplicationMetadataValue" value="" />
+      <Setting name="WorkerQueueName" value="" />
+      <Setting name="AsyncWorkerTimeout" value="" />
+      <Setting name="WorkerQueueInitialDelay"  value="" />
+      <Setting name="WorkerQueueDequeueLimit" value="" />
+    </ConfigurationSettings>
+    <Certificates>
+    </Certificates>
+  </Role>
+  <NetworkConfiguration>
+    <VirtualNetworkSite name="VNet-Name" />
+    <AddressAssignments>
+      <InstanceAddress roleName="DashServer">
+        <Subnets>
+          <Subnet name="Subnet-Name" />
+        </Subnets>
+      </InstanceAddress>
+    </AddressAssignments>
+    <LoadBalancers>
+      <LoadBalancer name="Dash_ILB">
+        <FrontendIPConfiguration type="private" subnet="Subnet-Name" staticVirtualNetworkIPAddress="10.0.16.4" />
+      </LoadBalancer>
+    </LoadBalancers>
+  </NetworkConfiguration>
+</ServiceConfiguration>

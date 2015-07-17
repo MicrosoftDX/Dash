@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Web;
+using Microsoft.Dash.Common.Utils;
 
 namespace Microsoft.Dash.Server.Utils
 {
@@ -21,9 +21,9 @@ namespace Microsoft.Dash.Server.Utils
             {
                 Controller = uriSegments.FirstOrDefault(),
                 Container = uriSegments.Skip(1).FirstOrDefault(),
-                BlobName = String.Join("/", uriSegments.Skip(2)),
+                BlobName = PathUtils.CombinePathSegments(uriSegments.Skip(2)),
                 OriginalContainer = originalSegments.Skip(1).FirstOrDefault(),
-                OriginalBlobName = String.Join("/", originalSegments.Skip(2)),
+                OriginalBlobName = PathUtils.CombinePathSegments(originalSegments.Skip(2)),
             };
         }
 
@@ -78,7 +78,7 @@ namespace Microsoft.Dash.Server.Utils
 
         private static string GetPath(string container, string blobName)
         {
-            return "/" + container + (String.IsNullOrWhiteSpace(blobName) ? String.Empty : "/" + blobName);
+            return PathUtils.CombineContainerAndBlob(container, blobName, true);
         }
     }
 }

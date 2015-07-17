@@ -21,7 +21,7 @@ namespace Microsoft.Dash.Server.Controllers
         [HttpGet]
         public async Task<HttpResponseMessage> GetBlob(string container, string blob, string snapshot = null)
         {
-            return await BasicBlobHandler(container, blob, StorageOperationTypes.GetBlob);
+            return await BasicBlobHandler(container, blob, null, StorageOperationTypes.GetBlob);
         }
 
         [HttpPut]
@@ -37,7 +37,7 @@ namespace Microsoft.Dash.Server.Controllers
 
                 case StorageOperationTypes.PutBlob:
                     /// Put Blob - http://msdn.microsoft.com/en-us/library/azure/dd179451.aspx
-                    return await PutBlobHandler(container, blob, operation);
+                    return await PutBlobHandler(container, blob, requestWrapper, operation);
 
                 default:
                     System.Diagnostics.Debug.Assert(false);
@@ -66,6 +66,11 @@ namespace Microsoft.Dash.Server.Controllers
                     {
                         return forwardedResponse;
                     }
+                    // See if we need to delete any replicas
+                    if (namespaceBlob.IsReplicated) 
+                    {
+                        await BlobReplicationHandler.EnqueueBlobReplicationAsync(namespaceBlob, true, false);
+                    }
                     // Mark the namespace blob for deletion
                     namespaceBlob.IsMarkedForDeletion = true;
                     await namespaceBlob.SaveAsync();
@@ -77,7 +82,7 @@ namespace Microsoft.Dash.Server.Controllers
         [HttpHead]
         public async Task<HttpResponseMessage> GetBlobProperties(string container, string blob, string snapshot = null)
         {
-            return await BasicBlobHandler(container, blob, StorageOperationTypes.GetBlobProperties);
+            return await BasicBlobHandler(container, blob, null, StorageOperationTypes.GetBlobProperties);
         }
 
         /// Get Blob operations with the 'comp' query parameter
@@ -91,7 +96,7 @@ namespace Microsoft.Dash.Server.Controllers
                 case StorageOperationTypes.GetBlobMetadata:
                 case StorageOperationTypes.GetBlockList:
                 case StorageOperationTypes.GetPageRanges:
-                    return await BasicBlobHandler(container, blob, operation);
+                    return await BasicBlobHandler(container, blob, requestWrapper, operation);
 
                 default:
                     return this.CreateResponse(HttpStatusCode.BadRequest, requestWrapper.Headers);
@@ -111,11 +116,11 @@ namespace Microsoft.Dash.Server.Controllers
                 case StorageOperationTypes.LeaseBlob:
                 case StorageOperationTypes.SnapshotBlob:
                 case StorageOperationTypes.PutPage:
-                    return await BasicBlobHandler(container, blob, operation);
+                    return await BasicBlobHandler(container, blob, requestWrapper, operation);
 
                 case StorageOperationTypes.PutBlock:
                 case StorageOperationTypes.PutBlockList:
-                    return await PutBlobHandler(container, blob, operation);
+                    return await PutBlobHandler(container, blob, requestWrapper, operation);
 
                 case StorageOperationTypes.AbortCopyBlob:
                     /// Abort Copy Blob - http://msdn.microsoft.com/en-us/library/azure/jj159098.aspx
@@ -130,7 +135,7 @@ namespace Microsoft.Dash.Server.Controllers
         /// <summary>
         /// Generic function to forward blob request. Target blob must already exist.
         /// </summary>
-        private async Task<HttpResponseMessage> BasicBlobHandler(string container, string blob, StorageOperationTypes operation)
+        private async Task<HttpResponseMessage> BasicBlobHandler(string container, string blob, IHttpRequestWrapper requestWrapper, StorageOperationTypes operation)
         {
             return await DoHandlerAsync(String.Format("BlobController.BasicBlobHandler: {0} {1}/{2}", operation, container, blob),
                 async () =>
@@ -140,16 +145,27 @@ namespace Microsoft.Dash.Server.Controllers
                     {
                         return this.CreateResponse(HttpStatusCode.NotFound, (RequestHeaders)null);
                     }
+                    if (BlobReplicationOperations.DoesOperationTriggerReplication(operation) &&
+                        (namespaceBlob.IsReplicated || 
+                         BlobReplicationHandler.ShouldReplicateBlob(requestWrapper.Headers, namespaceBlob)))
+                    {
+                        await BlobReplicationHandler.EnqueueBlobReplicationAsync(namespaceBlob, false);
+                    }
                     return await ForwardRequestHandler(namespaceBlob, operation);
                 });
         }
 
-        private async Task<HttpResponseMessage> PutBlobHandler(string container, string blob, StorageOperationTypes operation)
+        private async Task<HttpResponseMessage> PutBlobHandler(string container, string blob, IHttpRequestWrapper requestWrapper, StorageOperationTypes operation)
         {
             return await DoHandlerAsync(String.Format("BlobController.PutBlobHandler: {0} {1}/{2}", operation, container, blob),
                 async () =>
                 {
                     var namespaceBlob = await NamespaceHandler.CreateNamespaceBlobAsync(container, blob);
+                    if (BlobReplicationOperations.DoesOperationTriggerReplication(operation) &&
+                        BlobReplicationHandler.ShouldReplicateBlob(requestWrapper.Headers, namespaceBlob))
+                    {
+                        await BlobReplicationHandler.EnqueueBlobReplicationAsync(namespaceBlob, false);
+                    }
                     return await ForwardRequestHandler(namespaceBlob, operation);
                 });
         }
@@ -164,12 +180,15 @@ namespace Microsoft.Dash.Server.Controllers
         {
             // Clone the inbound request
             var sourceRequest = this.Request;
+            // We always target the primary data account for forwarded messages. If the operation invalidates the replicas, then
+            // separate logic will enqueue the new blob to be replicated.
             var clonedRequest = new HttpRequestMessage(sourceRequest.Method,
                 ControllerOperations.GetRedirectUri(sourceRequest.RequestUri,
                     sourceRequest.Method.Method,
-                    DashConfiguration.GetDataAccountByAccountName(namespaceBlob.AccountName),
+                    DashConfiguration.GetDataAccountByAccountName(namespaceBlob.PrimaryAccountName),
                     namespaceBlob.Container,
-                    namespaceBlob.BlobName));
+                    namespaceBlob.BlobName, 
+                    false));
             clonedRequest.Version = sourceRequest.Version;
             foreach (var property in sourceRequest.Properties)
             {

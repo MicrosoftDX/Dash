@@ -11,12 +11,12 @@ using System.Web;
 namespace Microsoft.Tests
 {
     [TestClass]
-    public class BlobPipelineTests
+    public class BlobPipelineTests : PipelineTestBase
     {
         [TestInitialize]
         public void Init()
         {
-            WebApiTestRunner.InitializeConfig(new Dictionary<string, string>()
+            InitializeConfig(new Dictionary<string, string>()
                 {
                     { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=https;AccountName=dashtestnamespace;AccountKey=N+BMOAp/bswfqp4dxoQYLLwmYnERysm1Xxv3qSf5H9RVhQ0q+f/QKNHhXX4Z/P67mZ+5QwT6RZv9qKV834pOqQ==" },
                     { "ScaleoutStorage0", "DefaultEndpointsProtocol=https;AccountName=dashtestdata1;AccountKey=IatOQyIdf8x3HcCZuhtGGLv/nS0v/SwXu2vBS6E9/5/+GYllhdmFFX6YqMXmR7U6UyFYQt4pdZnlLCM+bPcJ4A==" },
@@ -69,6 +69,29 @@ namespace Microsoft.Tests
         public void PutNonExistingBlobPipelineTest()
         {
             string blobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString();
+            var result = BlobRequest("PUT", blobUri, new[] {
+                Tuple.Create("x-ms-version", "2013-08-15"),
+                Tuple.Create("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT"),
+                Tuple.Create("x-ms-blob-content-disposition", "attachment, filename=\"fname.ext\""),
+                Tuple.Create("x-ms-blob-type", "BlockBlob"),
+                Tuple.Create("x-ms-meta-m1", "v1"),
+                Tuple.Create("x-ms-meta-m2", "v2"),
+                Tuple.Create("User-Agent", "WA-Storage/2.0.6.1"),
+                Tuple.Create("Expect", "100-Continue")
+            });
+            Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
+            var redirectLocation = new Uri(result.Location).GetLeftPart(UriPartial.Path);
+            // Get it back & verify we get redirected to the same location
+            result = BlobRequest("GET", blobUri);
+            Assert.AreEqual(redirectLocation, new Uri(result.Location).GetLeftPart(UriPartial.Path));
+
+            // Cleanup - TODO
+        }
+
+        [TestMethod]
+        public void EncodedBlobNamePipelineTest()
+        {
+            string blobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString() + "/workernode2.jokleinhbase.d6.internal.cloudapp.net,60020,1436223739284/workernode2.jokleinhbase.d6.internal.cloudapp.net%2C60020%2C1436223739284.1436223741878";
             var result = BlobRequest("PUT", blobUri, new[] {
                 Tuple.Create("x-ms-version", "2013-08-15"),
                 Tuple.Create("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT"),
@@ -232,21 +255,6 @@ namespace Microsoft.Tests
                 Tuple.Create("User-Agent", "WA-Storage/2.0.6.1"),
             });
             Assert.IsNull(result);
-        }
-
-        public static HandlerResult BlobRequest(string method, string uri)
-        {
-            return BlobRequest(method, uri, new[] {
-                Tuple.Create("User-Agent", "WA-Storage/2.0.6.1"),
-                Tuple.Create("Expect", "100-Continue")
-            });
-        }
-
-        public static HandlerResult BlobRequest(string method, string uri, IEnumerable<Tuple<string, string>> headers = null)
-        {
-            WebApiTestRunner.SetupRequest(uri, method);
-            return StorageOperationsHandler.HandlePrePipelineOperationAsync(
-                new MockHttpRequestWrapper(method, uri, headers)).Result;
         }
     }
 }

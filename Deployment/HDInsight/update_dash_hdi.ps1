@@ -1,7 +1,9 @@
 ﻿param(
     [Parameter(Mandatory=$true)][string] $DashService,
     [Parameter(Mandatory=$true)][string] $DashKey,
-    [string] $DashContainer = ""
+    [string] $DashContainer = "",
+    [bool] $UseDashILB = $false,
+    [string] $DashILBAddress = ""
 )
 
 function Edit-CoreSiteFile {
@@ -45,8 +47,12 @@ $isActiveHeadNode = Test-IsActiveHDIHeadNode
 
 Write-HDILog "Stopping HDInsight services";
 $hdiservices = Get-HDIServicesRunning
-$output = $hdiservices | Stop-Service | Out-String
+$output = $hdiservices | Stop-Service -verbose *>&1 | Out-String
 Write-HDILog $output
+foreach ($hdiservice in $hidservices)
+{
+   $hdiservice.WaitForStatus('Stopped')
+}
 
 Write-HDILog "Modifying core-site.xml: $core_site_path";
 [xml]$core_site = Get-Content $core_site_path
@@ -66,8 +72,6 @@ Write-HDILog $output
 # This is currently not enabled as we need to determine which files need to be copied to default file system if switching after setup
 # $element = $core_site.configuration.property | where { $_.name -eq "fs.defaultFS" } 
 # $element.value = “wasb://$DashContainer@$DashService@cloudapp.net”
-$output = Edit-CoreSiteFile -ConfigFile $core_site -Name "fs.defaultFS" -Value "wasb://$DashContainer@$DashService.cloudapp.net" | Out-String
-Write-HDILog $output
 
 # Update core-site.xml file deleting property configuring custom topology discovery to work around yarn scheduler bug 
 $element = $core_site.configuration.property | where { $_.name -eq "topology.script.file.name" } 
@@ -76,27 +80,28 @@ if ($element) {
 }
 $core_site.Save($core_site_path)
 
-# Replace storage client library with Dash version
-Write-HDILog "Updating Azure Storage Client SDK"
-$new_jar_uri = "https://www.dash-update.net/client/latest/StorageSDK2.0/dash-azure-storage-2.0.0.jar"
-$directories = "$hadoop_directory\share\hadoop\common\lib", "$hadoop_directory\share\hadoop\tools\lib"
-foreach ($directory in $directories) 
+# Add a hosts entry for the ILB
+if ($UseDashILB)
 {
-    $output = remove-item "$directory\azure-storage-2.0.0.jar" -ErrorAction SilentlyContinue | Out-String
-    Write-HDILog $output
-    $output = Invoke-WebRequest -Uri $new_jar_uri -Method Get -OutFile "$directory\dash-azure-storage-2.0.0.jar" | Out-String
-    Write-HDILog $output
+    Write-HDILog "Updating hosts entry for Dash ILB"
+    $hosts = get-item $env:windir\system32\drivers\etc\hosts
+    $hostswriter = $hosts.AppendText()
+    $hostswriter.WriteLine("")
+    $hostswriter.WriteLine("$DashIlb	$DashService.cloudapp.net")
+    $hostswriter.Close()
 }
 
-# Replace mapreduce jar to fix mapreduce job commit issue
-Write-HDILog "Updating Hadoop Mapreduce client core"
-$new_jar_uri = "https://www.dash-update.net/client/latest/MapReduce/hadoop-mapreduce-client-core-2.4.1-SNAPSHOT.jar"
-$directories = "$hadoop_directory\share\hadoop\mapreduce"
-foreach ($directory in $directories) 
+# Replace storage client library with Dash version
+Write-HDILog "Updating Azure Storage Client SDK"
+$new_jar_uri = "https://www.dash-update.net/client/v0.4/StorageSDK2.0/dash-azure-storage-2.2.0.jar"
+$install_dir = (Get-Item $hadoop_directory).Parent
+$old_jar_name = “azure-storage-2*.jar”
+$jars_to_patch = Get-ChildItem -Recurse -Path $install_dir -Filter $old_jar_name
+foreach ($jar in $jars_to_patch)
 {
-    $output = remove-item "$directory\hadoop-mapreduce-client-core-*.jar" -ErrorAction SilentlyContinue | Out-String
+    $output = Invoke-WebRequest -Uri $new_jar_uri -Method Get -OutFile $jar.DirectoryName + "\dash-azure-storage-2.2.0.jar" -verbose *>&1 | Out-String
     Write-HDILog $output
-    $output = Invoke-WebRequest -Uri $new_jar_uri -Method Get -OutFile "$directory\hadoop-mapreduce-client-core-2.4.1-SNAPSHOT.jar" | Out-String
+    $output = remove-item $jar -verbose *>&1 | Out-String
     Write-HDILog $output
 }
 

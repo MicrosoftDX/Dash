@@ -60,6 +60,18 @@ namespace Microsoft.Tests
         [TestMethod]
         public void PutNonExistingBlobControllerTest()
         {
+            PutAndValidateBlob("http://localhost/blob/test/" + Guid.NewGuid().ToString());
+        }
+
+        [TestMethod]
+        public void EncodedBlobNameControllerTest()
+        {
+            string blobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString() + "/workernode2.jokleinhbase.d6.internal.cloudapp.net,60020,1436223739284/workernode2.jokleinhbase.d6.internal.cloudapp.net%2C60020%2C1436223739284.1436223741878";
+            PutAndValidateBlob(blobUri);
+        }
+
+        void PutAndValidateBlob(string blobUri)
+        {
             var content = new StringContent("hello world", System.Text.Encoding.UTF8, "text/plain");
             content.Headers.Add("x-ms-version", "2013-08-15");
             content.Headers.Add("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT");
@@ -68,7 +80,6 @@ namespace Microsoft.Tests
             content.Headers.Add("x-ms-meta-m1", "v1");
             content.Headers.Add("x-ms-meta-m2", "v2");
 
-            string blobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString();
             var response = _runner.ExecuteRequest(blobUri,
                 "PUT",
                 content,
