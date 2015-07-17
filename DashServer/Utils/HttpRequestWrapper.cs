@@ -2,9 +2,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Linq;
 using System.Net.Http;
 using System.Web;
-using Microsoft.Dash.Common.Utils;
 
 namespace Microsoft.Dash.Server.Utils
 {
@@ -75,7 +76,10 @@ namespace Microsoft.Dash.Server.Utils
         
         protected virtual IEnumerable<string> GetPathSegments()
         {
-            return PathUtils.GetPathSegments(this.Url.AbsolutePath);
+            return this.Url.Segments
+                .Select(segment => segment.Trim('/'))
+                .Where(segment => !String.IsNullOrWhiteSpace(segment))
+                .ToArray();
         }
 
         protected virtual IEnumerable<string> GetOriginalPathSegments()

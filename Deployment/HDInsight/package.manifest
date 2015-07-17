@@ -1,12 +1,12 @@
 {
-  'Version' : 'v0.4',
+  'Version' : 'v0.2',
   'Description' : 'Client artifacts for Dash Server',
   'Severity' : 'Important',
   'AvailablePackages' : [
     {
       'PackageName' : 'HDIScript',
       'Description' : 'Script to customize HDInsight',
-      'StorageFileNames' : ['HDIScript/update_dash_hdi.ps1', 'HDIScript/deploy_dash_hdi.ps1']
+      'StorageFileNames' : ['HDIScript/update_dash_hdi.ps1', 'HDIScript/update_dash_hdi1.ps1', 'HDIScript/deploy_dash_hdi.ps1']
     },
     {
       'PackageName' : 'StorageSDK',
@@ -16,7 +16,7 @@
     {
       'PackageName' : 'StorageSDK2.0',
       'Description' : 'Azure Storage SDK with Dash modifications',
-      'StorageFileNames' : ['AzureSDK2.0/dash-azure-storage-2.2.0.jar', 'AzureSDK2.0/Microsoft.WindowsAzure.Storage.dll']
+      'StorageFileNames' : ['AzureSDK2.0/dash-azure-storage-2.0.0.jar', 'AzureSDK2.0/Microsoft.WindowsAzure.Storage.dll']
     },
     {
       'PackageName' : 'MapReduce',

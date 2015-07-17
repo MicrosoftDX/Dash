@@ -1,10 +1,11 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Web;
 using System.Xml;
-using Microsoft.Dash.Common.Utils;
 
 namespace Microsoft.Dash.Server.Utils
 {
@@ -96,8 +97,14 @@ namespace Microsoft.Dash.Server.Utils
         public static UriBuilder AddPathSegment(this UriBuilder baseUri, string pathToAdd)
         {
             var retval = new UriBuilder(baseUri.Uri);
-            retval.Path = PathUtils.AddPathSegment(retval.Path, pathToAdd);
+            var segments = retval.Uri.Segments
+                .Select(segment => segment.Trim('/'))
+                .Where(segment => !String.IsNullOrWhiteSpace(segment))
+                .ToList();
+            segments.Add(pathToAdd);
+            retval.Path = String.Join("/", segments);
             return retval;
         }
     }
+
 }

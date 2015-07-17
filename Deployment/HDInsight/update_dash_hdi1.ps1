@@ -1,9 +1,7 @@
 ﻿param(
     [Parameter(Mandatory=$true)][string] $DashService,
     [Parameter(Mandatory=$true)][string] $DashKey,
-    [string] $DashContainer = "",
-    [bool] $UseDashILB = $false,
-    [string] $DashILBAddress = ""
+    [string] $DashContainer = ""
 )
 
 function Edit-CoreSiteFile {
@@ -50,10 +48,6 @@ Write-HDILog "Stopping HDInsight services";
 $hdiservices = Get-HDIServicesRunning
 $output = $hdiservices | Stop-Service -verbose *>&1 | Out-String
 Write-HDILog $output
-foreach ($hdiservice in $hidservices)
-{
-   $hdiservice.WaitForStatus('Stopped')
-}
 
 Write-HDILog "Modifying core-site.xml: $core_site_path";
 [xml]$core_site = Get-Content $core_site_path
@@ -83,34 +77,29 @@ if ($element) {
 }
 $core_site.Save($core_site_path)
 
-# Add a hosts entry for the ILB
-if ($UseDashILB)
-{
-    Write-HDILog "Updating hosts entry for Dash ILB"
-    $hosts = get-item $env:windir\system32\drivers\etc\hosts
-    $hostswriter = $hosts.AppendText()
-    $hostswriter.WriteLine("")
-    $hostswriter.WriteLine("$DashIlb	$DashService.cloudapp.net")
-    $hostswriter.Close()
-}
-
 # Replace storage client library with Dash version
 Write-HDILog "Updating Azure Storage Client SDK"
-$new_jar_uri = "https://www.dash-update.net/client/v0.4/StorageSDK2.0/dash-azure-storage-2.2.0.jar"
-$install_dir = (Get-Item $hadoop_directory).Parent
-$old_jar_name = “azure-storage-2*.jar”
-$jars_to_patch = Get-ChildItem -Recurse -Path $install_dir -Filter $old_jar_name
-foreach ($jar in $jars_to_patch)
+$new_jar_uri = "https://www.dash-update.net/client/v0.2/StorageSDK2.0/dash-azure-storage-2.0.0.jar"
+$directories = "$hadoop_directory\share\hadoop\common\lib", "$hadoop_directory\share\hadoop\tools\lib", "$hbase_directory\lib"
+foreach ($directory in $directories) 
 {
-    $output = Invoke-WebRequest -Uri $new_jar_uri -Method Get -OutFile $jar.DirectoryName + "\dash-azure-storage-2.2.0.jar" -verbose *>&1 | Out-String
+    $output = remove-item "$directory\azure-storage-2.0.0.jar" -ErrorAction SilentlyContinue  -verbose *>&1 | Out-String
     Write-HDILog $output
-    $output = remove-item $jar -verbose *>&1 | Out-String
+    $output = Invoke-WebRequest -Uri $new_jar_uri -Method Get -OutFile "$directory\dash-azure-storage-2.0.0.jar"  -verbose *>&1 | Out-String
     Write-HDILog $output
 }
 
-Write-HDILog "Restarting HDInsight services";
-$output = $hdiservices | Start-Service | Out-String
+# Replace mapreduce jar to fix mapreduce job commit issue
+Write-HDILog "Updating Hadoop Mapreduce client core"
+$new_jar_uri = "https://www.dash-update.net/client/latest/MapReduce/hadoop-mapreduce-client-core-2.4.1-SNAPSHOT.jar"
+$directories = "$hadoop_directory\share\hadoop\mapreduce"
+foreach ($directory in $directories) 
+{
+    $output = remove-item "$directory\hadoop-mapreduce-client-core-*.jar" -ErrorAction SilentlyContinue  -verbose *>&1 | Out-String
     Write-HDILog $output
+    $output = Invoke-WebRequest -Uri $new_jar_uri -Method Get -OutFile "$directory\hadoop-mapreduce-client-core-2.4.1-SNAPSHOT.jar"  -verbose *>&1 | Out-String
+    Write-HDILog $output
+}
 
 # Create a container in the Dash account to work from. Given that this script is running on every VM in the cluster
 # this will be a race condition between all script invocations - first one wins, everyone else fails benignly
@@ -152,6 +141,9 @@ if ($isActiveHeadNode -and [bool]$DashContainer) {
     # Copy required files to the default container
 
 }
+Write-HDILog "Restarting HDInsight services";
+$output = $hdiservices | Start-Service  -verbose *>&1 | Out-String
+Write-HDILog $output
 
 Write-HDILog "Done with Dash installation at: $(Get-Date)";
 

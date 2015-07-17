@@ -29,20 +29,14 @@ namespace Microsoft.Dash.Server.Handlers
                 case StorageOperationTypes.GetPageRanges:
                     if (client.HasFlag(DashClientCapabilities.FollowRedirects))
                     {
-                        result = await BlobHandler.BasicBlobAsync(requestWrapper, 
-                            containerName, 
-                            blobName, 
-                            BlobReplicationOperations.DoesOperationTriggerReplication(requestOperation));
+                        result = await BlobHandler.BasicBlobAsync(requestWrapper, containerName, blobName);
                     }
                     break;
 
                 case StorageOperationTypes.PutPage:
                     if (client.HasFlag(DashClientCapabilities.NoPayloadToDash))
                     {
-                        result = await BlobHandler.BasicBlobAsync(requestWrapper, 
-                            containerName, 
-                            blobName,
-                            BlobReplicationOperations.DoesOperationTriggerReplication(requestOperation));
+                        result = await BlobHandler.BasicBlobAsync(requestWrapper, containerName, blobName);
                     }
                     break;
 
@@ -51,10 +45,7 @@ namespace Microsoft.Dash.Server.Handlers
                 case StorageOperationTypes.PutBlockList:
                     if (client.HasFlag(DashClientCapabilities.NoPayloadToDash))
                     {
-                        result = await BlobHandler.PutBlobAsync(requestWrapper, 
-                            containerName, 
-                            blobName,
-                            BlobReplicationOperations.DoesOperationTriggerReplication(requestOperation));
+                        result = await BlobHandler.PutBlobAsync(requestWrapper, containerName, blobName);
                     }
                     break;
 

@@ -1,8 +1,6 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Dash.Common.Utils;
 using Microsoft.WindowsAzure.Storage.Blob;
@@ -14,7 +12,6 @@ namespace Microsoft.Dash.Common.Handlers
         private readonly INamespaceBlob _cachedNamespaceBlob;
         private readonly INamespaceBlob _cloudNamespaceBlob;
         internal static bool CacheIsEnabled = Boolean.Parse(AzureUtils.GetConfigSetting("CacheIsEnabled", Boolean.FalseString));
-        static readonly Random DataAccountSelector = new Random();
 
         internal NamespaceBlob(INamespaceBlob cachedNamespaceBlob, INamespaceBlob cloudNamespaceBlob)
         {
@@ -129,73 +126,6 @@ namespace Microsoft.Dash.Common.Handlers
                     _cachedNamespaceBlob.IsMarkedForDeletion = value;
                 }
             }
-        }
-
-        public string PrimaryAccountName
-        {
-            get
-            {
-                return CacheIsEnabled ? _cachedNamespaceBlob.PrimaryAccountName : _cloudNamespaceBlob.PrimaryAccountName;
-            }
-
-            set
-            {
-                _cloudNamespaceBlob.PrimaryAccountName = value;
-                if (CacheIsEnabled)
-                {
-                    _cachedNamespaceBlob.PrimaryAccountName = value;
-                }
-            }
-        }
-
-        public IList<string> DataAccounts
-        {
-            get
-            {
-                return CacheIsEnabled ? _cachedNamespaceBlob.DataAccounts : _cloudNamespaceBlob.DataAccounts;
-            }
-        }
-
-
-        public string SelectDataAccount
-        {
-            get
-            {
-                var dataAccounts = this.DataAccounts;
-                if (!dataAccounts.Any())
-                {
-                    return String.Empty;
-                }
-
-                return dataAccounts[DataAccountSelector.Next(dataAccounts.Count())];
-            }
-        }
-
-        public bool AddDataAccount(string dataAccount)
-        {
-            var val = _cloudNamespaceBlob.AddDataAccount(dataAccount);
-            if (CacheIsEnabled)
-            {
-                val &= _cachedNamespaceBlob.AddDataAccount(dataAccount);
-            }
-
-            return val;
-        }
-
-        public bool RemoveDataAccount(string dataAccount)
-        {
-            var val = _cloudNamespaceBlob.RemoveDataAccount(dataAccount);
-            if (CacheIsEnabled)
-            {
-                val &= _cachedNamespaceBlob.RemoveDataAccount(dataAccount);
-            }
-
-            return val;
-        }
-
-        public bool IsReplicated
-        {
-            get { return CacheIsEnabled ? _cachedNamespaceBlob.IsReplicated : _cloudNamespaceBlob.IsReplicated; }
         }
 
         public async Task SaveAsync()

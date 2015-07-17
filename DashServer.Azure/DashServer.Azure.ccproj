@@ -31,22 +31,13 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
-  <PropertyGroup>
-    <TargetProfile Condition=" '$(TargetProfile)' == '' ">Cloud</TargetProfile>
-    <IsILBProfile Condition=" '$(IsILBProfile)' == '' ">$(TargetProfile.ToLower().Contains('.ilb'))</IsILBProfile>
-  </PropertyGroup>
   <!-- Items for the project -->
   <ItemGroup>
-    <ServiceConfiguration Include="ServiceConfiguration.Publish.cscfg" />
-    <ServiceConfiguration Include="ServiceConfiguration.Publish.ILB.cscfg" />
+    <ServiceDefinition Include="ServiceDefinition.csdef" />
     <ServiceConfiguration Include="ServiceConfiguration.Cloud - East.cscfg" />
+    <ServiceConfiguration Include="ServiceConfiguration.Publish.cscfg" />
     <ServiceConfiguration Include="ServiceConfiguration.Local.cscfg" />
     <ServiceConfiguration Include="ServiceConfiguration.Cloud.cscfg" />
-  </ItemGroup>
-  <ItemGroup>
-    <ServiceDefinition Condition="!$(IsILBProfile)" Include="ServiceDefinition.csdef" />
-    <None Condition="!$(IsILBProfile)" Include="ServiceDefinition.ILB.csdef" />
-    <ServiceDefinition Condition="$(IsILBProfile)" Include="ServiceDefinition.ILB.csdef" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DashServer\DashServer.csproj">
@@ -70,14 +61,10 @@
   </ItemGroup>
   <ItemGroup>
     <PublishProfile Include="Profiles\DashJbTestProduction.azurePubxml" />
-    <PublishProfile Include="Profiles\dashweststorage - external.azurePubxml" />
-    <PublishProfile Include="Profiles\wmdashstorage - internal.azurePubxml" />
     <PublishProfile Include="Profiles\DashTestEastProduction.azurePubxml" />
     <PublishProfile Include="Profiles\DashTestEastProduction3.azurePubxml" />
     <PublishProfile Include="Profiles\DashTestEastProduction2.azurePubxml" />
     <PublishProfile Include="Profiles\DashTestEastProduction4.azurePubxml" />
-    <PublishProfile Include="Profiles\wmdashstorage - external.azurePubxml" />
-    <PublishProfile Include="Profiles\dashweststorage - internal.azurePubxml" />
   </ItemGroup>
   <!-- Import the target files for this project template -->
   <PropertyGroup>

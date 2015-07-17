@@ -3,7 +3,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Web;
 using Microsoft.Dash.Common.Diagnostics;
@@ -12,40 +11,26 @@ namespace Microsoft.Dash.Server.Utils
 {
     public abstract class RequestResponseItems : ILookup<string, string>, IEnumerable<IGrouping<string, string>>
     {
-        protected IDictionary<string, IList<string>> _items;
+        IDictionary<string, IEnumerable<string>> _items;
 
         protected RequestResponseItems(IEnumerable<KeyValuePair<string, string>> items)
         {
             _items = items
                 .GroupBy(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(item => item.Key, item => (IList<string>)item.ToList(), StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(item => item.Key, item => item.AsEnumerable(), StringComparer.OrdinalIgnoreCase);
         }
 
         protected RequestResponseItems(IEnumerable<KeyValuePair<string, IEnumerable<string>>> items)
         {
             _items = items
                 .GroupBy(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(groupedItems => groupedItems.Key,
-                              groupedItems => (IList<string>)groupedItems
-                                  .SelectMany(keyItems => keyItems)
-                                  .ToList(), 
-                              StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(groupedItems => groupedItems.Key, groupedItems => groupedItems.SelectMany(keyItems => keyItems), StringComparer.OrdinalIgnoreCase);
         }
 
         public IEnumerable<string> this[string itemName]
         {
             get { return _items[itemName]; }
-        }
-
-        public void Append(string itemName, string itemValue)
-        {
-            IList<string> itemValues;
-            if (!_items.TryGetValue(itemName, out itemValues))
-            {
-                itemValues = new List<string>();
-                _items.Add(itemName, itemValues);
-            }
-            itemValues.Add(itemValue);
+            set { _items[itemName] = value; }
         }
 
         public bool Contains(string key)
@@ -86,20 +71,6 @@ namespace Microsoft.Dash.Server.Utils
             return defaultValue;
         }
 
-        public DateTimeOffset Value(string itemName, DateTimeOffset defaultValue)
-        {
-            IList<string> values;
-            if (_items.TryGetValue(itemName, out values))
-            { 
-                DateTimeOffset retval;
-                if (DateTimeOffset.TryParse(values.First(), null, DateTimeStyles.AssumeUniversal, out retval))
-                {
-                    return retval;
-                }
-            }
-            return defaultValue;
-        }
-
         public Nullable<T> ValueOrNull<T>(string itemName) where T : struct, IConvertible
         {
             var values = Values<T>(itemName);
@@ -112,7 +83,7 @@ namespace Microsoft.Dash.Server.Utils
 
         public IEnumerable<T> Values<T>(string itemName) where T : IConvertible
         {
-            IList<string> values = null;
+            IEnumerable<string> values = null;
             if (_items.TryGetValue(itemName, out values))
             {
                 return values

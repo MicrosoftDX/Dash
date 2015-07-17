@@ -57,6 +57,7 @@ namespace Microsoft.Dash.Server.Utils
                 }
                 if (String.IsNullOrWhiteSpace(_signedLocation))
                 {
+                    // TODO: Handle encryption for SAS requests
                     if (String.IsNullOrWhiteSpace(this.Request.AuthenticationScheme))
                     {
                         return String.Empty;
@@ -72,7 +73,7 @@ namespace Microsoft.Dash.Server.Utils
                     else if (!this.Headers.Contains(ResponseDateHeader))
                     {
                         responseDate = DateTimeOffset.UtcNow.ToString("r");
-                        this.Headers.Append("Date", responseDate);
+                        this.Headers["Date"] = Enumerable.Repeat(responseDate, 1);
                     }
                     else
                     {

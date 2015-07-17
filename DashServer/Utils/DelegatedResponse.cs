@@ -1,16 +1,18 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
 using System.Net.Http;
-using Microsoft.Dash.Common.Utils;
+using System.Web;
 
 namespace Microsoft.Dash.Server.Utils
 {
-    public class DelegatedResponse : SimpleHttpResponse
+    public class DelegatedResponse
     {
-        public DelegatedResponse(SimpleHttpResponse src) : base(src)
-        {
-        }
+        public HttpStatusCode StatusCode { get; set; }
+        public string ReasonPhrase { get; set; }
 
         public HttpResponseMessage CreateResponse()
         {

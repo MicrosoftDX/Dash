@@ -1,8 +1,6 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Dash.Common.Cache;
 using Microsoft.Dash.Common.Utils;
@@ -21,37 +19,6 @@ namespace Microsoft.Dash.Common.Handlers
 
         public bool? IsMarkedForDeletion { get; set; }
 
-        public string PrimaryAccountName { get; set; }
-
-        public IList<string> DataAccounts { get; private set; }
-        public bool AddDataAccount(string dataAccount)
-        {
-            var dataAccounts = this.DataAccounts;
-            if (!dataAccounts.Contains(dataAccount, StringComparer.OrdinalIgnoreCase))
-            {
-                dataAccounts.Add(dataAccount);
-                return true;
-            }
-
-            return false;
-        }
-
-        public bool RemoveDataAccount(string dataAccount)
-        {
-            var dataAccounts = this.DataAccounts;
-            if (dataAccounts.Contains(dataAccount, StringComparer.OrdinalIgnoreCase))
-            {
-                dataAccounts.RemoveAt(((List<string>)dataAccounts)
-                                            .FindIndex(account => String.Equals(account, dataAccount, StringComparison.OrdinalIgnoreCase)));
-
-                return true;
-            }
-
-            return false;
-        }
-
-        public bool IsReplicated { get; private set; }
-
         private string Snapshot { get; set; }
 
         public NamespaceBlobCache()
@@ -69,9 +36,6 @@ namespace Microsoft.Dash.Common.Handlers
             Container = namespaceBlob.Container;
             BlobName = namespaceBlob.BlobName;
             IsMarkedForDeletion = namespaceBlob.IsMarkedForDeletion;
-            PrimaryAccountName = namespaceBlob.PrimaryAccountName;
-            DataAccounts = namespaceBlob.DataAccounts;
-            IsReplicated = namespaceBlob.IsReplicated;
             Snapshot = snapshot;
         }
 

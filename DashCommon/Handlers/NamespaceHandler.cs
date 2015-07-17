@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using Microsoft.Dash.Common.Utils;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
-using Microsoft.WindowsAzure.Storage.Queue;
 
 namespace Microsoft.Dash.Common.Handlers
 {
@@ -27,7 +26,7 @@ namespace Microsoft.Dash.Common.Handlers
                 }
                 //getting storage account name and account key from file account, by using simple hashing algorithm to choose account storage
                 var dataAccount = GetDataStorageAccountForBlob(blob);
-                namespaceBlob.PrimaryAccountName = dataAccount.Credentials.AccountName;
+                namespaceBlob.AccountName = dataAccount.Credentials.AccountName;
                 namespaceBlob.Container = container;
                 namespaceBlob.BlobName = blob;
                 namespaceBlob.IsMarkedForDeletion = false;
@@ -84,12 +83,6 @@ namespace Microsoft.Dash.Common.Handlers
         {
             CloudBlobClient client = account.CreateCloudBlobClient();
             return client.GetContainerReference(containerName);
-        }
-
-        public static CloudQueue GetQueueByName(CloudStorageAccount account, string queueName)
-        {
-            CloudQueueClient client = account.CreateCloudQueueClient();
-            return client.GetQueueReference(queueName);
         }
 
         public static ICloudBlob GetBlobByName(CloudStorageAccount account, string containerName, string blobName, string snapshot = null)

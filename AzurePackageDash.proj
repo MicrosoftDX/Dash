@@ -10,9 +10,7 @@ Also writes the required package.manifest to upload to the Update Service's stor
     <OutDir Condition="'$(OutDir)' == ''">bin\</OutDir>
     <PackageRoot Condition="'$(PackageRoot)' == ''">$([System.IO.Path]::GetFullPath($(OutDir)Package\))</PackageRoot>
     <CloudServiceDir Condition="'$(CloudServiceDir)' == ''">DashServer.Azure</CloudServiceDir>
-    <CloudServiceILBDir Condition="'$(CloudServiceILBDir)' == ''">DashServer.Azure.ILB</CloudServiceILBDir>
     <CloudServiceHttpsDir Condition="'$(CloudServiceHttpsDir)' == ''">DashServer.Azure.Https</CloudServiceHttpsDir>
-    <CloudServiceHttpsILBDir Condition="'$(CloudServiceHttpsILBDir)' == ''">DashServer.Azure.Https.ILB</CloudServiceHttpsILBDir>
   </PropertyGroup>
   <Import Project=".\.build\PackageVersion.targets" />
   <Target Name="Build" DependsOnTargets="GetPackageVersion">
@@ -26,7 +24,6 @@ Also writes the required package.manifest to upload to the Update Service's stor
   'Version' : '$(PackageVersion)',
   'Description' : '',
   'Severity' : 'Important',
-  'Disabled' : 'true',
   'AvailablePackages' : [
     {
       'PackageName' : 'HTTP',
@@ -34,26 +31,14 @@ Also writes the required package.manifest to upload to the Update Service's stor
       'StorageFileNames' : ['$(CloudServiceDir)/DashServer.Azure.cspkg', '$(CloudServiceDir)/ServiceConfiguration.Publish.cscfg']
     },
     {
-      'PackageName' : 'HTTP.ILB',
-      'Description' : 'Dash Server with Internal Load Balancer and no HTTPS',
-      'StorageFileNames' : ['$(CloudServiceILBDir)/DashServer.Azure.cspkg', '$(CloudServiceILBDir)/ServiceConfiguration.Publish.ILB.cscfg']
-    },
-    {
       'PackageName' : 'HTTPS',
-      'Description' : 'Dash Server with HTTPS',
+      'Description' : 'Gateway with HTTPS',
       'StorageFileNames' : ['$(CloudServiceHttpsDir)/DashServer.Azure.Https.cspkg', '$(CloudServiceHttpsDir)/ServiceConfiguration.PublishHttps.cscfg']
-    },
-    {
-      'PackageName' : 'HTTPS.ILB',
-      'Description' : 'Dash Server with Internal Load Balancer and HTTPS',
-      'StorageFileNames' : ['$(CloudServiceHttpsILBDir)/DashServer.Azure.Https.cspkg', '$(CloudServiceHttpsILBDir)/ServiceConfiguration.PublishHttps.ILB.cscfg']
     }
   ]
 }" />
     <MSBuild Projects="DashServer.Azure\DashServer.Azure.ccproj" Targets="Publish" Properties="Configuration=Release;TargetProfile=Publish;PublishDir=$(PackageRoot)$(CloudServiceDir)/;" />
-    <MSBuild Projects="DashServer.Azure\DashServer.Azure.ccproj" Targets="Publish" Properties="Configuration=Release;TargetProfile=Publish.ILB;PublishDir=$(PackageRoot)$(CloudServiceILBDir)/;" />
     <MSBuild Projects="DashServer.Azure.Https\DashServer.Azure.Https.ccproj" Targets="Publish" Properties="Configuration=Release;TargetProfile=PublishHttps;PublishDir=$(PackageRoot)$(CloudServiceHttpsDir)/;" />
-    <MSBuild Projects="DashServer.Azure.Https\DashServer.Azure.Https.ccproj" Targets="Publish" Properties="Configuration=Release;TargetProfile=PublishHttps.ILB;PublishDir=$(PackageRoot)$(CloudServiceHttpsILBDir)/;" />
   </Target>
 </Project>
 
