@@ -14,21 +14,29 @@ namespace Microsoft.Dash.Async
             IMessageQueue queue = new AzureMessageQueue();
             while (true)
             {
-                QueueMessage payload = queue.Dequeue(invisibilityTimeout);
-                if (payload == null)
+                try
                 {
-                    break;
+                    QueueMessage payload = queue.Dequeue(invisibilityTimeout);
+                    if (payload == null)
+                    {
+                        break;
+                    }
+                    // Right now, success/failure is indicated through a bool
+                    // Do we want to surround this with a try/catch and use exceptions instead?
+                    if (ProcessMessage(payload, invisibilityTimeout))
+                    {
+                        queue.DeleteCurrentMessage();
+                        msgProcessed++;
+                    }
+                    else
+                    {
+                        // Leave it in the queue for retry after invisibility period expires
+                        msgErrors++;
+                    }
                 }
-                // Right now, success/failure is indicated through a bool
-                // Do we want to surround this with a try/catch and use exceptions instead?
-                if (ProcessMessage(payload, invisibilityTimeout))
+                catch (Exception ex)
                 {
-                    queue.DeleteCurrentMessage();
-                    msgProcessed++;
-                }
-                else
-                {
-                    // Leave it in the queue for retry after invisibility period expires
+                    DashTrace.TraceWarning("Unhandled exception processing async message. Message will be left in queue. Details: {0}", ex);
                     msgErrors++;
                 }
             }

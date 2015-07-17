@@ -42,12 +42,6 @@ namespace Microsoft.Dash.Common.Processors
                 var accountClient = account.CreateCloudBlobClient();
                 var namespaceClient = DashConfiguration.NamespaceAccount.CreateCloudBlobClient();
                 var accountContainers = await ListContainersAsync(accountClient);
-                if (!accountContainers.Any())
-                {
-                    // No containers - nothing to import
-                    DashTrace.TraceInformation("Importing storage account: {0}. This account has no blob containers and so there is nothing to import.");
-                    return;
-                }
                 var status = await AccountStatus.GetAccountStatus(accountName);
                 await status.UpdateStatusInformation(AccountStatus.States.Healthy, "Importing storage account: {0} into virtual account", accountName);
                 bool alreadyImported = false;

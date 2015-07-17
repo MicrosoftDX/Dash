@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Threading;
 using Microsoft.Dash.Common.Diagnostics;
 using Microsoft.Dash.Common.Handlers;
@@ -47,7 +48,6 @@ namespace Microsoft.Dash.Common.Processors
                 DateTime waitForCompleteGiveUp = DateTime.UtcNow.AddSeconds(waitDelay ?? (DashConfiguration.AsyncWorkerTimeout / 2));
                 while (DateTime.UtcNow < waitForCompleteGiveUp)
                 {
-                    DashTrace.TraceInformation("Fetching attributes for [{0}]", destBlob.Uri);
                     destBlob.FetchAttributes();
                     if (destBlob.CopyState.CopyId != copyId || destBlob.CopyState.Status != CopyStatus.Pending)
                     {
@@ -94,6 +94,10 @@ namespace Microsoft.Dash.Common.Processors
                     destAccount,
                     ex);
                 // TODO: Classify the errors into retryable & non-retryable
+                if (ex.RequestInformation.HttpStatusCode == (int)HttpStatusCode.NotFound)
+                {
+                    retval = true;
+                }
             }
             catch (Exception ex)
             {
@@ -164,8 +168,8 @@ namespace Microsoft.Dash.Common.Processors
 
                     case CopyStatus.Pending:
                         // Enqueue a new message to check on the copy status
-                        DashTrace.TraceInformation("Replicating blob [{0}] to account [{1}]. Copy Id [{2}] is pending. Enqueing progress message.",
-                            sourceUri, destBlob.ServiceClient.Credentials.AccountName, copyId);
+                        DashTrace.TraceInformation("Replicating blob [{0}] to account [{1}]. Copy Id [{2}] is pending. Copied [{3}]/[{4}] bytes. Enqueing progress message.",
+                            sourceUri, destBlob.ServiceClient.Credentials.AccountName, copyId, destBlob.CopyState.BytesCopied, destBlob.CopyState.TotalBytes);
                         new AzureMessageQueue().Enqueue(new QueueMessage(MessageTypes.ReplicateProgress,
                             new Dictionary<string, string> 
                                 {
