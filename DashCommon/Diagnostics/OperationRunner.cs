@@ -3,17 +3,13 @@
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using Microsoft.Dash.Common.Diagnostics;
 using Microsoft.Dash.Common.Utils;
-using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage;
 
-namespace Microsoft.Dash.Server.Diagnostics
+namespace Microsoft.Dash.Common.Diagnostics
 {
     public class OperationRunner : IDisposable
     {
-        static readonly bool _configLogSuccess = AzureUtils.GetConfigSetting("LogNormalOperations", false);
-
         Stopwatch _watch;
         string _operation;
         bool _logSuccess;
@@ -23,17 +19,38 @@ namespace Microsoft.Dash.Server.Diagnostics
             return new OperationRunner(operation, logSuccess);
         }
 
-        public static async Task<HandlerResult> DoHandlerAsync(string operation, Func<Task<HandlerResult>> action)
-        {
-            return await DoActionAsync(operation, action, (ex) => HandlerResult.FromException(ex));
-        }
-
         public static async Task<T> DoActionAsync<T>(string operation, Func<Task<T>> action)
         {
             return await DoActionAsync(operation, action, (ex) => default(T));
         }
 
-        public static async Task<T> DoActionAsync<T>(string operation, Func<Task<T>> action, Func<StorageException, T> storageExceptionHandler)
+        public static async Task DoActionAsync(string operation, 
+            Func<Task> action, 
+            Action<StorageException> storageExceptionHandler = null, 
+            bool rethrowAllOtherExceptions = true, 
+            bool? logSuccess = null)
+        {
+            await DoActionAsync(operation, async () =>
+                {
+                    await action();
+                    return true;
+                },
+                (ex) =>
+                {
+                    if (storageExceptionHandler != null)
+                    {
+                        storageExceptionHandler(ex);
+                    }
+                    return true;
+                },
+                rethrowAllOtherExceptions);
+        }
+
+        public static async Task<T> DoActionAsync<T>(string operation, 
+            Func<Task<T>> action, 
+            Func<StorageException, T> storageExceptionHandler, 
+            bool rethrowAllOtherExceptions = true, 
+            bool? logSuccess = null)
         {
             using (var runner = OperationRunner.Start(operation))
             {
@@ -61,12 +78,16 @@ namespace Microsoft.Dash.Server.Diagnostics
                         Message = operation,
                         ErrorDetails = new DashErrorInformation { ErrorMessage = ex.ToString() },
                     });
-                    throw;
+                    if (rethrowAllOtherExceptions)
+                    {
+                        throw;
+                    }
+                    return default(T);
                 }
             }
         }
 
-        private OperationRunner(string operation, bool? logSuccess = null)
+        protected OperationRunner(string operation, bool? logSuccess = null)
         {
             _operation = operation;
             if (logSuccess.HasValue)
@@ -75,7 +96,7 @@ namespace Microsoft.Dash.Server.Diagnostics
             }
             else
             {
-                _logSuccess = _configLogSuccess;
+                _logSuccess = DashConfiguration.LogNormalOperations;
             }
             if (_logSuccess)
             {

@@ -1,6 +1,7 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
@@ -59,6 +60,19 @@ namespace Microsoft.Tests
             public string BlobName { get; set; }
 
             public bool? IsMarkedForDeletion { get; set; }
+            public string PrimaryAccountName { get; set; }
+            public IList<string> DataAccounts { get; private set; }
+            public bool AddDataAccount(string dataAccount)
+            {
+                throw new NotImplementedException();
+            }
+
+            public bool RemoveDataAccount(string dataAccount)
+            {
+                throw new NotImplementedException();
+            }
+
+            public bool IsReplicated { get; private set; }
 
             public Task SaveAsync()
             {

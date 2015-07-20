@@ -1,7 +1,9 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Text;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
@@ -11,7 +13,7 @@ namespace Microsoft.Dash.Common.Handlers
     /// <summary>
     /// NamespaceBlob that lives in the Namespace Storage Account
     /// </summary>
-    internal class NamespaceBlobCloud : INamespaceBlob
+    public class NamespaceBlobCloud : INamespaceBlob
     {
         private const string MetadataNameAccount    = "accountname";
         private const string MetadataNameContainer  = "container";
@@ -20,6 +22,12 @@ namespace Microsoft.Dash.Common.Handlers
 
         private bool _isLoaded = false;
         private bool _cloudBlockBlobExists = false;
+
+        const string AccountDelimiter               = "|";
+        static readonly char AccountDelimiterChar   = AccountDelimiter[0];
+
+
+        IList<string> _dataAccounts;
 
         private readonly Func<CloudBlockBlob> _getCloudBlockBlob;
 
@@ -80,6 +88,11 @@ namespace Microsoft.Dash.Common.Handlers
 
         public async Task SaveAsync()
         {
+            if (_dataAccounts != null && _dataAccounts.Count > 0)
+            {
+                CloudBlockBlob.Metadata[MetadataNameAccount] = String.Join(AccountDelimiter, _dataAccounts);
+            }
+
             if (await ExistsAsync())
             {
                 await CloudBlockBlob.SetMetadataAsync(AccessCondition.GenerateIfMatchCondition(CloudBlockBlob.Properties.ETag), null, null);
@@ -109,6 +122,23 @@ namespace Microsoft.Dash.Common.Handlers
             _getCloudBlockBlob = getCloudBlockBlob;
         }
 
+        public string PrimaryAccountName
+        {
+            get { return this.DataAccounts.FirstOrDefault(); }
+            set
+            {
+                var accounts = this.DataAccounts;
+                accounts.Clear();
+                accounts.Add(value);
+            }
+        }
+
+        public IList<string> DataAccounts        {            get             {                if (_dataAccounts == null)                {                    lock (this)                    {                        if (_dataAccounts == null)                        {                            string accounts = TryGetMetadataValue(MetadataNameAccount);                            if (String.IsNullOrWhiteSpace(accounts))                            {                                _dataAccounts = new List<string>();                            }                            else                            {                                _dataAccounts = accounts                                    .Split(AccountDelimiterChar)                                    .Select(account => account.Trim())                                    .ToList();                            }                        }                    }                }                return _dataAccounts;             }        }
+        public bool AddDataAccount(string dataAccount)        {            var dataAccounts = this.DataAccounts;            if (!dataAccounts.Contains(dataAccount, StringComparer.OrdinalIgnoreCase))            {                dataAccounts.Add(dataAccount);                return true;            }
+            return false;        }        public bool RemoveDataAccount(string dataAccount)        {            var dataAccounts = this.DataAccounts;            if (dataAccounts.Contains(dataAccount, StringComparer.OrdinalIgnoreCase))            {                dataAccounts.RemoveAt(((List<string>)dataAccounts)                                            .FindIndex(account => String.Equals(account, dataAccount, StringComparison.OrdinalIgnoreCase)));
+                return true;            }
+            return false;        }
+        public bool IsReplicated        {            get { return this.DataAccounts.Count > 1; }        }
         private string TryGetMetadataValue(string metadataName)
         {
             string retval;

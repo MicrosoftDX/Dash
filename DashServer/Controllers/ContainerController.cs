@@ -36,10 +36,7 @@ namespace Microsoft.Dash.Server.Controllers
         [HttpPut]
         public async Task<HttpResponseMessage> CreateContainer(string container)
         {
-            return (await DoForAllContainersAsync(container, 
-                HttpStatusCode.Created, 
-                async containerObj => await containerObj.CreateAsync(),
-                false)).CreateResponse();
+            return new DelegatedResponse(await ContainerHandler.CreateContainer(container)).CreateResponse();
         }
 
         // Put Container operations, with 'comp' parameter'
@@ -72,49 +69,7 @@ namespace Microsoft.Dash.Server.Controllers
         [HttpDelete]
         public async Task<HttpResponseMessage> DeleteContainer(string container)
         {
-            return (await DoForAllContainersAsync(container, 
-                HttpStatusCode.Accepted, 
-                async containerObj => await containerObj.DeleteAsync(),
-                false)).CreateResponse();
-        }
-
-        async Task<DelegatedResponse> DoForAllContainersAsync(string container, HttpStatusCode successStatus, Func<CloudBlobContainer, Task> action, bool ignoreNotFound)
-        {
-            return await DoForContainersAsync(container, successStatus, action, DashConfiguration.AllAccounts, ignoreNotFound);
-        }
-
-        async Task<DelegatedResponse> DoForDataContainersAsync(string container, HttpStatusCode successStatus, Func<CloudBlobContainer, Task> action, bool ignoreNotFound)
-        {
-            return await DoForContainersAsync(container, successStatus, action, DashConfiguration.DataAccounts, ignoreNotFound);
-        }
-
-        async Task<DelegatedResponse> DoForContainersAsync(string container, 
-            HttpStatusCode successStatus, 
-            Func<CloudBlobContainer, Task> action, 
-            IEnumerable<CloudStorageAccount> accounts,
-            bool ignoreNotFound)
-        {
-            DelegatedResponse retval = new DelegatedResponse
-            {
-                StatusCode = successStatus,
-            };
-            foreach (var account in accounts)
-            {
-                var containerObj = NamespaceHandler.GetContainerByName(account, container);
-                try
-                {
-                    await action(containerObj);
-                }
-                catch (StorageException ex)
-                {
-                    if (!ignoreNotFound || ex.RequestInformation.HttpStatusCode != (int)HttpStatusCode.NotFound)
-                    {
-                        retval.StatusCode = (HttpStatusCode)ex.RequestInformation.HttpStatusCode;
-                        retval.ReasonPhrase = ex.RequestInformation.HttpStatusMessage;
-                    }
-                }
-            }
-            return retval;
+            return new DelegatedResponse(await ContainerHandler.DeleteContainer(container)).CreateResponse();
         }
 
         [AcceptVerbs("GET", "HEAD")]
@@ -197,7 +152,7 @@ namespace Microsoft.Dash.Server.Controllers
                 perms.SharedAccessPolicies.Add(policy);
             }
 
-            var status = await DoForAllContainersAsync(container.Name, 
+            var status = await ContainerHandler.DoForAllContainersAsync(container.Name, 
                 HttpStatusCode.OK, 
                 async containerObj => await containerObj.SetPermissionsAsync(perms),
                 true);
@@ -232,12 +187,11 @@ namespace Microsoft.Dash.Server.Controllers
         {
             const string MetadataPrefix = "x-ms-meta-";
             HttpRequestBase request = RequestFromContext(HttpContextFactory.Current);
-            IEnumerable<KeyValuePair<string, IEnumerable<string>>> metadata = Request.Headers.Where(header => header.Key.StartsWith(MetadataPrefix));
+            container.Metadata.Clear();
+            var metadata = Request.Headers.Where(header => header.Key.StartsWith(MetadataPrefix));
             foreach (var metadatum in metadata)
             {
-                string key = metadatum.Key.Replace(MetadataPrefix, "");
-                string value = metadatum.Value.First();
-                container.Metadata.Add(new KeyValuePair<string, string>(key, value));
+                container.Metadata.Add(metadatum.Key.Substring(MetadataPrefix.Length), metadatum.Value.FirstOrDefault());
             }
             await container.SetMetadataAsync();
             HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -288,7 +242,7 @@ namespace Microsoft.Dash.Server.Controllers
                         return response;
                     }
                     serverLeaseId = await container.AcquireLeaseAsync(leaseDurationSpan, proposedLeaseId);
-                    response = (await DoForDataContainersAsync(container.Name, 
+                    response = new DelegatedResponse(await ContainerHandler.DoForDataContainersAsync(container.Name, 
                         HttpStatusCode.Created, 
                         async containerObj => await containerObj.AcquireLeaseAsync(leaseDurationSpan, serverLeaseId),
                         true)).CreateResponse();
@@ -301,7 +255,7 @@ namespace Microsoft.Dash.Server.Controllers
                     {
                         LeaseId = leaseId
                     };
-                    response = (await DoForAllContainersAsync(container.Name, 
+                    response = new DelegatedResponse(await ContainerHandler.DoForAllContainersAsync(container.Name, 
                         HttpStatusCode.OK, 
                         async containerObj => await containerObj.RenewLeaseAsync(condition),
                         true)).CreateResponse();
@@ -315,7 +269,7 @@ namespace Microsoft.Dash.Server.Controllers
                         LeaseId = leaseId
                     };
                     serverLeaseId = await container.ChangeLeaseAsync(proposedLeaseId, condition);
-                    response = (await DoForDataContainersAsync(container.Name, 
+                    response = new DelegatedResponse(await ContainerHandler.DoForDataContainersAsync(container.Name, 
                         HttpStatusCode.OK, 
                         async containerObj => await containerObj.ChangeLeaseAsync(proposedLeaseId, condition),
                         true)).CreateResponse();
@@ -328,7 +282,7 @@ namespace Microsoft.Dash.Server.Controllers
                     {
                         LeaseId = leaseId
                     };
-                    response = (await DoForAllContainersAsync(container.Name, 
+                    response = new DelegatedResponse(await ContainerHandler.DoForAllContainersAsync(container.Name, 
                         HttpStatusCode.OK, 
                         async containerObj => await containerObj.ReleaseLeaseAsync(condition),
                         true)).CreateResponse();
@@ -343,7 +297,7 @@ namespace Microsoft.Dash.Server.Controllers
                     }
                     TimeSpan breakDurationSpan = new TimeSpan(0, 0, breakDuration);
                     TimeSpan remainingTime = await container.BreakLeaseAsync(breakDurationSpan);
-                    response = (await DoForDataContainersAsync(container.Name, 
+                    response = new DelegatedResponse(await ContainerHandler.DoForDataContainersAsync(container.Name, 
                         HttpStatusCode.Accepted, 
                         async containerObj => await containerObj.BreakLeaseAsync(breakDurationSpan),
                         true)).CreateResponse();
@@ -422,16 +376,29 @@ namespace Microsoft.Dash.Server.Controllers
 
             var blobTasks = DashConfiguration.DataAccounts
                 .Select(account => ChildBlobListAsync(account, container, prefix, delim, includedDataSets));
+            var namespaceTask = ChildBlobListAsync(DashConfiguration.NamespaceAccount, container, prefix, delim, BlobListingDetails.Metadata.ToString());
             var blobs = await Task.WhenAll(blobTasks);
+            var namespaceBlobs = await namespaceTask;
             var sortedBlobs = blobs
                 .SelectMany(blobList => blobList)
                 .OrderBy(blob => blob.Uri.AbsolutePath, StringComparer.Ordinal)  
-                .Distinct(new BlobComparer())
-                .SkipWhile(blob => !String.IsNullOrWhiteSpace(marker) && GetMarkerForBlob(blob) != marker)
-                .Take(maxResults + 1);                  // Get an extra listing so that we can generate the nextMarker
+                .SkipWhile(blob => !String.IsNullOrWhiteSpace(marker) && GetMarkerForBlob(blob) != marker);
+            var sortedNamespace = namespaceBlobs
+                .Where(blob => blob is CloudBlobDirectory ? true : !(bool)(new NamespaceBlobCloud(() => (CloudBlockBlob)blob).IsMarkedForDeletion))
+                .OrderBy(blob => blob.Uri.AbsolutePath, StringComparer.Ordinal)  
+                .SkipWhile(blob => !String.IsNullOrWhiteSpace(marker) && GetMarkerForBlob(blob) != marker);
+            var resultsList = sortedBlobs
+                .Join(sortedNamespace,
+                    blob => blob.Uri.AbsolutePath,
+                    blob => blob.Uri.AbsolutePath,
+                    (dataBlob, namespaceBlob) => Tuple.Create(dataBlob, namespaceBlob),
+                    StringComparer.OrdinalIgnoreCase)
+                .Where(blobPair => MatchPrimaryDataBlob(blobPair.Item2 as CloudBlockBlob, blobPair.Item1 as ICloudBlob))
+                .Take(maxResults + 1)                  // Get an extra listing so that we can generate the nextMarker
+                .Select(blobPair => blobPair.Item1);
             var blobResults = new EnumerationResults
             {
-                RequestVersion = new DateTimeOffset(this.Request.GetHeaders().Value("x-ms-version", StorageServiceVersions.Version_2009_09_19.UtcDateTime), TimeSpan.FromHours(0)),
+                RequestVersion = this.Request.GetHeaders().Value("x-ms-version", StorageServiceVersions.Version_2009_09_19),
                 ServiceEndpoint = this.Request.RequestUri.GetComponents(UriComponents.SchemeAndServer, UriFormat.Unescaped),
                 ContainerName = container,
                 MaxResults = maxResults,
@@ -439,7 +406,7 @@ namespace Microsoft.Dash.Server.Controllers
                 Delimiter = delim,
                 Marker = marker,
                 Prefix = prefix,
-                Blobs = sortedBlobs,
+                Blobs = resultsList,
                 IncludeDetails = String.IsNullOrWhiteSpace(includedDataSets) ? BlobListingDetails.None : (BlobListingDetails)Enum.Parse(typeof(BlobListingDetails), includedDataSets, true),
             };
             return CreateResponse(blobResults);
@@ -486,48 +453,20 @@ namespace Microsoft.Dash.Server.Controllers
                 .SelectMany(segmentResults => segmentResults);
         }
 
-        class BlobComparer : IEqualityComparer<IListBlobItem>
+        static bool MatchPrimaryDataBlob(CloudBlockBlob namespaceEntry, ICloudBlob dataBlob)
         {
-            public bool Equals(IListBlobItem lhs, IListBlobItem rhs)
+            // Handle listing of CloudBlobDirectory objects
+            if (namespaceEntry == null || dataBlob == null)
             {
-                if (lhs == null && rhs == null)
-                {
-                    return true;
-                }
-                else if (lhs == null)
-                {
-                    return false;
-                }
-                else if (!String.Equals(lhs.Uri.AbsolutePath, rhs.Uri.AbsolutePath, StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
-                var lhsBlob = lhs as ICloudBlob;
-                var rhsBlob = rhs as ICloudBlob;
-                if (lhsBlob == null && rhsBlob == null)
-                {
-                    return true;
-                }
-                else if (lhsBlob == null)
-                {
-                    return false;
-                }
-                else if (lhsBlob.SnapshotTime != rhsBlob.SnapshotTime)
-                {
-                    return false;
-                }
                 return true;
             }
-
-            public int GetHashCode(IListBlobItem obj)
+            // The blob listing included metadata for the namespace entry, so we don't need to refresh
+            var namespaceBlob = new NamespaceBlobCloud(() => namespaceEntry);
+            if (namespaceBlob.IsReplicated)
             {
-                var hash = obj.Uri.AbsolutePath.ToLowerInvariant().GetHashCode();
-                if (obj is ICloudBlob)
-                {
-                    hash ^= ((ICloudBlob)obj).SnapshotTime.GetHashCode();
-                }
-                return hash;
+                return String.Equals(namespaceBlob.PrimaryAccountName, dataBlob.ServiceClient.Credentials.AccountName, StringComparison.OrdinalIgnoreCase);
             }
+            return true;
         }
 
         class EnumerationResults

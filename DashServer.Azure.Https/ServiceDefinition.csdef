@@ -1,17 +1,17 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <ServiceDefinition name="DashServer.Azure" xmlns="http://schemas.microsoft.com/ServiceHosting/2008/10/ServiceDefinition" schemaVersion="2014-06.2.4">
-  <WebRole name="DashServer" vmsize="A7">
+  <WebRole name="DashServer" vmsize="Standard_D3">
     <Sites>
       <Site name="Web">
         <Bindings>
-          <Binding name="Endpoint1" endpointName="Endpoint1" />
-          <Binding name="Endpoint2" endpointName="Endpoint2" />
+          <Binding name="HttpExternal" endpointName="HttpExternal" />
+          <Binding name="HttpsExternal" endpointName="HttpsExternal" />
         </Bindings>
       </Site>
     </Sites>
     <Endpoints>
-      <InputEndpoint name="Endpoint1" protocol="http" port="80" />
-      <InputEndpoint name="Endpoint2" protocol="https" port="443" certificate="TlsCertificate" />
+      <InputEndpoint name="HttpExternal" protocol="http" port="80" />
+      <InputEndpoint name="HttpsExternal" protocol="https" port="443" certificate="TlsCertificate" />
     </Endpoints>
     <Imports>
       <Import moduleName="Diagnostics" />
@@ -42,9 +42,28 @@
       <Setting name="ScaleoutStorage14" />
       <Setting name="ScaleoutStorage15" />
       <Setting name="LogNormalOperations" />
+      <Setting name="ReplicationPathPattern" />
+      <Setting name="ReplicationMetadataName" />
+      <Setting name="ReplicationMetadataValue" />
+      <Setting name="WorkerQueueName" />
+      <Setting name="AsyncWorkerTimeout" />
+      <Setting name="WorkerQueueInitialDelay" />
+      <Setting name="WorkerQueueDequeueLimit" />
     </ConfigurationSettings>
     <Certificates>
       <Certificate name="TlsCertificate" storeLocation="LocalMachine" storeName="My" />
     </Certificates>
+    <Startup>
+      <Task commandLine=".\startup\RunWorkerQueue.cmd" executionContext="elevated" taskType="simple">
+        <Environment>
+          <Variable name="StartupLogs">
+            <RoleInstanceValue xpath="/RoleEnvironment/CurrentInstance/LocalResources/LocalResource[@name='StartupLogs']/@path" />
+          </Variable>
+        </Environment>
+      </Task>
+    </Startup>
+    <LocalResources>
+      <LocalStorage name="StartupLogs" cleanOnRoleRecycle="false" sizeInMB="10" />
+    </LocalResources>
   </WebRole>
 </ServiceDefinition>
