@@ -203,7 +203,7 @@ namespace Microsoft.Dash.Common.Processors
             return NamespaceHandler.PerformNamespaceOperation(container, blobName, async (namespaceBlob) =>
             {
                 bool exists = await namespaceBlob.ExistsAsync();
-                if (!exists || (bool)namespaceBlob.IsMarkedForDeletion)
+                if (!exists || namespaceBlob.IsMarkedForDeletion)
                 {
                     // It's ok for a deleted replica not to have a corresponding namespace blob
                     if (!deleteReplica)

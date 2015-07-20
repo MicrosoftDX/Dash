@@ -56,7 +56,7 @@ namespace Microsoft.Dash.Server.Controllers
                 async () => await NamespaceHandler.PerformNamespaceOperation(container, blob, async (namespaceBlob) =>
                 {
                     // We only need to delete the actual blob. We are leaving the namespace entry alone as a sort of cache.
-                    if (!(await namespaceBlob.ExistsAsync()) || (bool)namespaceBlob.IsMarkedForDeletion)
+                    if (!(await namespaceBlob.ExistsAsync()) || namespaceBlob.IsMarkedForDeletion)
                     {
                         return this.CreateResponse(HttpStatusCode.NotFound, headers);
                     }
@@ -72,8 +72,7 @@ namespace Microsoft.Dash.Server.Controllers
                         await BlobReplicationHandler.EnqueueBlobReplicationAsync(namespaceBlob, true, false);
                     }
                     // Mark the namespace blob for deletion
-                    namespaceBlob.IsMarkedForDeletion = true;
-                    await namespaceBlob.SaveAsync();
+                    await namespaceBlob.MarkForDeletionAsync();
                     return this.CreateResponse(HttpStatusCode.Accepted, headers);
                 }));
         }
@@ -141,7 +140,7 @@ namespace Microsoft.Dash.Server.Controllers
                 async () =>
                 {
                     var namespaceBlob = await NamespaceHandler.FetchNamespaceBlobAsync(container, blob);
-                    if (!await namespaceBlob.ExistsAsync(true))
+                    if (!await namespaceBlob.ExistsAsync())
                     {
                         return this.CreateResponse(HttpStatusCode.NotFound, (RequestHeaders)null);
                     }

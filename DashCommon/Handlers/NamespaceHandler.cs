@@ -1,7 +1,6 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
-using System.Diagnostics;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -21,7 +20,7 @@ namespace Microsoft.Dash.Common.Handlers
             return await PerformNamespaceOperation(container, blob, async (namespaceBlob) =>
             {
                 bool exists = await namespaceBlob.ExistsAsync();
-                if (exists && (bool)!namespaceBlob.IsMarkedForDeletion && !String.IsNullOrWhiteSpace(namespaceBlob.BlobName))
+                if (exists && !namespaceBlob.IsMarkedForDeletion && !String.IsNullOrWhiteSpace(namespaceBlob.BlobName))
                 {
                     return namespaceBlob;
                 }
@@ -39,18 +38,17 @@ namespace Microsoft.Dash.Common.Handlers
 
         public static async Task<NamespaceBlob> FetchNamespaceBlobAsync(string container, string blobName, string snapshot = null)
         {
-            return await NamespaceBlob.FetchAsync(container, blobName, snapshot);
+            return await NamespaceBlob.FetchForBlobAsync(
+                (CloudBlockBlob)GetBlobByName(DashConfiguration.NamespaceAccount, container, blobName, snapshot));
         }
 
+        const int CreateRetryCount = 3;
         public static async Task<T> PerformNamespaceOperation<T>(string container, string blobName, Func<NamespaceBlob, Task<T>> operation)
         {
-            const int createRetryCount = 3;
-
             // Allow namespace operations to be retried. Update operations (via NamespaceBlob.SaveAsync()) use pre-conditions to
             // resolve race conditions on the same namespace blob
-            for (int retry = 0; retry < createRetryCount; retry++)
+            for (int retry = 0; retry < CreateRetryCount; retry++)
             {
-                var startTime = DateTime.Now;
                 try
                 {
                     var namespaceBlob = await FetchNamespaceBlobAsync(container, blobName);
@@ -58,16 +56,12 @@ namespace Microsoft.Dash.Common.Handlers
                 }
                 catch (StorageException ex)
                 {
-                    if ((ex.RequestInformation.HttpStatusCode != (int) HttpStatusCode.PreconditionFailed &&
-                         ex.RequestInformation.HttpStatusCode != (int) HttpStatusCode.Conflict) ||
-                        retry >= createRetryCount - 1)
+                    if ((ex.RequestInformation.HttpStatusCode != (int)HttpStatusCode.PreconditionFailed &&
+                        ex.RequestInformation.HttpStatusCode != (int)HttpStatusCode.Conflict) ||
+                        retry >= CreateRetryCount - 1)
                     {
                         throw;
                     }
-                }
-                finally
-                {
-                    Debug.WriteLine("Elapsed Time (minutes)={0}, Container={1}, BlobName={2}", DateTime.Now.Subtract(startTime).TotalMinutes, container, blobName);
                 }
             }
             // Never get here
@@ -78,6 +72,20 @@ namespace Microsoft.Dash.Common.Handlers
         public static CloudStorageAccount GetDataStorageAccountForBlob(string blobName)
         {
             return DashConfiguration.DataAccounts[GetHashCodeBucket(blobName, DashConfiguration.DataAccounts.Count)];
+        }
+
+        static int GetHashCodeBucket(string stringToHash, int numBuckets)
+        {
+            System.Diagnostics.Debug.Assert(!String.IsNullOrWhiteSpace(stringToHash));
+
+            var hash = new SHA256CryptoServiceProvider();
+            byte[] hashText = hash.ComputeHash(Encoding.UTF8.GetBytes(stringToHash));
+            long hashCodeStart = BitConverter.ToInt64(hashText, 0);
+            long hashCodeMedium = BitConverter.ToInt64(hashText, 8);
+            long hashCodeEnd = BitConverter.ToInt64(hashText, 24);
+            long hashCode = hashCodeStart ^ hashCodeMedium ^ hashCodeEnd;
+
+            return (int)(Math.Abs(hashCode) % numBuckets);
         }
 
         public static CloudBlobContainer GetContainerByName(CloudStorageAccount account, string containerName)
@@ -104,20 +112,5 @@ namespace Microsoft.Dash.Common.Handlers
             }
             return container.GetBlockBlobReference(blobName);
         }
-
-        static int GetHashCodeBucket(string stringToHash, int numBuckets)
-        {
-            System.Diagnostics.Debug.Assert(!String.IsNullOrWhiteSpace(stringToHash));
-
-            var hash = new SHA256CryptoServiceProvider();
-            byte[] hashText = hash.ComputeHash(Encoding.UTF8.GetBytes(stringToHash));
-            long hashCodeStart = BitConverter.ToInt64(hashText, 0);
-            long hashCodeMedium = BitConverter.ToInt64(hashText, 8);
-            long hashCodeEnd = BitConverter.ToInt64(hashText, 24);
-            long hashCode = hashCodeStart ^ hashCodeMedium ^ hashCodeEnd;
-
-            return (int)(Math.Abs(hashCode) % numBuckets);
-        }
-
     }
 }

@@ -3,159 +3,126 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
-using Microsoft.Dash.Common.Utils;
+using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace Microsoft.Dash.Common.Handlers
 {
-    public class NamespaceBlob : INamespaceBlob
+    public class NamespaceBlob
     {
-        private readonly INamespaceBlob _cachedNamespaceBlob;
-        private readonly INamespaceBlob _cloudNamespaceBlob;
-        internal static bool CacheIsEnabled = Boolean.Parse(AzureUtils.GetConfigSetting("CacheIsEnabled", Boolean.FalseString));
-        static readonly Random DataAccountSelector = new Random();
+        const string MetadataNameAccount            = "accountname";
+        const string MetadataNameContainer          = "container";
+        const string MetadataNameBlobName           = "blobname";
+        const string MetadataNameDeleteFlag         = "todelete";
 
-        internal NamespaceBlob(INamespaceBlob cachedNamespaceBlob, INamespaceBlob cloudNamespaceBlob)
+        const string AccountDelimiter               = "|";
+        static readonly char AccountDelimiterChar   = AccountDelimiter[0];
+
+        static Random _dataAccountSelector  = new Random();
+
+        CloudBlockBlob _namespaceBlob;
+        bool _blobExists;
+        IList<string> _dataAccounts;
+
+        public NamespaceBlob(CloudBlockBlob namespaceBlob)
         {
-            _cachedNamespaceBlob = cachedNamespaceBlob;
-            _cloudNamespaceBlob = cloudNamespaceBlob;
+            _namespaceBlob = namespaceBlob;
         }
 
-        /// <summary>
-        /// Fetches an instance of NamespaceBlob.
-        /// </summary>
-        /// <param name="container">container name</param>
-        /// <param name="blobName">blob name</param>
-        /// <param name="snapshot">snapshot name</param>
-        /// <returns>NamespaceBlob</returns>
-        public async static Task<NamespaceBlob> FetchAsync(string container, string blobName, string snapshot = null)
+        public async static Task<NamespaceBlob> FetchForBlobAsync(CloudBlockBlob namespaceBlob)
         {
-            if (String.IsNullOrEmpty(container))
-            {
-                throw new ArgumentNullException("container");
-            }
-
-            if (String.IsNullOrEmpty(blobName))
-            {
-                throw new ArgumentNullException("blobName");
-            }
-
-            var cloudNamespaceBlob = new NamespaceBlobCloud(() => (CloudBlockBlob)NamespaceHandler.GetBlobByName(DashConfiguration.NamespaceAccount, container, blobName, snapshot));
-            NamespaceBlobCache cachedNamespaceBlob = null;
-
-            if (CacheIsEnabled)
-            {
-                cachedNamespaceBlob = await NamespaceBlobCache.FetchAsync(container, blobName, snapshot);
-                if (cachedNamespaceBlob == null)
-                {
-                    // cache miss
-                    cachedNamespaceBlob = new NamespaceBlobCache(cloudNamespaceBlob, snapshot);
-
-                    if (await cloudNamespaceBlob.ExistsAsync())
-                    {
-                        // save to cache if the namespace blob actually exists in the cloud
-                        await cachedNamespaceBlob.SaveAsync();
-                    }
-                }
-            }
-
-            return new NamespaceBlob(cachedNamespaceBlob, cloudNamespaceBlob);
+            var retval = new NamespaceBlob(namespaceBlob);
+            await retval.RefreshAsync();
+            return retval;
         }
 
-        public string AccountName
-        {
-            get 
-            {
-                return CacheIsEnabled ? _cachedNamespaceBlob.AccountName : _cloudNamespaceBlob.AccountName;
-            }
-
-            set
-            {
-                _cloudNamespaceBlob.AccountName = value;
-                if (CacheIsEnabled)
-                {
-                    _cachedNamespaceBlob.AccountName = value;
-                }
-            }
+        public async Task RefreshAsync()
+        { 
+            // Exists() populates attributes
+            _blobExists = await _namespaceBlob.ExistsAsync();
         }
 
-        public string Container
+        public async Task SaveAsync()
         {
-            get 
+            if (_dataAccounts != null)
             {
-                return CacheIsEnabled ? _cachedNamespaceBlob.Container: _cloudNamespaceBlob.Container;
+                _namespaceBlob.Metadata[MetadataNameAccount] = String.Join(AccountDelimiter, _dataAccounts);
             }
-
-            set
+            if (!_blobExists)
             {
-                _cloudNamespaceBlob.Container = value;
-                if (CacheIsEnabled)
-                {
-                    _cachedNamespaceBlob.Container = value;
-                }
+                await _namespaceBlob.UploadTextAsync("", Encoding.UTF8, AccessCondition.GenerateIfNoneMatchCondition("*"), null, null);
             }
+            else
+            {
+                await _namespaceBlob.SetMetadataAsync(AccessCondition.GenerateIfMatchCondition(_namespaceBlob.Properties.ETag), null, null);
+            }
+            _blobExists = true;
         }
 
-        public string BlobName
+        public async Task MarkForDeletionAsync()
         {
-            get
-            {
-                return CacheIsEnabled ? _cachedNamespaceBlob.BlobName: _cloudNamespaceBlob.BlobName;
-            }
-
-            set
-            {
-                _cloudNamespaceBlob.BlobName = value;
-                if (CacheIsEnabled)
-                {
-                    _cachedNamespaceBlob.BlobName = value;
-                }
-            }
+            await RefreshAsync();
+            this.IsMarkedForDeletion = true;
+            await SaveAsync();
         }
 
-        public bool? IsMarkedForDeletion
+        public async Task<bool> ExistsAsync(bool forceRefresh = false)
         {
-            get
+            if (forceRefresh)
             {
-                return CacheIsEnabled ? _cachedNamespaceBlob.IsMarkedForDeletion: _cloudNamespaceBlob.IsMarkedForDeletion ?? false;
+                _blobExists = await _namespaceBlob.ExistsAsync();
             }
+            return _blobExists;
+        }
 
-            set
-            {
-                _cloudNamespaceBlob.IsMarkedForDeletion = value;
-                if (CacheIsEnabled)
-                {
-                    _cachedNamespaceBlob.IsMarkedForDeletion = value;
-                }
-            }
+        private string TryGetMetadataValue(string metadataName)
+        {
+            string retval = String.Empty;
+            _namespaceBlob.Metadata.TryGetValue(metadataName, out retval);
+            return retval;
         }
 
         public string PrimaryAccountName
         {
-            get
-            {
-                return CacheIsEnabled ? _cachedNamespaceBlob.PrimaryAccountName : _cloudNamespaceBlob.PrimaryAccountName;
-            }
-
+            get { return this.DataAccounts.FirstOrDefault(); }
             set
             {
-                _cloudNamespaceBlob.PrimaryAccountName = value;
-                if (CacheIsEnabled)
-                {
-                    _cachedNamespaceBlob.PrimaryAccountName = value;
-                }
+                var accounts = this.DataAccounts;
+                accounts.Clear();
+                accounts.Add(value);
             }
         }
 
         public IList<string> DataAccounts
         {
-            get
+            get 
             {
-                return CacheIsEnabled ? _cachedNamespaceBlob.DataAccounts : _cloudNamespaceBlob.DataAccounts;
+                if (_dataAccounts == null)
+                {
+                    lock (this)
+                    {
+                        if (_dataAccounts == null)
+                        {
+                            string accounts = TryGetMetadataValue(MetadataNameAccount);
+                            if (String.IsNullOrWhiteSpace(accounts))
+                            {
+                                _dataAccounts = new List<string>();
+                            }
+                            else
+                            {
+                                _dataAccounts = accounts
+                                    .Split(AccountDelimiterChar)
+                                    .Select(account => account.Trim())
+                                    .ToList();
+                            }
+                        }
+                    }
+                }
+                return _dataAccounts; 
             }
         }
-
 
         public string SelectDataAccount
         {
@@ -166,63 +133,70 @@ namespace Microsoft.Dash.Common.Handlers
                 {
                     return String.Empty;
                 }
-
-                return dataAccounts[DataAccountSelector.Next(dataAccounts.Count())];
+                return dataAccounts[_dataAccountSelector.Next(dataAccounts.Count())];
             }
         }
 
         public bool AddDataAccount(string dataAccount)
         {
-            var val = _cloudNamespaceBlob.AddDataAccount(dataAccount);
-            if (CacheIsEnabled)
+            var dataAccounts = this.DataAccounts;
+            if (!dataAccounts.Contains(dataAccount, StringComparer.OrdinalIgnoreCase))
             {
-                val &= _cachedNamespaceBlob.AddDataAccount(dataAccount);
+                dataAccounts.Add(dataAccount);
+                return true;
             }
-
-            return val;
+            return false;
         }
 
         public bool RemoveDataAccount(string dataAccount)
         {
-            var val = _cloudNamespaceBlob.RemoveDataAccount(dataAccount);
-            if (CacheIsEnabled)
+            var dataAccounts = this.DataAccounts;
+            if (dataAccounts.Contains(dataAccount, StringComparer.OrdinalIgnoreCase))
             {
-                val &= _cachedNamespaceBlob.RemoveDataAccount(dataAccount);
+                dataAccounts.RemoveAt(((List<string>)dataAccounts)
+                                            .FindIndex(account => String.Equals(account, dataAccount, StringComparison.OrdinalIgnoreCase)));
+                return true;
             }
-
-            return val;
+            return false;
         }
 
         public bool IsReplicated
         {
-            get { return CacheIsEnabled ? _cachedNamespaceBlob.IsReplicated : _cloudNamespaceBlob.IsReplicated; }
+            get { return this.DataAccounts.Count > 1; }
         }
 
-        public async Task SaveAsync()
+        public string Container
         {
-            await _cloudNamespaceBlob.SaveAsync();
-
-            if (CacheIsEnabled)
-            {
-                await _cachedNamespaceBlob.SaveAsync();
-            }
+            get { return TryGetMetadataValue(MetadataNameContainer); }
+            set { _namespaceBlob.Metadata[MetadataNameContainer] = value; }
         }
 
-        public async Task<bool> ExistsAsync(bool forceRefresh = false)
+        public string BlobName
         {
-            var exists = false;
+            get { return TryGetMetadataValue(MetadataNameBlobName); }
+            set { _namespaceBlob.Metadata[MetadataNameBlobName] = value; }
+        }
 
-            if (CacheIsEnabled)
+        public bool IsMarkedForDeletion
+        {
+            get
             {
-                exists = await _cachedNamespaceBlob.ExistsAsync(forceRefresh);
+                bool retval = false;
+                string deleteFlag = TryGetMetadataValue(MetadataNameDeleteFlag);
+                bool.TryParse(deleteFlag, out retval);
+                return retval;
             }
-
-            if (!exists)
+            set
             {
-                exists = await _cloudNamespaceBlob.ExistsAsync(forceRefresh);
+                if (value)
+                {
+                    _namespaceBlob.Metadata[MetadataNameDeleteFlag] = "true";
+                }
+                else
+                {
+                    _namespaceBlob.Metadata.Remove(MetadataNameDeleteFlag);
+                }
             }
-
-            return exists;
         }
     }
 }

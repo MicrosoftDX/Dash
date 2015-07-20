@@ -384,7 +384,7 @@ namespace Microsoft.Dash.Server.Controllers
                 .OrderBy(blob => blob.Uri.AbsolutePath, StringComparer.Ordinal)  
                 .SkipWhile(blob => !String.IsNullOrWhiteSpace(marker) && GetMarkerForBlob(blob) != marker);
             var sortedNamespace = namespaceBlobs
-                .Where(blob => blob is CloudBlobDirectory ? true : !(bool)(new NamespaceBlobCloud(() => (CloudBlockBlob)blob).IsMarkedForDeletion))
+                .Where(blob => blob is CloudBlobDirectory ? true : !(new NamespaceBlob((CloudBlockBlob)blob).IsMarkedForDeletion))
                 .OrderBy(blob => blob.Uri.AbsolutePath, StringComparer.Ordinal)  
                 .SkipWhile(blob => !String.IsNullOrWhiteSpace(marker) && GetMarkerForBlob(blob) != marker);
             var resultsList = sortedBlobs
@@ -461,7 +461,7 @@ namespace Microsoft.Dash.Server.Controllers
                 return true;
             }
             // The blob listing included metadata for the namespace entry, so we don't need to refresh
-            var namespaceBlob = new NamespaceBlobCloud(() => namespaceEntry);
+            var namespaceBlob = new NamespaceBlob(namespaceEntry);
             if (namespaceBlob.IsReplicated)
             {
                 return String.Equals(namespaceBlob.PrimaryAccountName, dataBlob.ServiceClient.Credentials.AccountName, StringComparison.OrdinalIgnoreCase);

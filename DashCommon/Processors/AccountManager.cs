@@ -48,7 +48,8 @@ namespace Microsoft.Dash.Common.Processors
                 await GetAccountBlobs(accountClient, async (blobItem) => 
                     {
                         var blob = (ICloudBlob)blobItem;
-                        var namespaceBlob = await NamespaceBlob.FetchAsync(blob.Container.Name, blob.Name, blob.IsSnapshot ? blob.SnapshotTime.ToString() : null);
+                        var namespaceBlob = await NamespaceBlob.FetchForBlobAsync(
+                            (CloudBlockBlob)NamespaceHandler.GetBlobByName(DashConfiguration.NamespaceAccount, blob.Container.Name, blob.Name, blob.IsSnapshot ? blob.SnapshotTime.ToString() : String.Empty));
                         alreadyImported = await namespaceBlob.ExistsAsync(true) &&
                             namespaceBlob.DataAccounts.Contains(accountName, StringComparer.OrdinalIgnoreCase);
                         return false;
@@ -117,7 +118,8 @@ namespace Microsoft.Dash.Common.Processors
                     var blob = (ICloudBlob)blobItem;
                     try
                     {
-                        var namespaceBlob = await NamespaceBlob.FetchAsync(blob.Container.Name, blob.Name, blob.IsSnapshot ? blob.SnapshotTime.ToString() : null);
+                        var namespaceBlob = await NamespaceBlob.FetchForBlobAsync(
+                            (CloudBlockBlob)NamespaceHandler.GetBlobByName(DashConfiguration.NamespaceAccount, blob.Container.Name, blob.Name, blob.IsSnapshot ? blob.SnapshotTime.ToString() : String.Empty));
                         if (await namespaceBlob.ExistsAsync())
                         {
                             if (!String.Equals(namespaceBlob.PrimaryAccountName, accountName, StringComparison.OrdinalIgnoreCase))

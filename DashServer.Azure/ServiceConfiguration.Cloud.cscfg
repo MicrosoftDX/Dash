@@ -7,10 +7,6 @@
       <Setting name="AccountName" value="dashjbtest" />
       <Setting name="AccountKey" value="wCNvIdXcltACBiDUMyO0BflZpKmjseplqOlzE62tx87qnkwpUMBV/GQhrscW9lmdZVT0x8DilYqUoHMNBlVIGg==" />
       <Setting name="SecondaryAccountKey" value="" />
-      <Setting name="CacheIsEnabled" value="false"/>
-      <Setting name="CacheRedisEndpointUrl" value="" />
-      <Setting name="CacheRedisPassword" value="" />
-      <Setting name="CacheExpirationInMinutes" value="720" />
       <Setting name="StorageConnectionStringMaster" value="DefaultEndpointsProtocol=http;AccountName=dashstorage0;AccountKey=uCNvIdXcltACBiDUMyO0BflZpKmjseplqOlzE62tx87qnkwpUMBV/GQhrscW9lmdZVT0x8DilYqUoHMNBlVIGg==" />
       <Setting name="ScaleoutStorage0" value="DefaultEndpointsProtocol=http;AccountName=dashstorage1;AccountKey=8jqRVtXUWiEthgIhR+dFwrB8gh3lFuquvJQ1v4eabObIj7okI1cZIuzY8zZHmEdpcC0f+XlUkbFwAhjTfyrLIg==" />
       <Setting name="ScaleoutStorage1" value="DefaultEndpointsProtocol=http;AccountName=dashstorage2;AccountKey=YI0BDhckKp+6uBsu4OAAeVvUyOuMvimqo9BSz197lR14x9vWE+tuwqOr0U1asNWpkdZs4z8wcnu9pZNYDqdRPA==" />

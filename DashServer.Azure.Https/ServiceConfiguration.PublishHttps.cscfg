@@ -7,10 +7,6 @@
       <Setting name="AccountName" value="" />
       <Setting name="AccountKey" value="" />
       <Setting name="SecondaryAccountKey" value="" />
-      <Setting name="CacheIsEnabled" value="false"/>
-      <Setting name="CacheRedisEndpointUrl" value="" />
-      <Setting name="CacheRedisPassword" value="" />
-      <Setting name="CacheExpirationInMinutes" value="720" />
       <Setting name="StorageConnectionStringMaster" value="" />
       <Setting name="ScaleoutStorage0" value="" />
       <Setting name="ScaleoutStorage1" value="" />

@@ -61,14 +61,9 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\Newtonsoft.Json.6.0.4\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
-    <Reference Include="StackExchange.Redis, Version=1.0.316.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\StackExchange.Redis.1.0.414\lib\net45\StackExchange.Redis.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Spatial, Version=5.6.2.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\System.Spatial.5.6.2\lib\net40\System.Spatial.dll</HintPath>
@@ -87,10 +82,7 @@
     <Compile Include="Diagnostics\TraceMessage.cs" />
     <Compile Include="Handlers\BlobReplicationHandler.cs" />
     <Compile Include="Handlers\ContainerHandler.cs" />
-    <Compile Include="Handlers\INamespaceBlob.cs" />
     <Compile Include="Handlers\NamespaceBlob.cs" />
-    <Compile Include="Handlers\NamespaceBlobCache.cs" />
-    <Compile Include="Handlers\NamespaceBlobCloud.cs" />
     <Compile Include="Handlers\NamespaceHandler.cs" />
     <Compile Include="Processors\AccountManager.cs" />
     <Compile Include="Processors\BlobReplicator.cs" />
@@ -101,7 +93,6 @@
     <Compile Include="Platform\ReplicatePayload.cs" />
     <Compile Include="Platform\ReplicateProgressPayload.cs" />
     <Compile Include="Utils\AzureUtils.cs" />
-    <Compile Include="Cache\CacheStore.cs" />
     <Compile Include="Utils\DashConfiguration.cs" />
     <Compile Include="Utils\PathUtils.cs" />
     <Compile Include="Utils\SharedKeySignature.cs" />
@@ -118,9 +109,7 @@
     <AssemblyInfoName>Properties\AssemblyVersion.cs</AssemblyInfoName>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="app.config">
-      <SubType>Designer</SubType>
-    </None>
+    <None Include="app.config" />
     <None Include="packages.config">
       <SubType>Designer</SubType>
     </None>

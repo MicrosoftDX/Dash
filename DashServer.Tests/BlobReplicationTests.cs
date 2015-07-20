@@ -239,7 +239,8 @@ namespace Microsoft.Tests
                 AssertQueueIsDrained();
                 // Directly manipulate the namespace blob so it appears that the blob is replicated
                 var namespaceClient = DashConfiguration.NamespaceAccount.CreateCloudBlobClient();
-                var nsBlob = NamespaceBlob.FetchAsync(ContainerName, blobName).Result;
+                var containerReference = namespaceClient.GetContainerReference(ContainerName);
+                var nsBlob = NamespaceBlob.FetchForBlobAsync(containerReference.GetBlockBlobReference(blobName)).Result;
                 foreach (var dataAccount in DashConfiguration.DataAccounts
                                                                 .Where(account => !String.Equals(account.Credentials.AccountName, nsBlob.PrimaryAccountName, StringComparison.OrdinalIgnoreCase)))
                 {

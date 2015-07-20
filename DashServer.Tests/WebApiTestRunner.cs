@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
@@ -18,7 +17,7 @@ namespace Microsoft.Tests
 {
     class WebApiTestRunner 
     {
-        readonly HttpClient _requestClient;
+        HttpClient _requestClient;
 
         public WebApiTestRunner(IDictionary<string, string> config = null)
         {
@@ -58,8 +57,6 @@ namespace Microsoft.Tests
 
         public HttpResponseMessage ExecuteRequestWithHeaders(string uri, string method, HttpContent content, IEnumerable<Tuple<string, string>> headers, HttpStatusCode expectedStatusCode = HttpStatusCode.Unused)
         {
-            Trace.WriteLine(String.Format("Method={0}. Uri={1}.", method, uri));
-
             HttpResponseMessage retval = null;
             SetupRequest(uri, method);
             HttpRequestMessage request;
@@ -102,7 +99,7 @@ namespace Microsoft.Tests
 
                 default:
                     // Unsupported method
-                    Debug.Assert(false);
+                    System.Diagnostics.Debug.Assert(false);
                     break;
             }
             if (expectedStatusCode != HttpStatusCode.Unused && retval != null)
