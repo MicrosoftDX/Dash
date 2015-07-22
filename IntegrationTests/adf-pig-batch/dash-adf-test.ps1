@@ -1,8 +1,31 @@
-﻿$resourceGroupName = "dash-adf-test2"
+﻿$resourceGroupName = "dash-adf-test"
 $data_factory_name = $resourceGroupName
-$batch_name = "dashadfbatchtest2"
+$batch_name = "dashadfbatchtest"
 $pipeline_name = "dash-adf-test-xform-parts"
 $scriptDir = Split-Path -Path $MyInvocation.MyCommand.Definition -Parent
+
+function Get-TaskOutput {
+    param (
+        $task,
+        [string] $taskName
+    )
+    if ($task -eq $null) {
+        $task = Get-AzureBatchTask -BatchContext $batchCtx -WorkItemName $batch_name -JobName $batchJob.Name -Name $taskName
+    }
+    Write-Output $task
+    $localDir = "$($env:TEMP)\$($task.Name)"
+    if (!(Test-Path -Path $localDir)) {
+        New-Item $localDir -ItemType Directory > $tmp
+    }
+    Get-AzureBatchTaskFile -BatchContext $batchCtx -Task $task -Recursive | Where-Object { $_.IsDirectory -and !$_.Name.Contains("CopiedData") -and !(Test-Path -Path "$localDir\$($_.Name)").Exists } | ForEach-Object { New-Item -Path "$localDir\$($_.Name)" -ItemType Directory > $tmp }
+    Get-AzureBatchTaskFile -BatchContext $batchCtx -Task $task -Recursive | Where-Object { !$_.IsDirectory -and !$_.Name.Contains("CopiedData") } | ForEach-Object { $localPath = $localDir + "\" + $_.Name; Get-AzureBatchTaskFileContent -BatchContext $batchCtx -InputObject $_ -DestinationPath $localPath; }
+    foreach ($taskFile in Get-ChildItem -Recurse -Path "$localDir\*" -File) {
+        Write-Output ""
+        Write-Output $taskFile.Name
+        Write-Output ""
+        type $taskFile.FullName
+    }
+}
 
 Select-AzureSubscription -SubscriptionName "Data At Scale Hub -- jamesbak"
 Switch-AzureMode -Name AzureResourceManager
@@ -58,37 +81,32 @@ New-AzureBatchPool -Name $batch_name -BatchContext $batchCtx -VMSize "small" -OS
 $batchJobEnv = New-Object Microsoft.Azure.Commands.Batch.Models.PSJobExecutionEnvironment
 $batchJobEnv.PoolName = $batch_name
 New-AzureBatchWorkItem -Name $batch_name -BatchContext $batchCtx -JobExecutionEnvironment $batchJobEnv
+Start-Sleep 10
 $batchJob = Get-AzureBatchJob -BatchContext $batchCtx -WorkItemName $batch_name
 # Wait for the VMs to spin up
+Write-Output ""
+Write-Output "Waiting for VMs to startup"
 do {
+    Start-Sleep 15
     $vm = (Get-AzureBatchVM -BatchContext $batchCtx -PoolName $batch_name)[0]
     Write-Output $vm.State
-    Start-Sleep 15
 }
 while ($vm.State -ne "Idle")
 
-$cmd = "cmd /c %WATASK_TVM_SHARED_DIR%\batch-startup\azcopy /source:http://dashtesteast.cloudapp.net/dash-adf-test/output-blobs/2015/07/16/ /Dest:.\CopiedData /SourceKey:wCNvIdXcltACBiDUMyO0BflZpKmjseplqOlzE62tx87qnkwpUMBV/GQhrscW9lmdZVT0x8DilYqUoHMNBlVIGg== /SourceType:Blob /S /V:.\azcopy.log"
-for ($i = 0; $i -lt 2000; $i++) {
+$today = (Get-Date).ToUniversalTime().AddDays(-1)
+$blobPath = [System.String]::Format("http://dashtesteast.cloudapp.net/dash-adf-test/output-blobs/{0:yyyy}/{0:MM}/{0:dd}/", $today)
+$cmd = "cmd /c %WATASK_TVM_SHARED_DIR%\batch-startup\azcopy /source:$blobPath /Dest:.\CopiedData /SourceKey:wCNvIdXcltACBiDUMyO0BflZpKmjseplqOlzE62tx87qnkwpUMBV/GQhrscW9lmdZVT0x8DilYqUoHMNBlVIGg== /SourceType:Blob /S /V:.\azcopy.log"
+for ($i = 0; $i -lt 500; $i++) {
     $taskName = "Task$i"
     New-AzureBatchTask -Name $taskName -BatchContext $batchCtx -Job $batchJob -CommandLine $cmd
 }
-
+Write-Output ""
+Write-Output "Waiting for tasks to complete"
 do {
-    $task = (Get-AzureBatchTask -BatchContext $batchCtx -WorkItemName $batch_name -JobName $batchJob.Name)[500]
-    Write-Output $task.State
     Start-Sleep 15
+    $task = (Get-AzureBatchTask -BatchContext $batchCtx -WorkItemName $batch_name -JobName $batchJob.Name)[50]
+    Write-Output $task.State
 }
 while ($task.State -ne "Completed")
-Write-Output $task
-$localDir = "c:\temp\Batch\" + $task.Name
-mkdir $localDir
-Get-AzureBatchTaskFile -BatchContext $batchCtx -Task $task -Recursive | Where-Object { $_.IsDirectory -and !$_.Name.Contains("CopiedData") } | ForEach-Object { $localPath = $localDir + "\" + $_.Name; mkdir $localPath; }
-Get-AzureBatchTaskFile -BatchContext $batchCtx -Task $task -Recursive | Where-Object { !$_.IsDirectory -and !$_.Name.Contains("CopiedData") } | ForEach-Object { $localPath = $localDir + "\" + $_.Name; Get-AzureBatchTaskFileContent -BatchContext $batchCtx -InputObject $_ -DestinationPath $localPath; }
-foreach ($taskFile in Get-ChildItem -Recurse -Path "$localDir\*" -File) {
-    Write-Output ""
-    Write-Output $taskFile.Name
-    Write-Output ""
-    type $taskFile.FullName
-}
-
+Get-TaskOutput -Task $task
 

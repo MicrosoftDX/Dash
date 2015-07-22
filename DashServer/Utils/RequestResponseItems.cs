@@ -18,6 +18,7 @@ namespace Microsoft.Dash.Server.Utils
         {
             _items = items
                 .GroupBy(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase)
+                .Where(item => !String.IsNullOrWhiteSpace(item.Key))
                 .ToDictionary(item => item.Key, item => (IList<string>)item.ToList(), StringComparer.OrdinalIgnoreCase);
         }
 
@@ -25,6 +26,7 @@ namespace Microsoft.Dash.Server.Utils
         {
             _items = items
                 .GroupBy(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase)
+                .Where(item => !String.IsNullOrWhiteSpace(item.Key))
                 .ToDictionary(groupedItems => groupedItems.Key,
                               groupedItems => (IList<string>)groupedItems
                                   .SelectMany(keyItems => keyItems)
