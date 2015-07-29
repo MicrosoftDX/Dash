@@ -63,7 +63,6 @@ namespace Microsoft.Dash.Common.Handlers
 
         public async Task MarkForDeletionAsync()
         {
-            await RefreshAsync();
             this.IsMarkedForDeletion = true;
             await SaveAsync();
         }
@@ -124,17 +123,18 @@ namespace Microsoft.Dash.Common.Handlers
             }
         }
 
-        public string SelectDataAccount
+        public string SelectDataAccount(bool servePrimaryOnly)
         {
-            get
+            if (servePrimaryOnly)
             {
-                var dataAccounts = this.DataAccounts;
-                if (!dataAccounts.Any())
-                {
-                    return String.Empty;
-                }
-                return dataAccounts[_dataAccountSelector.Next(dataAccounts.Count())];
+                return this.PrimaryAccountName;
             }
+            var dataAccounts = this.DataAccounts;
+            if (!dataAccounts.Any())
+            {
+                return String.Empty;
+            }
+            return dataAccounts[_dataAccountSelector.Next(dataAccounts.Count())];
         }
 
         public bool AddDataAccount(string dataAccount)

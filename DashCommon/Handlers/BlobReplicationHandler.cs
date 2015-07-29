@@ -7,7 +7,9 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Dash.Common.Diagnostics;
 using Microsoft.Dash.Common.Platform;
+using Microsoft.Dash.Common.Platform.Payloads;
 using Microsoft.Dash.Common.Utils;
+using Microsoft.WindowsAzure.Storage;
 
 namespace Microsoft.Dash.Common.Handlers
 {
@@ -92,7 +94,8 @@ namespace Microsoft.Dash.Common.Handlers
                                                                                                         primaryAccount, 
                                                                                                         dataAccount.Credentials.AccountName, 
                                                                                                         namespaceBlob.Container,
-                                                                                                        namespaceBlob.BlobName)));
+                                                                                                        namespaceBlob.BlobName,
+                                                                                                        deleteReplica ? await GetBlobETagAsync(dataAccount, namespaceBlob.Container, namespaceBlob.BlobName) : null)));
                 Task.WhenAll(tasks)
                     .ContinueWith(antecedent =>
                         {
@@ -112,16 +115,38 @@ namespace Microsoft.Dash.Common.Handlers
             });
         }
 
-        static QueueMessage ConstructReplicationMessage(bool deleteReplica, string sourceAccount, string destinationAccount, string container, string blob)
+        public static QueueMessage ConstructReplicationMessage(bool deleteReplica, string sourceAccount, string destinationAccount, string container, string blob, string destinationETag)
         {
-            return new QueueMessage(deleteReplica ? MessageTypes.DeleteReplica : MessageTypes.BeginReplicate, 
+            var retval = new QueueMessage(deleteReplica ? MessageTypes.DeleteReplica : MessageTypes.BeginReplicate, 
                 new Dictionary<string, string> 
                 {
                     { ReplicatePayload.Source, deleteReplica ? destinationAccount : sourceAccount },
                     { ReplicatePayload.Destination, destinationAccount },
                     { ReplicatePayload.Container, container },
                     { ReplicatePayload.BlobName, blob },
-                });
+                },
+                DashTrace.CorrelationId);
+            if (deleteReplica)
+            {
+                retval.Payload[DeleteReplicaPayload.ETag] = destinationETag;
+            }
+            return retval;
+        }
+
+        static async Task<string> GetBlobETagAsync(CloudStorageAccount dataAccount, string containerName, string blobName)
+        {
+            try
+            {
+                var container = dataAccount.CreateCloudBlobClient().GetContainerReference(containerName);
+                var blob = await container.GetBlobReferenceFromServerAsync(blobName);
+                return blob.Properties.ETag;
+            }
+            catch (StorageException ex)
+            {
+                DashTrace.TraceWarning("Exception attempting to retrieve ETag value for data blob [{0}/{1}/{2}]. Details: {3}",
+                    dataAccount.Credentials.AccountName, containerName, blobName, ex);
+            }
+            return String.Empty;
         }
     }
 }

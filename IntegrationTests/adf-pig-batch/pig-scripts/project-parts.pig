@@ -7,8 +7,7 @@
  
 -- remove output if it already exists, to ensure idempotency if job is rerun 
 fs -mkdir -p $PROJECTIONOUTPUT; 
-fs -touchz $PROJECTIONOUTPUT/_tmp; 
-fs -rmr -skipTrash $PROJECTIONOUTPUT; 
+fs -rm -r -skipTrash $PROJECTIONOUTPUT; 
  
 -- load raw stats from appropriate partition 
 Parts = LOAD '$PARTINPUT' USING PigStorage('|') AS (P_PARTKEY:int, P_NAME:chararray, P_MFGR:chararray, P_BRAND:chararray, P_TYPE:chararray, P_SIZE:int, P_CONTAINER:chararray, P_RETAILPRICE:float, P_COMMENT:chararray); 

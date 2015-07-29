@@ -61,16 +61,21 @@ namespace Microsoft.Dash.Common.Diagnostics
             DoTrace(message, TraceLevel.Error);
         }
 
+        public static Guid CorrelationId
+        {
+            get { return Trace.CorrelationManager.ActivityId; }
+            set { Trace.CorrelationManager.ActivityId = value; }
+        }
+
         static void DoTrace(TraceMessage message, TraceLevel level)
         {
-            /*if (String.IsNullOrEmpty(message.CorrelationId))
+            if (!message.CorrelationId.HasValue)
             {
-                ICorrelationSource correlationSource = CorrelationController.CurrentSource;
-                if (correlationSource != null)
+                if (Trace.CorrelationManager.ActivityId != Guid.Empty)
                 {
-                    message.CorrelationId = correlationSource.CorrelationId;
+                    message.CorrelationId = Trace.CorrelationManager.ActivityId;
                 }
-            }*/
+            }
             using (var writer = new StringWriter())
             {
                 _serializer.Serialize(writer, message);

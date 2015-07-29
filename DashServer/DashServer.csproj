@@ -123,6 +123,7 @@
     <Compile Include="Controllers\CommonController.cs" />
     <Compile Include="Diagnostics\WebOperationRunner.cs" />
     <Compile Include="Handlers\BlobHandler.cs" />
+    <Compile Include="Handlers\BlobListHandler.cs" />
     <Compile Include="Handlers\BlobReplicationOperations.cs" />
     <Compile Include="Handlers\ControllerOperations.cs" />
     <Compile Include="Controllers\ContainerController.cs" />
@@ -136,6 +137,7 @@
     <Compile Include="Handlers\StorageRequestHelpers.cs" />
     <Compile Include="Utils\DelegatedResponse.cs" />
     <Compile Include="Utils\HttpContextFactory.cs" />
+    <Compile Include="Utils\HttpCorrelationContext.cs" />
     <Compile Include="Utils\HttpRequestBaseWrapper.cs" />
     <Compile Include="Utils\HttpRequestWrapper.cs" />
     <Compile Include="Utils\ObjectSerializer.cs" />

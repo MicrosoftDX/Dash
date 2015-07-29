@@ -56,13 +56,12 @@ do {
 }
 while ($endStates -notcontains $slice.Status)
 
+# Create the Batch service
+New-AzureBatchAccount –AccountName $batch_name –Location "westus" –ResourceGroupName $resourceGroupName
 # Allow replication to take place
 Write-Output "Emulating delay between ETL & Calc Engine"
 Start-Sleep -Seconds (60 * 10)
 
-# Create the Batch service
-New-AzureBatchAccount –AccountName $batch_name –Location "westus" –ResourceGroupName $resourceGroupName
-Start-Sleep -Seconds 10
 $batchCtx = Get-AzureBatchAccountKeys -AccountName $batch_name
 # List the install blobs
 $storageCtx = New-AzureStorageContext -ConnectionString "DefaultEndpointsProtocol=https;AccountName=dashadftest;AccountKey=w5mNcPZQ2sooPH2cMFMErFkfWGDAwjuqKjzWolKIc0WRw1Erk3biDSlEoR6HlHi8VunpqkUcheSR1ff5x1hAtg=="
@@ -88,14 +87,23 @@ Write-Output ""
 Write-Output "Waiting for VMs to startup"
 do {
     Start-Sleep 15
+    $vms = Get-AzureBatchVM -BatchContext $batchCtx -PoolName $batch_name
+}
+while ($vms.Count -le 0)
+do {
+    Start-Sleep 15
     $vm = (Get-AzureBatchVM -BatchContext $batchCtx -PoolName $batch_name)[0]
     Write-Output $vm.State
 }
 while ($vm.State -ne "Idle")
 
 $today = (Get-Date).ToUniversalTime().AddDays(-1)
-$blobPath = [System.String]::Format("http://dashtesteast.cloudapp.net/dash-adf-test/output-blobs/{0:yyyy}/{0:MM}/{0:dd}/", $today)
-$cmd = "cmd /c %WATASK_TVM_SHARED_DIR%\batch-startup\azcopy /source:$blobPath /Dest:.\CopiedData /SourceKey:wCNvIdXcltACBiDUMyO0BflZpKmjseplqOlzE62tx87qnkwpUMBV/GQhrscW9lmdZVT0x8DilYqUoHMNBlVIGg== /SourceType:Blob /S /V:.\azcopy.log"
+$blobPath = [System.String]::Format("output-blobs/{0:yyyy}/{0:MM}/{0:dd}/", $today)
+$storageCtx = New-AzureStorageContext -ConnectionString "AccountName=dashtesteast;AccountKey=wCNvIdXcltACBiDUMyO0BflZpKmjseplqOlzE62tx87qnkwpUMBV/GQhrscW9lmdZVT0x8DilYqUoHMNBlVIGg==;BlobEndpoint=http://dashtesteast.cloudapp.net;TableEndpoint=http://dashtesteast.cloudapp.net;QueueEndpoint=http://dashtesteast.cloudapp.net;"
+$copyBlobs = Get-AzureStorageBlob -Context $storageCtx -Container "dash-adf-test" -Prefix $blobPath
+$blobUrls = $copyBlobs | foreach { "('" + (New-AzureStorageBlobSASToken -ICloudBlob $_.ICloudBlob -Context $storageCtx -Permission r -FullUri) + "', '" + [System.IO.Path]::GetFileName($_.Name.Replace('/', '\')) + "')" }
+$cmd = 'cmd /c powershell -command %WATASK_TVM_SHARED_DIR%\batch-startup\copyblobs.ps1 -Destination .\CopiedData -Urls "(' + [System.String]::Join(",", $blobUrls) + ')"' 
+#$cmd = "cmd /c %WATASK_TVM_SHARED_DIR%\batch-startup\azcopy /source:$blobPath /Dest:.\CopiedData /SourceKey:wCNvIdXcltACBiDUMyO0BflZpKmjseplqOlzE62tx87qnkwpUMBV/GQhrscW9lmdZVT0x8DilYqUoHMNBlVIGg== /SourceType:Blob /S /V:.\azcopy.log"
 for ($i = 0; $i -lt 500; $i++) {
     $taskName = "Task$i"
     New-AzureBatchTask -Name $taskName -BatchContext $batchCtx -Job $batchJob -CommandLine $cmd
@@ -104,7 +112,7 @@ Write-Output ""
 Write-Output "Waiting for tasks to complete"
 do {
     Start-Sleep 15
-    $task = (Get-AzureBatchTask -BatchContext $batchCtx -WorkItemName $batch_name -JobName $batchJob.Name)[50]
+    $task = (Get-AzureBatchTask -BatchContext $batchCtx -WorkItemName $batch_name -JobName $batchJob.Name)[0]
     Write-Output $task.State
 }
 while ($task.State -ne "Completed")

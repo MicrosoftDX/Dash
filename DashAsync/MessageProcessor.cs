@@ -3,6 +3,7 @@
 using System;
 using Microsoft.Dash.Common.Diagnostics;
 using Microsoft.Dash.Common.Platform;
+using Microsoft.Dash.Common.Platform.Payloads;
 using Microsoft.Dash.Common.Processors;
 
 namespace Microsoft.Dash.Async
@@ -45,30 +46,34 @@ namespace Microsoft.Dash.Async
         static bool ProcessMessage(QueueMessage message, int? invisibilityTimeout = null)
         {
             var messageProcessed = false;
-            switch (message.MessageType)
+            Guid contextId = message.CorrelationId.HasValue ? message.CorrelationId.Value : Guid.Empty;
+            using (var ctx = new CorrelationContext(contextId))
             {
-                case MessageTypes.BeginReplicate:
-                    messageProcessed = DoReplicateJob(message, invisibilityTimeout);
-                    break;
+                switch (message.MessageType)
+                {
+                    case MessageTypes.BeginReplicate:
+                        messageProcessed = DoReplicateJob(message, invisibilityTimeout);
+                        break;
 
-                case MessageTypes.ReplicateProgress:
-                    messageProcessed = DoReplicateProgressJob(message, invisibilityTimeout);
-                    break;
+                    case MessageTypes.ReplicateProgress:
+                        messageProcessed = DoReplicateProgressJob(message, invisibilityTimeout);
+                        break;
 
-                case MessageTypes.DeleteReplica:
-                    messageProcessed = DoDeleteReplicaJob(message, invisibilityTimeout);
-                    break;
+                    case MessageTypes.DeleteReplica:
+                        messageProcessed = DoDeleteReplicaJob(message, invisibilityTimeout);
+                        break;
 
-                case MessageTypes.Unknown:
-                default:
-                    DashTrace.TraceWarning("Unable to process unknown message type from async queue [{0}]. Payload: {1}",
-                        message.MessageType,
-                        message.ToString());
-                    // Let this message bounce around for a bit - there may be a different version running
-                    // on another instance that knows about this message. It will be automatically discarded
-                    // after exceeding the deque limit.
-                    messageProcessed = false;
-                    break;
+                    case MessageTypes.Unknown:
+                    default:
+                        DashTrace.TraceWarning("Unable to process unknown message type from async queue [{0}]. Payload: {1}",
+                            message.MessageType,
+                            message.ToString());
+                        // Let this message bounce around for a bit - there may be a different version running
+                        // on another instance that knows about this message. It will be automatically discarded
+                        // after exceeding the deque limit.
+                        messageProcessed = false;
+                        break;
+                }
             }
             return messageProcessed;
         }
@@ -97,9 +102,10 @@ namespace Microsoft.Dash.Async
         static bool DoDeleteReplicaJob(QueueMessage message, int? invisibilityTimeout = null)
         {
             return BlobReplicator.DeleteReplica(
-                message.Payload[ReplicateProgressPayload.Source],
-                message.Payload[ReplicateProgressPayload.Container],
-                message.Payload[ReplicateProgressPayload.BlobName]);
+                message.Payload[DeleteReplicaPayload.Source],
+                message.Payload[DeleteReplicaPayload.Container],
+                message.Payload[DeleteReplicaPayload.BlobName],
+                message.Payload[DeleteReplicaPayload.ETag]);
         }
     }
 }

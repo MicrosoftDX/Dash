@@ -39,6 +39,18 @@ namespace Microsoft.Dash.Server
             }
         }
 
+        void Application_BeginRequest()
+        {
+            // Set the correlation id - this can come from the request's x-ms-client-request-id header or we gen up something unique
+            HttpCorrelationContext.Set(this.Request);
+        }
+
+        void Application_EndRequest()
+        {
+            // Release request correlation context
+            HttpCorrelationContext.Reset();
+        }
+        
         async Task AuthorizeRequestAsync(Object sender, EventArgs e)
         {
             if (!await OperationRunner.DoActionAsync("App.AuthorizeRequestAsync",

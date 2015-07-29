@@ -21,6 +21,7 @@ namespace Microsoft.Dash.Server.Handlers
             StorageOperationTypes.SetBlobMetadata,
             StorageOperationTypes.SetBlobProperties,
             StorageOperationTypes.DeleteBlob,
+            StorageOperationTypes.CopyBlob,
         };
 
         public static bool DoesOperationTriggerReplication(StorageOperationTypes operation)

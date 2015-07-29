@@ -22,7 +22,7 @@ namespace Microsoft.Dash.Server.Handlers
         /// <summary>
         /// Generic function to redirect a put request for properties of a blob
         /// </summary>
-        public static async Task<HandlerResult> BasicBlobAsync(IHttpRequestWrapper requestWrapper, string container, string blob, bool operationCanReplicateBlob)
+        public static async Task<HandlerResult> BasicBlobAsync(IHttpRequestWrapper requestWrapper, string container, string blob, bool servePrimaryOnly, bool operationCanReplicateBlob)
         {
             return await WebOperationRunner.DoHandlerAsync("BlobHandler.BasicBlobAsync", async () =>
                 {
@@ -34,7 +34,7 @@ namespace Microsoft.Dash.Server.Handlers
                             StatusCode = HttpStatusCode.NotFound,
                         };
                     }
-                    string accountName = namespaceBlob.SelectDataAccount;
+                    string accountName = namespaceBlob.SelectDataAccount(servePrimaryOnly);
                     if (operationCanReplicateBlob)
                     {
                         if (namespaceBlob.IsReplicated || 
@@ -76,7 +76,7 @@ namespace Microsoft.Dash.Server.Handlers
 
         public static async Task<HandlerResult> CopyBlobAsync(IHttpRequestWrapper requestWrapper, string destContainer, string destBlob, string source)
         {
-            return await WebOperationRunner.DoHandlerAsync("BlobHandler.CopyBlobAsync", async () =>
+            return await WebOperationRunner.DoHandlerAsync(String.Format("BlobHandler.CopyBlobAsync: {0}/{1} from {2}", destContainer, destBlob, source), async () =>
                 {
                     // source is a naked URI supplied by client
                     Uri sourceUri;
@@ -180,14 +180,11 @@ namespace Microsoft.Dash.Server.Handlers
                         {
                             destAccount = NamespaceHandler.GetDataStorageAccountForBlob(destBlob).Credentials.AccountName;
                         }
+                        bool replicateDestination = false;
                         if (await destNamespaceBlob.ExistsAsync() && destNamespaceBlob.PrimaryAccountName != destAccount)
                         {
                             // Delete the existing blob to prevent orphaning it
-                            if (destNamespaceBlob.IsReplicated)
-                            {
-                                // Enqueue deletion of replicas
-                                await BlobReplicationHandler.EnqueueBlobReplicationAsync(destNamespaceBlob, true, false);
-                            }
+                            replicateDestination = destNamespaceBlob.IsReplicated;
                             var dataBlob = NamespaceHandler.GetBlobByName(
                                 DashConfiguration.GetDataAccountByAccountName(destNamespaceBlob.PrimaryAccountName), destContainer, destBlob);
                             await dataBlob.DeleteIfExistsAsync();
@@ -218,9 +215,9 @@ namespace Microsoft.Dash.Server.Handlers
                             },
                             new OperationContext());
                         // Check if we should replicate the copied destination blob
-                        if (BlobReplicationHandler.ShouldReplicateBlob(requestWrapper.Headers, destContainer, destBlob))
+                        if (replicateDestination || BlobReplicationHandler.ShouldReplicateBlob(requestWrapper.Headers, destContainer, destBlob))
                         {
-                            await BlobReplicationHandler.EnqueueBlobReplicationAsync(destContainer, destBlob, false);
+                            await BlobReplicationHandler.EnqueueBlobReplicationAsync(destNamespaceBlob, false);
                         }
                         return new HandlerResult
                         {

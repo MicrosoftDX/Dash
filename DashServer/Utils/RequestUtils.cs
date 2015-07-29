@@ -38,6 +38,21 @@ namespace Microsoft.Dash.Server.Utils
             }
         }
 
+        public static void WriteElementString(this XmlWriter writer, string localName, DateTimeOffset? value, bool highPrecision)
+        {
+            if (!highPrecision)
+            {
+                writer.WriteElementString(localName, value);
+                return;
+            }
+            string valueToWrite = String.Empty;
+            if (value.HasValue)
+            {
+                valueToWrite = value.Value.UtcDateTime.ToString("O");
+            }
+            writer.WriteElementString(localName, valueToWrite);
+        }
+
         public static void WriteElementString(this XmlWriter writer, string localName, DateTimeOffset? value)
         {
             string valueToWrite = String.Empty;

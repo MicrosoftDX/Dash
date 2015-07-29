@@ -17,14 +17,18 @@ namespace Microsoft.Dash.Common.Platform
             this.Payload = new Dictionary<string, string>();
         }
 
-        public QueueMessage(MessageTypes type, Dictionary<string, string> payload)
+        public QueueMessage(MessageTypes type, Dictionary<string, string> payload, Guid? correlationId = null)
         {
             this.MessageType = type;
             this.Payload = payload;
+            if (correlationId.HasValue && correlationId.Value != Guid.Empty)
+            {
+                this.CorrelationId = correlationId.Value;
+            }
         }
 
         public MessageTypes MessageType { get; set; }
-
+        public Guid? CorrelationId { get; set; }
         public IDictionary<string, string> Payload { get; private set; }
 
         public string ToJson()

@@ -6,7 +6,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
@@ -28,7 +27,7 @@ namespace Microsoft.Dash.Server.Controllers
         {
             var xmlFormatter = GlobalConfiguration.Configuration.Formatters.XmlFormatter;
             xmlFormatter.WriterSettings.OmitXmlDeclaration = false;
-            xmlFormatter.SetSerializer<EnumerationResults>(new ObjectSerializer<EnumerationResults>(ContainerController.SerializeBlobListing));
+            xmlFormatter.SetSerializer<BlobListHandler.BlobListResults>(new ObjectSerializer<BlobListHandler.BlobListResults>(ContainerController.SerializeBlobListing));
             xmlFormatter.SetSerializer<SharedAccessBlobPolicies>(new ObjectSerializer<SharedAccessBlobPolicies>(ContainerController.SerializeAccessPolicies, ContainerController.DeserializeAccessPolicies, ContainerController.IsSharedAccessPolicyXML));
         }
 
@@ -365,126 +364,10 @@ namespace Microsoft.Dash.Server.Controllers
 
         private async Task<HttpResponseMessage> GetBlobList(string container)
         {
-            // Extract query parameters
-            var queryParams = this.Request.GetQueryParameters();
-            var prefix = queryParams.Value<string>("prefix");
-            var delim = queryParams.Value<string>("delimiter");
-            var marker = queryParams.Value<string>("marker");
-            var indicatedMaxResults = queryParams.Value<string>("maxresults");
-            var maxResults = queryParams.Value("maxresults", 5000);
-            var includedDataSets = String.Join(",", queryParams.Values<string>("include"));
-
-            var blobTasks = DashConfiguration.DataAccounts
-                .Select(account => ChildBlobListAsync(account, container, prefix, delim, includedDataSets));
-            var namespaceTask = ChildBlobListAsync(DashConfiguration.NamespaceAccount, container, prefix, delim, BlobListingDetails.Metadata.ToString());
-            var blobs = await Task.WhenAll(blobTasks);
-            var namespaceBlobs = await namespaceTask;
-            var sortedBlobs = blobs
-                .SelectMany(blobList => blobList)
-                .OrderBy(blob => blob.Uri.AbsolutePath, StringComparer.Ordinal)  
-                .SkipWhile(blob => !String.IsNullOrWhiteSpace(marker) && GetMarkerForBlob(blob) != marker);
-            var sortedNamespace = namespaceBlobs
-                .Where(blob => blob is CloudBlobDirectory ? true : !(new NamespaceBlob((CloudBlockBlob)blob).IsMarkedForDeletion))
-                .OrderBy(blob => blob.Uri.AbsolutePath, StringComparer.Ordinal)  
-                .SkipWhile(blob => !String.IsNullOrWhiteSpace(marker) && GetMarkerForBlob(blob) != marker);
-            var resultsList = sortedBlobs
-                .Join(sortedNamespace,
-                    blob => blob.Uri.AbsolutePath,
-                    blob => blob.Uri.AbsolutePath,
-                    (dataBlob, namespaceBlob) => Tuple.Create(dataBlob, namespaceBlob),
-                    StringComparer.OrdinalIgnoreCase)
-                .Where(blobPair => MatchPrimaryDataBlob(blobPair.Item2 as CloudBlockBlob, blobPair.Item1 as ICloudBlob))
-                .Take(maxResults + 1)                  // Get an extra listing so that we can generate the nextMarker
-                .Select(blobPair => blobPair.Item1);
-            var blobResults = new EnumerationResults
-            {
-                RequestVersion = this.Request.GetHeaders().Value("x-ms-version", StorageServiceVersions.Version_2009_09_19),
-                ServiceEndpoint = this.Request.RequestUri.GetComponents(UriComponents.SchemeAndServer, UriFormat.Unescaped),
-                ContainerName = container,
-                MaxResults = maxResults,
-                IndicatedMaxResults = indicatedMaxResults,
-                Delimiter = delim,
-                Marker = marker,
-                Prefix = prefix,
-                Blobs = resultsList,
-                IncludeDetails = String.IsNullOrWhiteSpace(includedDataSets) ? BlobListingDetails.None : (BlobListingDetails)Enum.Parse(typeof(BlobListingDetails), includedDataSets, true),
-            };
-            return CreateResponse(blobResults);
+            return CreateResponse(await BlobListHandler.GetBlobListing(container, DashHttpRequestWrapper.Create(this.Request)));
         }
 
-        private async Task<IEnumerable<IListBlobItem>> ChildBlobListAsync(CloudStorageAccount dataAccount, string container, string prefix, string delimiter, string includeFlags)
-        {
-            CloudBlobContainer containerObj = NamespaceHandler.GetContainerByName(dataAccount, container);
-            if (!String.IsNullOrWhiteSpace(delimiter))
-            {
-                containerObj.ServiceClient.DefaultDelimiter = delimiter;
-            }
-            var results = new List<IEnumerable<IListBlobItem>>();
-            BlobListingDetails listDetails;
-            Enum.TryParse(includeFlags, true, out listDetails);
-            string nextMarker = null;
-            try
-            {
-                do
-                {
-                    var continuationToken = new BlobContinuationToken
-                    {
-                        NextMarker = nextMarker,
-                    };
-                    var blobResults = await containerObj.ListBlobsSegmentedAsync(prefix, String.IsNullOrWhiteSpace(delimiter), listDetails, null, continuationToken, null, null);
-                    results.Add(blobResults.Results);
-                    if (blobResults.ContinuationToken != null)
-                    {
-                        nextMarker = blobResults.ContinuationToken.NextMarker;
-                    }
-                    else
-                    {
-                        nextMarker = null;
-                    }
-                } while (!String.IsNullOrWhiteSpace(nextMarker));
-            }
-            catch (StorageException)
-            {
-                // Silently swallow the exception if we're missing the container for this account
-                
-            }
-
-            return results
-                .SelectMany(segmentResults => segmentResults);
-        }
-
-        static bool MatchPrimaryDataBlob(CloudBlockBlob namespaceEntry, ICloudBlob dataBlob)
-        {
-            // Handle listing of CloudBlobDirectory objects
-            if (namespaceEntry == null || dataBlob == null)
-            {
-                return true;
-            }
-            // The blob listing included metadata for the namespace entry, so we don't need to refresh
-            var namespaceBlob = new NamespaceBlob(namespaceEntry);
-            if (namespaceBlob.IsReplicated)
-            {
-                return String.Equals(namespaceBlob.PrimaryAccountName, dataBlob.ServiceClient.Credentials.AccountName, StringComparison.OrdinalIgnoreCase);
-            }
-            return true;
-        }
-
-        class EnumerationResults
-        {
-            public DateTimeOffset RequestVersion { get; set; }
-            public string ServiceEndpoint { get; set; }
-            public string ContainerName { get; set; }
-            public string Prefix { get; set; }
-            public string Marker { get; set; }
-            public string IndicatedMaxResults { get; set; }
-            public int MaxResults { get; set; }
-            public string Delimiter { get; set; }
-            public IEnumerable<IListBlobItem> Blobs { get; set; }
-            public string NextMarker { get; set; }
-            public BlobListingDetails IncludeDetails { get; set; }
-        }
-
-        static void SerializeBlobListing(XmlWriter writer, EnumerationResults results)
+        static void SerializeBlobListing(XmlWriter writer, BlobListHandler.BlobListResults results)
         {
             var uri = new UriBuilder(results.ServiceEndpoint);
             writer.WriteStartElement("EnumerationResults");
@@ -523,7 +406,7 @@ namespace Microsoft.Dash.Server.Controllers
                     }
                     if (realBlob.IsSnapshot && results.IncludeDetails.IsFlagSet(BlobListingDetails.Snapshots))
                     {
-                        writer.WriteElementString("Snapshot", realBlob.SnapshotTime);
+                        writer.WriteElementString("Snapshot", realBlob.SnapshotTime, true);
                     }
                     writer.WriteStartElement("Properties");
                     writer.WriteElementString("Last-Modified", realBlob.Properties.LastModified);
@@ -548,7 +431,7 @@ namespace Microsoft.Dash.Server.Controllers
                         writer.WriteElementStringIfNotNull("CopyId", realBlob.CopyState.CopyId);
                         writer.WriteElementStringIfNotEnumValue("CopyStatus", realBlob.CopyState.Status, CopyStatus.Invalid);
                         writer.WriteElementStringIfNotNull("CopySource", realBlob.CopyState.Source.ToString());
-                        writer.WriteElementStringIfNotNull("CopyProgress", (realBlob.CopyState.BytesCopied / realBlob.CopyState.TotalBytes).ToString());
+                        writer.WriteElementString("CopyProgress", String.Format("{0}/{1}", realBlob.CopyState.BytesCopied, realBlob.CopyState.TotalBytes));
                         writer.WriteElementStringIfNotNull("CopyCompletionTime", realBlob.CopyState.CompletionTime);
                         writer.WriteElementStringIfNotNull("CopyStatusDescription", realBlob.CopyState.StatusDescription);
                     }
@@ -578,23 +461,9 @@ namespace Microsoft.Dash.Server.Controllers
             writer.WriteEndElement();           // Blobs
             if (nextBlob != null)
             {
-                writer.WriteElementString("NextMarker", GetMarkerForBlob(nextBlob));
+                writer.WriteElementString("NextMarker", BlobListHandler.GetMarkerForBlob(nextBlob));
             }
             writer.WriteEndElement();           // EnumerationResults
-        }
-
-        static string GetMarkerForBlob(IListBlobItem blob)
-        {
-            string markerValue;
-            if (blob is ICloudBlob && ((ICloudBlob)blob).IsSnapshot)
-            {
-                markerValue = blob.Uri.AbsolutePath + "|" + ((ICloudBlob)blob).SnapshotTime.Value.ToString("o");
-            }
-            else 
-            {
-                markerValue = blob.Uri.AbsolutePath + "|";
-            }
-            return Convert.ToBase64String(Encoding.UTF8.GetBytes(markerValue));
         }
 
         static void SerializeAccessPolicies(XmlWriter writer, SharedAccessBlobPolicies policies)

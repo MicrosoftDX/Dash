@@ -12,6 +12,7 @@ namespace Microsoft.Dash.Common.Diagnostics
         }
 
         public DateTime Time { get; set; }
+        public Guid? CorrelationId { get; set; }
         public string Operation { get; set; }
         public bool? Success { get; set; }
         public long? Duration { get; set; }

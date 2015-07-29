@@ -25,7 +25,7 @@ namespace Microsoft.Tests
             });
         }
 
-        public static HandlerResult BlobRequest(string method, string uri, IEnumerable<Tuple<string, string>> headers = null)
+        public static HandlerResult BlobRequest(string method, string uri, IEnumerable<Tuple<string, string>> headers)
         {
             WebApiTestRunner.SetupRequest(uri, method);
             return StorageOperationsHandler.HandlePrePipelineOperationAsync(

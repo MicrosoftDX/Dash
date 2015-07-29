@@ -52,6 +52,7 @@ namespace Microsoft.Dash.Server.Controllers
             var requestWrapper = DashHttpRequestWrapper.Create(this.Request);
             var headers = requestWrapper.Headers;
             var queryParams = requestWrapper.QueryParameters;
+            bool dataBlobDeleted = false;
             return await DoHandlerAsync(String.Format("BlobController.DeleteBlob: {0}/{1}", container, blob),
                 async () => await NamespaceHandler.PerformNamespaceOperation(container, blob, async (namespaceBlob) =>
                 {
@@ -61,10 +62,14 @@ namespace Microsoft.Dash.Server.Controllers
                         return this.CreateResponse(HttpStatusCode.NotFound, headers);
                     }
                     // Delete the real data blob by forwarding the request onto the data account
-                    var forwardedResponse = await ForwardRequestHandler(namespaceBlob, StorageOperationTypes.DeleteBlob);
-                    if (!forwardedResponse.IsSuccessStatusCode)
+                    if (!dataBlobDeleted)
                     {
-                        return forwardedResponse;
+                        var forwardedResponse = await ForwardRequestHandler(namespaceBlob, StorageOperationTypes.DeleteBlob);
+                        if (!forwardedResponse.IsSuccessStatusCode)
+                        {
+                            return forwardedResponse;
+                        }
+                        dataBlobDeleted = true;
                     }
                     // See if we need to delete any replicas
                     if (namespaceBlob.IsReplicated) 

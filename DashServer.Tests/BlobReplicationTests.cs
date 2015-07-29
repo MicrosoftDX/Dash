@@ -16,6 +16,7 @@ using System.Xml.Linq;
 using Microsoft.Dash.Common.Handlers;
 using Microsoft.Dash.Async;
 using Microsoft.Dash.Common.Processors;
+using Microsoft.Dash.Common.Platform.Payloads;
 
 namespace Microsoft.Tests
 {
@@ -290,7 +291,8 @@ namespace Microsoft.Tests
                 // doesn't apply when we're using HttpClient in direct mode - we have to have 2 encoded forms of the same name
                 string blobSegment = "workernode2.jokleinhbase.d6.internal.cloudapp.net%2C60020%2C1436223739284.1436223741878";
                 string encodedBlobSegment = WebUtility.UrlEncode(blobSegment);
-                string baseBlobName = "test22/" + Guid.NewGuid().ToString() + "/workernode2.jokleinhbase.d6.internal.cloudapp.net,60020,1436223739284/";
+                string uniqueFolderName = "test22/" + Guid.NewGuid().ToString();
+                string baseBlobName = uniqueFolderName + "/workernode2.jokleinhbase.d6.internal.cloudapp.net,60020,1436223739284/";
                 string blobName = baseBlobName + blobSegment;
                 string encodedBlobName = baseBlobName + encodedBlobSegment;
                 string baseBlobUri = "http://localhost/blob/" + ContainerName + "/" + baseBlobName;
@@ -309,10 +311,44 @@ namespace Microsoft.Tests
                 string dataAccountName = new Uri(result.Location).Host.Split('.')[0];
                 // Verify that the blob is replicated by the async worker
                 AssertReplicationWorker(ContainerName, blobName, dataAccountName, false);
-                // Cleanup 
+
+                // Verify that concurrent operations send us to the primary - read the ETag & modified dates first
+                var listdoc = _runner.ExecuteRequestResponse(
+                    "http://localhost/container/" + ContainerName + "?restype=container&comp=list&prefix=" + encodedBlobName + "&include=metadata",
+                    "GET");
+                var enumerationResults = listdoc.Root;
+                var blobs = enumerationResults.Element("Blobs");
+                var eTag = blobs.Element("Blob").Element("Properties").Element("Etag").Value;
+                var lastModified = blobs.Element("Blob").Element("Properties").Element("Last-Modified").Value;
+                AssertRedirectDataAccount("HEAD", blobUri, dataAccountName, null);
+                AssertConcurrentReads(blobUri, dataAccountName, new[] {
+                    Tuple.Create("If-Match", eTag),
+                    Tuple.Create("If-None-Match", eTag),
+                    Tuple.Create("If-Modified-Since", lastModified),
+                    Tuple.Create("If-Unmodified-Since", lastModified),
+                    Tuple.Create("x-ms-if-sequence-number-le", "100"),
+                    Tuple.Create("x-ms-if-sequence-number-lt", "100"),
+                    Tuple.Create("x-ms-if-sequence-number-eq", "100"),
+                });
+                // Cleanup - do an orphaned replica test on the way out
                 _runner.ExecuteRequest(encodedBlobUri,
                     "DELETE",
                     expectedStatusCode: HttpStatusCode.Accepted);
+                // The namespace has been marked for deletion & the primary blob has been deleted, but the replicas are now
+                // orphaned waiting to be async deleted - verify that a blob listing at this time doesn't return the blob
+                listdoc = _runner.ExecuteRequestResponse(
+                    "http://localhost/container/" + ContainerName + "?restype=container&comp=list&prefix=" + encodedBlobName + "&include=metadata",
+                    "GET");
+                enumerationResults = listdoc.Root;
+                Assert.AreEqual(0, enumerationResults.Element("Blobs").Elements().Count());
+                // A special corner case for this same scenario is that we do a hierarchical listing a folder down (the container) & we 
+                // shouldn't see the containing folder as it doesn't contain any non-deleted primary blobs
+                listdoc = _runner.ExecuteRequestResponse(
+                    "http://localhost/container/" + ContainerName + "?restype=container&comp=list&delimiter=/&prefix=" + uniqueFolderName + "&include=metadata",
+                    "GET");
+                enumerationResults = listdoc.Root;
+                Assert.AreEqual(0, enumerationResults.Element("Blobs").Elements().Count());
+
                 // Verify the delete replica behavior
                 AssertReplicationWorker(ContainerName, blobName, dataAccountName, true);
             }
@@ -429,6 +465,28 @@ namespace Microsoft.Tests
                 var dataBlob = NamespaceHandler.GetBlobByName(account, container, blobName);
                 Assert.AreEqual(!isDeleteReplica, dataBlob.Exists());
             }
+        }
+
+        static void AssertConcurrentReads(string blobUri, string expectedAccountName, IEnumerable<Tuple<string, string>> concurrentHeaders)
+        {
+            foreach (var concurrentHeader in concurrentHeaders)
+            {
+                AssertRedirectDataAccount("GET", blobUri, expectedAccountName, new[] { concurrentHeader, Tuple.Create("User-Agent", "WA-Storage/2.0.6.1") });
+            }
+        }
+
+        static void AssertRedirectDataAccount(string method, string blobUri, string expectedAccountName, IEnumerable<Tuple<string, string>> headers = null)
+        {
+            HandlerResult result;
+            if (headers == null)
+            {
+                result = BlobRequest(method, blobUri);
+            }
+            else
+            {
+                result = BlobRequest(method, blobUri, headers);
+            }
+            Assert.AreEqual(expectedAccountName, new Uri(result.Location).Host.Split('.')[0]);
         }
     }
 }

@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Dash.Common.Platform;
 using Newtonsoft.Json;
+using Microsoft.Dash.Common.Platform.Payloads;
 
 namespace Microsoft.Tests
 {
