@@ -12,13 +12,14 @@ using System.Threading.Tasks;
 using System.Web.Http;
 using System.Xml.Linq;
 using DashServer.ManagementAPI.Models;
-using Microsoft.Azure;
-using Microsoft.WindowsAzure.Management.Compute;
-using Microsoft.WindowsAzure.Management.Compute.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Microsoft.Dash.Common.Utils;
 using DashServer.ManagementAPI.Utils;
+using Microsoft.WindowsAzure;
+using Microsoft.WindowsAzure.Management.Compute;
+using Microsoft.WindowsAzure.Management.Compute.Models;
+using DashServer.ManagementAPI.Utils.Azure;
 
 namespace DashServer.ManagementAPI.Controllers
 {
@@ -105,7 +106,7 @@ namespace DashServer.ManagementAPI.Controllers
             {
                 return new HttpResponseMessage(HttpStatusCode.Forbidden);
             }
-            var serviceInfo = await AzureUtils.GetServiceInformation(accessToken);
+            var serviceInfo = await AzureService.GetServiceInformation(accessToken);
             using (var computeClient = new ComputeManagementClient(new TokenCloudCredentials(serviceInfo.SubscriptionId, accessToken)))
             {
                 var deployment = await computeClient.Deployments.GetBySlotAsync(serviceInfo.ServiceName, DeploymentSlot.Production);
