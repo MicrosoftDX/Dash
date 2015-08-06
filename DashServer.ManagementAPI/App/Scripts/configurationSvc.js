@@ -5,9 +5,6 @@ angular.module('dashApp')
     return {
         getItems : function(){
             return $http.get(apiHost);
-        },
-        getItem : function(name){
-            return $http.get(apiHost + '/?servicename=' + name);
         }
     };
 }]);

@@ -1,3 +1,12 @@
-﻿<div>
-    home sweet home
+﻿<div id="update-banner" ng-show="areUpdatesAvailable" class="alert alert-dismissable" ng-class="updateBannerClass">
+    <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+    An update is available for this Dash service.
+    <span class="pull-right"><a href="#/Update" class="alert-link">Update Now</a></span>
 </div>
+<h2>DASH for Azure Storage</h2>
+<p />
+<p>DASH is a solution from Microsoft that allows you to bypass space and I/O limits on Azure Storage. In order to use DASH, you will need to download the source, build the package, and deploy it to Azure.</p>
+<p/>
+<p>DASH works by aggregating the throughput, volume and transaction limits of multiple Azure Blob Storage Accounts to create an effective virtual account that has limits of N times those imposed on a single storage account.</p>
+<p />
+<p>Internally, DASH maintains a lookup of all blob resources in the virtual account (the 'namespace' account). These are 0-length blobs that match the external structure of account. In each namespace blob, a small amount of metadata is held.</p>

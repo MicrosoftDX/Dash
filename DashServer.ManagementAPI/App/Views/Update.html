@@ -1,0 +1,19 @@
+﻿<div>
+    <h2>Available DASH Updates</h2>
+    <table class="table">
+        <tr>
+            <th>&nbsp;</th>
+            <th>Version</th>
+            <th>Severity</th>
+            <th>Description</th>
+        </tr>
+        <tr data-ng-repeat="update in availableUpdates" ng-class="update.getSeverityClass()">
+            <td>
+                <a class="applyLink" ng-disable="updateInProgress" href="#" onclick="applyUpdate('@VersionUtils.GatewayFormat(update.Version)')">Apply Update</a>
+            </td>
+            <td>{{update.versionString}}</td>
+            <td>{{update.severity}}</td>
+            <td>{{update.description}}</td>
+        </tr>
+    </table>
+</div>

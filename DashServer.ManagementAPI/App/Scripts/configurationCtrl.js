@@ -27,7 +27,7 @@ angular.module('dashApp')
     };
 
     $scope.populate = function () {
-        configurationSvc.getItem('datafireservices').success(function (results) {
+        configurationSvc.getItems().success(function (results) {
             console.debug('Results ' + results);
             $scope.settings = results;
             $scope.loadingMessage = "";

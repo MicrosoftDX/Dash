@@ -11,7 +11,6 @@ using System.Web.Configuration;
 using System.Web.Http;
 using System.Web.Http.Results;
 using DashServer.ManagementAPI.Models;
-using DashServer.ManagementAPI.Utils;
 using Microsoft.Azure;
 using Microsoft.WindowsAzure.Management.Storage;
 using Microsoft.WindowsAzure.Management.Storage.Models;
@@ -20,8 +19,8 @@ namespace DashServer.ManagementAPI.Controllers
 {
     public class StorageManagementController : ApiController
     {
-        private readonly string _subscriptionId = ConfigurationHelper.GetSetting("SubscriptionId");
-        private readonly string _certificateBase64 = ConfigurationHelper.GetSetting("CertificateBase64");
+        private readonly string _subscriptionId = String.Empty;
+        private readonly string _certificateBase64 = String.Empty;
 
         [HttpGet]
         public async Task<IEnumerable<StorageAccount>> ListAccounts()
