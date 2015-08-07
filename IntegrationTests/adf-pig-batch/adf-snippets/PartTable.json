@@ -1,0 +1,67 @@
+{
+    "name": "Part",
+    "properties": {
+        "structure": [
+            {
+                "position": 0,
+                "name": "P_PARTKEY",
+                "type": "Int"
+            },
+            {
+                "position": 0,
+                "name": "P_NAME",
+                "type": "String"
+            },
+            {
+                "position": 0,
+                "name": "P_MFGR",
+                "type": "String"
+            },
+            {
+                "position": 0,
+                "name": "P_BRAND",
+                "type": "String"
+            },
+            {
+                "position": 0,
+                "name": "P_TYPE",
+                "type": "String"
+            },
+            {
+                "position": 0,
+                "name": "P_SIZE",
+                "type": "Int"
+            },
+            {
+                "position": 0,
+                "name": "P_CONTAINER",
+                "type": "String"
+            },
+            {
+                "position": 0,
+                "name": "P_RETAILPRICE",
+                "type": "Decimal"
+            },
+            {
+                "position": 0,
+                "name": "P_COMMENT",
+                "type": "String"
+            }
+        ],
+        "published": false,
+        "location": {
+            "type": "AzureBlobLocation",
+            "folderPath": "dash-adf-test/test-blobs/Part",
+            "format": {
+                "type": "TextFormat",
+                "columnDelimiter": "|"
+            },
+            "linkedServiceName": "DashTestEast"
+        },
+        "availability": {
+            "frequency": "Day",
+            "interval": 1,
+            "waitOnExternal": {}
+        }
+    }
+}

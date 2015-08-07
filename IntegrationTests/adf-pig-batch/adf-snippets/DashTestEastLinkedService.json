@@ -1,0 +1,7 @@
+{
+    "name": "DashTestEast",
+    "properties": {
+        "connectionString": "AccountName=dashtesteast;AccountKey=wCNvIdXcltACBiDUMyO0BflZpKmjseplqOlzE62tx87qnkwpUMBV/GQhrscW9lmdZVT0x8DilYqUoHMNBlVIGg==;BlobEndpoint=http://dashtesteast.cloudapp.net;TableEndpoint=http://dashtesteast.cloudapp.net;QueueEndpoint=http://dashtesteast.cloudapp.net;",
+        "type": "AzureStorageLinkedService"
+    }
+}

@@ -6,11 +6,12 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Http;
 using System.Xml;
-using Microsoft.Dash.Server.Handlers;
+using Microsoft.Dash.Common.Diagnostics;
 using Microsoft.Dash.Common.Utils;
+using Microsoft.Dash.Server.Handlers;
 using Microsoft.Dash.Server.Utils;
 using Microsoft.WindowsAzure.Storage.Blob;
-using Microsoft.Dash.Common.Diagnostics;
+using Microsoft.WindowsAzure.Storage.Shared.Protocol;
 
 namespace Microsoft.Dash.Server.Controllers
 {
@@ -22,6 +23,7 @@ namespace Microsoft.Dash.Server.Controllers
             var xmlFormatter = GlobalConfiguration.Configuration.Formatters.XmlFormatter;
             xmlFormatter.WriterSettings.OmitXmlDeclaration = false;
             xmlFormatter.SetSerializer<ContainerListResults>(new ObjectSerializer<ContainerListResults>(AccountController.SerializeContainerListing));
+            xmlFormatter.SetSerializer<RequestServiceProperites>(new ObjectSerializer<RequestServiceProperites>(AccountController.SerializeServiceProperties));
         }
 
         [HttpGet]
@@ -33,6 +35,9 @@ namespace Microsoft.Dash.Server.Controllers
                     {
                         case "list":
                             return await ListContainersAsync();
+
+                        case "properties":
+                            return await GetServicePropertiesAsync();
 
                         default:
                             return ProcessResultResponse(new HandlerResult
@@ -72,6 +77,84 @@ namespace Microsoft.Dash.Server.Controllers
                     response.Headers.Add("x-ms-dash-client", "true");
                     return response;
                 });
+        }
+
+        private async Task<HttpResponseMessage> GetServicePropertiesAsync()
+        {
+            var client = DashConfiguration.NamespaceAccount.CreateCloudBlobClient();
+            return CreateResponse(new RequestServiceProperites
+            {
+                RequestVersion = this.Request.GetHeaders().Value("x-ms-version", StorageServiceVersions.Version_2009_09_19),
+                Properties = await client.GetServicePropertiesAsync(),
+            });
+        }
+
+        class RequestServiceProperites
+        {
+            public DateTimeOffset RequestVersion { get; set; }
+            public ServiceProperties Properties { get; set; }
+        }
+
+        static void SerializeServiceProperties(XmlWriter writer, RequestServiceProperites results)
+        {
+            writer.WriteStartElement("StorageServiceProperties");
+            writer.WriteStartElement("Logging");
+            writer.WriteElementStringIfNotNull("Version", results.Properties.Logging.Version);
+            // TODO: These values are hard-coded until we implement logging & metrics
+            writer.WriteElementString("Delete", "false");
+            writer.WriteElementString("Read", "false");
+            writer.WriteElementString("Write", "false");
+            SerializeRetentionPolicy(writer);
+            writer.WriteEndElement();   // Logging
+            if (results.RequestVersion <= StorageServiceVersions.Version_2012_02_12)
+            {
+                // TODO: These values are hard-coded until we implement logging & metrics
+                writer.WriteStartElement("Metrics");
+                writer.WriteElementStringIfNotNull("Version", results.Properties.HourMetrics.Version);
+                writer.WriteElementString("Enabled", "false");
+                writer.WriteElementString("IncludeAPIs", "false");
+                SerializeRetentionPolicy(writer);
+                writer.WriteEndElement();   // Metrics
+            }
+            else
+            {
+                // TODO: These values are hard-coded until we implement logging & metrics
+                writer.WriteStartElement("HourMetrics");
+                writer.WriteElementStringIfNotNull("Version", results.Properties.HourMetrics.Version);
+                writer.WriteElementString("Enabled", "false");
+                writer.WriteElementString("IncludeAPIs", "false");
+                SerializeRetentionPolicy(writer);
+                writer.WriteEndElement();   // HourMetrics
+                // TODO: These values are hard-coded until we implement logging & metrics
+                writer.WriteStartElement("MinuteMetrics");
+                writer.WriteElementStringIfNotNull("Version", results.Properties.MinuteMetrics.Version);
+                writer.WriteElementString("Enabled", "false");
+                writer.WriteElementString("IncludeAPIs", "false");
+                SerializeRetentionPolicy(writer);
+                writer.WriteEndElement();   // MinuteMetrics
+                writer.WriteStartElement("Cors");
+                foreach (var corsRule in results.Properties.Cors.CorsRules)
+                {
+                    writer.WriteStartElement("CorsRule");
+                    writer.WriteElementString("AllowedOrigins", String.Join(",", corsRule.AllowedOrigins));
+                    writer.WriteElementString("AllowedMethods", corsRule.AllowedMethods.ToString());
+                    writer.WriteElementString("MaxAgeInSeconds", corsRule.MaxAgeInSeconds.ToString());
+                    writer.WriteElementString("ExposedHeaders", String.Join(",", corsRule.ExposedHeaders));
+                    writer.WriteElementString("AllowedHeaders", String.Join(",", corsRule.AllowedHeaders));
+                    writer.WriteEndElement();   // CorsRule
+                }
+                writer.WriteEndElement();   // Cors
+            }
+            writer.WriteElementStringIfNotNull("DefaultServiceVersion", results.Properties.DefaultServiceVersion);
+            writer.WriteEndElement();   // StorageServiceProperties
+        }
+
+        static void SerializeRetentionPolicy(XmlWriter writer)
+        {
+            writer.WriteStartElement("RetentionPolicy");
+            writer.WriteElementString("Enabled", "false");
+            writer.WriteElementString("Days", "0");
+            writer.WriteEndElement();   // RetentionPolicy
         }
 
         private async Task<HttpResponseMessage> ListContainersAsync()

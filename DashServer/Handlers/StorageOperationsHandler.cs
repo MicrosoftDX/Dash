@@ -16,27 +16,45 @@ namespace Microsoft.Dash.Server.Handlers
             StorageOperationTypes requestOperation = StorageOperations.GetBlobOperation(requestWrapper);
             DashClientCapabilities client = DashClientDetector.DetectClient(requestWrapper);
             HandlerResult result = null;
+            bool servePrimaryOnly = false;
             switch (requestOperation)
             {
-                case StorageOperationTypes.GetBlob:
                 case StorageOperationTypes.GetBlobProperties:
                 case StorageOperationTypes.SetBlobProperties:
                 case StorageOperationTypes.GetBlobMetadata:
                 case StorageOperationTypes.SetBlobMetadata:
                 case StorageOperationTypes.LeaseBlob:
-                case StorageOperationTypes.SnapshotBlob:
                 case StorageOperationTypes.GetBlockList:
+                    servePrimaryOnly = true;
+                    // Fall through
+                    goto case StorageOperationTypes.GetBlob;
+                case StorageOperationTypes.GetBlob:
+                case StorageOperationTypes.SnapshotBlob:
                 case StorageOperationTypes.GetPageRanges:
                     if (client.HasFlag(DashClientCapabilities.FollowRedirects))
                     {
-                        result = await BlobHandler.BasicBlobAsync(requestWrapper, containerName, blobName);
+                        // If the client has specified a concurrent operation, then we always serve the primary account
+                        // as that is where the concurrency controls exist
+                        if (!servePrimaryOnly && requestWrapper.Headers.IsConcurrentRequest())
+                        {
+                            servePrimaryOnly = true;
+                        }
+                        result = await BlobHandler.BasicBlobAsync(requestWrapper, 
+                            containerName, 
+                            blobName, 
+                            servePrimaryOnly,
+                            BlobReplicationOperations.DoesOperationTriggerReplication(requestOperation));
                     }
                     break;
 
                 case StorageOperationTypes.PutPage:
                     if (client.HasFlag(DashClientCapabilities.NoPayloadToDash))
                     {
-                        result = await BlobHandler.BasicBlobAsync(requestWrapper, containerName, blobName);
+                        result = await BlobHandler.BasicBlobAsync(requestWrapper, 
+                            containerName, 
+                            blobName,
+                            true,
+                            BlobReplicationOperations.DoesOperationTriggerReplication(requestOperation));
                     }
                     break;
 
@@ -45,7 +63,10 @@ namespace Microsoft.Dash.Server.Handlers
                 case StorageOperationTypes.PutBlockList:
                     if (client.HasFlag(DashClientCapabilities.NoPayloadToDash))
                     {
-                        result = await BlobHandler.PutBlobAsync(requestWrapper, containerName, blobName);
+                        result = await BlobHandler.PutBlobAsync(requestWrapper, 
+                            containerName, 
+                            blobName,
+                            BlobReplicationOperations.DoesOperationTriggerReplication(requestOperation));
                     }
                     break;
 

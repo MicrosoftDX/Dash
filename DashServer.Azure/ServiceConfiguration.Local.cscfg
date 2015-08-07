@@ -25,6 +25,13 @@
       <Setting name="ScaleoutStorage14" value="" />
       <Setting name="ScaleoutStorage15" value="" />
       <Setting name="LogNormalOperations" value="true" />
+      <Setting name="ReplicationPathPattern" value="" />
+      <Setting name="ReplicationMetadataName" value="" />
+      <Setting name="ReplicationMetadataValue" value="" />
+      <Setting name="WorkerQueueName" value="" />
+      <Setting name="AsyncWorkerTimeout" value="" />
+      <Setting name="WorkerQueueInitialDelay"  value="" />
+      <Setting name="WorkerQueueDequeueLimit" value="" />
     </ConfigurationSettings>
     <Certificates>
     </Certificates>

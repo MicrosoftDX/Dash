@@ -19,7 +19,7 @@ namespace Microsoft.Dash.Server.Handlers
         {
             //Right now we are just parroting back the values sent by the client. Might need to generate our
             //own values for these if none are provided.
-            string clientId = requestHeaders.Value<string>("x-ms-client-request-id");
+            string clientId = requestHeaders.ClientRequestId;
             if (!String.IsNullOrWhiteSpace(clientId))
             {
                 response.Headers.Add("x-ms-request-id", clientId);
@@ -76,8 +76,23 @@ namespace Microsoft.Dash.Server.Handlers
         {
             return new OperationContext
             {
-                ClientRequestID = requestHeaders.Value<string>("x-ms-client-request-id", null),
+                ClientRequestID = requestHeaders.ClientRequestId,
             };
+        }
+
+        static readonly ISet<string> _concurrentHeaders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "If-Match",
+            "If-Modified-Since", 
+            "If-Unmodified-Since",
+            "If-None-Match",
+            "x-ms-if-sequence-number-le",
+            "x-ms-if-sequence-number-lt",
+            "x-ms-if-sequence-number-eq",
+        };
+        public static bool IsConcurrentRequest(this RequestHeaders requestHeaders)
+        {
+            return requestHeaders.ContainsAny(_concurrentHeaders);
         }
     }
 }

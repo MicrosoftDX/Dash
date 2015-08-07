@@ -2,9 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Linq;
 using System.Web;
+using Microsoft.Dash.Common.Utils;
 
 namespace Microsoft.Dash.Server.Utils
 {
@@ -21,15 +20,8 @@ namespace Microsoft.Dash.Server.Utils
             if (uriDecode)
             {
                 _requestUri = new Uri(HttpUtility.UrlDecode(this._request.Url.ToString()));
-                _pathSegments = _requestUri.GetComponents(UriComponents.Path, UriFormat.SafeUnescaped)
-                    .Trim('/')
-                    .Split('/')
-                    .ToArray();
-                _originalSegments = this._request.Url.Segments
-                    .Select(segment => segment.Trim('/'))
-                    .Where(segment => !String.IsNullOrWhiteSpace(segment))
-                    .ToArray();
-
+                _pathSegments = PathUtils.GetPathSegments(_requestUri.GetComponents(UriComponents.Path, UriFormat.SafeUnescaped));
+                _originalSegments = PathUtils.GetPathSegments(this._request.Url.AbsolutePath);
             }
             else
             {

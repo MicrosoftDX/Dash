@@ -1,0 +1,39 @@
+{
+    "name": "dash-adf-test-xform-parts",
+    "properties": {
+        "description": "transform parts data",
+        "activities": [
+            {
+                "type": "HDInsightActivity",
+                "transformation": {
+                    "scriptPath": "dash-adf-test\\scripts\\project-parts.pig",
+                    "scriptLinkedService": "ClusterDataStore",
+                    "type": "Pig",
+                    "extendedProperties": {
+                        "PARTINPUT": "wasb://dash-adf-test@dashtesteast.cloudapp.net/test-blobs/Part/",
+                        "PROJECTIONOUTPUT": "$$Text.Format('wasb://dash-adf-test@dashtesteast.cloudapp.net/output-blobs/{0:yyyy}/{0:MM}/{0:dd}/', SliceStart)"
+                    }
+                },
+                "inputs": [
+                    {
+                        "name": "Part"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "name": "ProjectedPart"
+                    }
+                ],
+                "policy": {
+                    "concurrency": 1,
+                    "executionPriorityOrder": "NewestFirst",
+                    "retry": 1
+                },
+                "name": "PartsProjection",
+                "description": "custom projection of TPC-H Parts using pig",
+                "linkedServiceName": "dash-adf-test-hdi-cluster"
+            }
+        ],
+        "isPaused": true
+    }
+}

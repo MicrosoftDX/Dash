@@ -32,13 +32,22 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <TargetProfile Condition=" '$(TargetProfile)' == '' ">Cloud</TargetProfile>
+    <IsILBProfile Condition=" '$(IsILBProfile)' == '' ">$(TargetProfile.ToLower().Contains('.ilb'))</IsILBProfile>
+  </PropertyGroup>
   <!-- Items for the project -->
   <ItemGroup>
-    <ServiceDefinition Include="ServiceDefinition.csdef" />
     <ServiceConfiguration Include="ServiceConfiguration.Cloud - East.cscfg" />
     <ServiceConfiguration Include="ServiceConfiguration.Local.cscfg" />
     <ServiceConfiguration Include="ServiceConfiguration.Cloud.cscfg" />
     <ServiceConfiguration Include="ServiceConfiguration.PublishHttps.cscfg" />
+    <ServiceConfiguration Include="ServiceConfiguration.PublishHttps.ILB.cscfg" />
+  </ItemGroup>
+  <ItemGroup>
+    <ServiceDefinition Condition="!$(IsILBProfile)" Include="ServiceDefinition.csdef" />
+    <None Condition="!$(IsILBProfile)" Include="ServiceDefinition.ILB.csdef" />
+    <ServiceDefinition Condition="$(IsILBProfile)" Include="ServiceDefinition.ILB.csdef" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DashServer\DashServer.csproj">

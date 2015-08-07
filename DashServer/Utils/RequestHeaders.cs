@@ -46,5 +46,10 @@ namespace Microsoft.Dash.Server.Utils
             : base(headers)
         {
         }
+
+        public string ClientRequestId
+        {
+            get { return this.Value<string>("x-ms-client-request-id", null); }
+        }
     }
 }

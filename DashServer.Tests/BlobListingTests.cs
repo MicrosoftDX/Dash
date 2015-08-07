@@ -29,13 +29,13 @@ namespace Microsoft.Tests
                     { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=https;AccountName=dashtestnamespace;AccountKey=N+BMOAp/bswfqp4dxoQYLLwmYnERysm1Xxv3qSf5H9RVhQ0q+f/QKNHhXX4Z/P67mZ+5QwT6RZv9qKV834pOqQ==" },
                     { "ScaleoutStorage0", "DefaultEndpointsProtocol=https;AccountName=dashtestconstant1;AccountKey=Q32sd0MkbWpMfBb0A3Zjg8LhSI0VJblT+CyAbXkczI2rWNYIrsoaQjc7ba1z5w+KOpJtxl/h3vA20WsbENM6hQ==" },
                     { "ScaleoutStorage1", "DefaultEndpointsProtocol=https;AccountName=dashtestconstant2;AccountKey=DHkdb1s/P0K0bDGJ5CaAGjN9HTv7UL1mZ9nriYn0bOkeX0V9qVaDqVp3RjPoJ6CnKarzhGGd4+H84D+ureNisA==" },
-                    { "ScaleoutNumberOfAccounts", "2"},
                 });
         }
 
         [TestMethod]
         public void BlobListFlatAllIncludeTest()
         {
+            // The blob data includes 2 snapshots + 1 replicated blob
             var response = _runner.ExecuteRequestWithHeaders(
                 "http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&include=uncommittedblobs&include=metadata%2Ccopy",
                 "GET",
@@ -55,14 +55,18 @@ namespace Microsoft.Tests
             Assert.AreEqual(21, enumerationResults.Element("Blobs").Elements().Count());
             var firstBlob = (XElement)enumerationResults.Element("Blobs").FirstNode;
             Assert.AreEqual(".gitignore", firstBlob.Element("Name").Value);
-            var blobInSubDir = (XElement)enumerationResults.Element("Blobs").Elements().Skip(5).First();
+            Assert.IsNotNull(firstBlob.Element("Snapshot").Value);
+            Assert.IsNull(((XElement)firstBlob.NextNode).Element("Snapshot"));
+            var replicatedBlob = (XElement)enumerationResults.Element("Blobs").Elements().Skip(2).First();
+            Assert.AreEqual("DataAtScaleHub.sln", replicatedBlob.Element("Name").Value);
+            Assert.AreEqual("Dpe Ted-Landcestry Application-O365 Azure-AAD Gateway-Gateway Development -- DLan-Gsx Ring-Movies-Graph API Test-6-26-2014-credentials.publishsettings", 
+                ((XElement)replicatedBlob.NextNode).Element("Name").Value);
+            var blobInSubDir = (XElement)enumerationResults.Element("Blobs").Elements().Skip(6).First();
             Assert.AreEqual("Package/Console/Package/UpdatePackage/console.zip", blobInSubDir.Element("Name").Value);
             Assert.AreEqual("application/x-zip-compressed", blobInSubDir.Descendants("Content-Type").First().Value);
             Assert.AreEqual("", blobInSubDir.Descendants("Content-Encoding").First().Value);
-            var snapshotBlob = (XElement)enumerationResults.Element("Blobs").Elements().Skip(19).First();
+            var snapshotBlob = (XElement)enumerationResults.Element("Blobs").Elements().Skip(18).First();
             Assert.IsNotNull(snapshotBlob.Element("Snapshot").Value);
-            Assert.IsNotNull(snapshotBlob.Element("Metadata"));
-            Assert.IsNotNull(snapshotBlob.Descendants("fred"));
         }
 
         [TestMethod]
@@ -73,8 +77,8 @@ namespace Microsoft.Tests
                 "GET",
                 expectedStatusCode: HttpStatusCode.OK);
             var enumerationResults = doc.Root;
-            Assert.AreEqual(20, enumerationResults.Element("Blobs").Elements().Count());
-            var nonSnapshotBlob = (XElement)enumerationResults.Element("Blobs").Elements().Skip(19).First();
+            Assert.AreEqual(19, enumerationResults.Element("Blobs").Elements().Count());
+            var nonSnapshotBlob = (XElement)enumerationResults.Element("Blobs").Elements().First();
             Assert.IsNull(nonSnapshotBlob.Element("Snapshot"));
             Assert.IsNull(nonSnapshotBlob.Element("Metadata"));
         }
@@ -91,15 +95,15 @@ namespace Microsoft.Tests
             Assert.IsNotNull(enumerationResults.Element("NextMarker"));
 
             doc = _runner.ExecuteRequestResponse(
-                "http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&maxresults=18&marker=" + enumerationResults.Element("NextMarker").Value,
+                "http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&maxresults=17&marker=" + enumerationResults.Element("NextMarker").Value,
                 "GET");
             enumerationResults = doc.Root;
-            Assert.AreEqual(18, enumerationResults.Element("Blobs").Elements().Count());
+            Assert.AreEqual(17, enumerationResults.Element("Blobs").Elements().Count());
             var firstBlob = (XElement)enumerationResults.Element("Blobs").FirstNode;
-            Assert.AreEqual("Dpe Ted-Landcestry Application-O365 Azure-AAD Gateway-Gateway Development -- DLan-Gsx Ring-Movies-Graph API Test-6-26-2014-credentials.publishsettings", firstBlob.Element("Name").Value);
+            Assert.AreEqual("DataAtScaleHub.sln", firstBlob.Element("Name").Value);
             var lastBlob = (XElement)enumerationResults.Element("Blobs").LastNode;
-            Assert.IsNotNull(lastBlob.Element("Snapshot").Value);
-            Assert.AreEqual("test.txt", lastBlob.Element("Name").Value);
+            Assert.IsNotNull(lastBlob.Element("Snapshot"));
+            Assert.AreEqual("id_rsa.pub", lastBlob.Element("Name").Value);
 
             doc = _runner.ExecuteRequestResponse(
                 "http://mydashserver/container/test?restype=container&comp=list&prefix=&include=snapshots&marker=" + enumerationResults.Element("NextMarker").Value,
@@ -107,8 +111,11 @@ namespace Microsoft.Tests
             enumerationResults = doc.Root;
             Assert.IsNull(enumerationResults.Element("NextMarker"));
             firstBlob = (XElement)enumerationResults.Element("Blobs").FirstNode;
-            Assert.AreEqual("test.txt", firstBlob.Element("Name").Value);
             Assert.IsNull(firstBlob.Element("Snapshot"));
+            Assert.AreEqual("id_rsa.pub", firstBlob.Element("Name").Value);
+            lastBlob = (XElement)enumerationResults.Element("Blobs").LastNode;
+            Assert.AreEqual("package.manifest", lastBlob.Element("Name").Value);
+            Assert.IsNull(lastBlob.Element("Snapshot"));
         }
 
         [TestMethod]
@@ -120,7 +127,8 @@ namespace Microsoft.Tests
             var enumerationResults = doc.Root;
             Assert.AreEqual("/", enumerationResults.Element("Delimiter").Value);
             var blobs = enumerationResults.Element("Blobs");
-            Assert.AreEqual(11, blobs.Elements().Count());
+            Assert.AreEqual(10, blobs.Elements().Count());
+            Assert.AreEqual(1, blobs.Elements("BlobPrefix").Count());
             var directory = blobs.Element("BlobPrefix");
             Assert.IsNotNull(directory);
             Assert.AreEqual("Package/", directory.Element("Name").Value);

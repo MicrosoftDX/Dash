@@ -6,7 +6,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
@@ -28,7 +27,7 @@ namespace Microsoft.Dash.Server.Controllers
         {
             var xmlFormatter = GlobalConfiguration.Configuration.Formatters.XmlFormatter;
             xmlFormatter.WriterSettings.OmitXmlDeclaration = false;
-            xmlFormatter.SetSerializer<EnumerationResults>(new ObjectSerializer<EnumerationResults>(ContainerController.SerializeBlobListing));
+            xmlFormatter.SetSerializer<BlobListHandler.BlobListResults>(new ObjectSerializer<BlobListHandler.BlobListResults>(ContainerController.SerializeBlobListing));
             xmlFormatter.SetSerializer<SharedAccessBlobPolicies>(new ObjectSerializer<SharedAccessBlobPolicies>(ContainerController.SerializeAccessPolicies, ContainerController.DeserializeAccessPolicies, ContainerController.IsSharedAccessPolicyXML));
         }
 
@@ -36,10 +35,7 @@ namespace Microsoft.Dash.Server.Controllers
         [HttpPut]
         public async Task<HttpResponseMessage> CreateContainer(string container)
         {
-            return (await DoForAllContainersAsync(container, 
-                HttpStatusCode.Created, 
-                async containerObj => await containerObj.CreateAsync(),
-                false)).CreateResponse();
+            return new DelegatedResponse(await ContainerHandler.CreateContainer(container)).CreateResponse();
         }
 
         // Put Container operations, with 'comp' parameter'
@@ -72,49 +68,7 @@ namespace Microsoft.Dash.Server.Controllers
         [HttpDelete]
         public async Task<HttpResponseMessage> DeleteContainer(string container)
         {
-            return (await DoForAllContainersAsync(container, 
-                HttpStatusCode.Accepted, 
-                async containerObj => await containerObj.DeleteAsync(),
-                false)).CreateResponse();
-        }
-
-        async Task<DelegatedResponse> DoForAllContainersAsync(string container, HttpStatusCode successStatus, Func<CloudBlobContainer, Task> action, bool ignoreNotFound)
-        {
-            return await DoForContainersAsync(container, successStatus, action, DashConfiguration.AllAccounts, ignoreNotFound);
-        }
-
-        async Task<DelegatedResponse> DoForDataContainersAsync(string container, HttpStatusCode successStatus, Func<CloudBlobContainer, Task> action, bool ignoreNotFound)
-        {
-            return await DoForContainersAsync(container, successStatus, action, DashConfiguration.DataAccounts, ignoreNotFound);
-        }
-
-        async Task<DelegatedResponse> DoForContainersAsync(string container, 
-            HttpStatusCode successStatus, 
-            Func<CloudBlobContainer, Task> action, 
-            IEnumerable<CloudStorageAccount> accounts,
-            bool ignoreNotFound)
-        {
-            DelegatedResponse retval = new DelegatedResponse
-            {
-                StatusCode = successStatus,
-            };
-            foreach (var account in accounts)
-            {
-                var containerObj = NamespaceHandler.GetContainerByName(account, container);
-                try
-                {
-                    await action(containerObj);
-                }
-                catch (StorageException ex)
-                {
-                    if (!ignoreNotFound || ex.RequestInformation.HttpStatusCode != (int)HttpStatusCode.NotFound)
-                    {
-                        retval.StatusCode = (HttpStatusCode)ex.RequestInformation.HttpStatusCode;
-                        retval.ReasonPhrase = ex.RequestInformation.HttpStatusMessage;
-                    }
-                }
-            }
-            return retval;
+            return new DelegatedResponse(await ContainerHandler.DeleteContainer(container)).CreateResponse();
         }
 
         [AcceptVerbs("GET", "HEAD")]
@@ -197,7 +151,7 @@ namespace Microsoft.Dash.Server.Controllers
                 perms.SharedAccessPolicies.Add(policy);
             }
 
-            var status = await DoForAllContainersAsync(container.Name, 
+            var status = await ContainerHandler.DoForAllContainersAsync(container.Name, 
                 HttpStatusCode.OK, 
                 async containerObj => await containerObj.SetPermissionsAsync(perms),
                 true);
@@ -232,12 +186,11 @@ namespace Microsoft.Dash.Server.Controllers
         {
             const string MetadataPrefix = "x-ms-meta-";
             HttpRequestBase request = RequestFromContext(HttpContextFactory.Current);
-            IEnumerable<KeyValuePair<string, IEnumerable<string>>> metadata = Request.Headers.Where(header => header.Key.StartsWith(MetadataPrefix));
+            container.Metadata.Clear();
+            var metadata = Request.Headers.Where(header => header.Key.StartsWith(MetadataPrefix));
             foreach (var metadatum in metadata)
             {
-                string key = metadatum.Key.Replace(MetadataPrefix, "");
-                string value = metadatum.Value.First();
-                container.Metadata.Add(new KeyValuePair<string, string>(key, value));
+                container.Metadata.Add(metadatum.Key.Substring(MetadataPrefix.Length), metadatum.Value.FirstOrDefault());
             }
             await container.SetMetadataAsync();
             HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -288,7 +241,7 @@ namespace Microsoft.Dash.Server.Controllers
                         return response;
                     }
                     serverLeaseId = await container.AcquireLeaseAsync(leaseDurationSpan, proposedLeaseId);
-                    response = (await DoForDataContainersAsync(container.Name, 
+                    response = new DelegatedResponse(await ContainerHandler.DoForDataContainersAsync(container.Name, 
                         HttpStatusCode.Created, 
                         async containerObj => await containerObj.AcquireLeaseAsync(leaseDurationSpan, serverLeaseId),
                         true)).CreateResponse();
@@ -301,7 +254,7 @@ namespace Microsoft.Dash.Server.Controllers
                     {
                         LeaseId = leaseId
                     };
-                    response = (await DoForAllContainersAsync(container.Name, 
+                    response = new DelegatedResponse(await ContainerHandler.DoForAllContainersAsync(container.Name, 
                         HttpStatusCode.OK, 
                         async containerObj => await containerObj.RenewLeaseAsync(condition),
                         true)).CreateResponse();
@@ -315,7 +268,7 @@ namespace Microsoft.Dash.Server.Controllers
                         LeaseId = leaseId
                     };
                     serverLeaseId = await container.ChangeLeaseAsync(proposedLeaseId, condition);
-                    response = (await DoForDataContainersAsync(container.Name, 
+                    response = new DelegatedResponse(await ContainerHandler.DoForDataContainersAsync(container.Name, 
                         HttpStatusCode.OK, 
                         async containerObj => await containerObj.ChangeLeaseAsync(proposedLeaseId, condition),
                         true)).CreateResponse();
@@ -328,7 +281,7 @@ namespace Microsoft.Dash.Server.Controllers
                     {
                         LeaseId = leaseId
                     };
-                    response = (await DoForAllContainersAsync(container.Name, 
+                    response = new DelegatedResponse(await ContainerHandler.DoForAllContainersAsync(container.Name, 
                         HttpStatusCode.OK, 
                         async containerObj => await containerObj.ReleaseLeaseAsync(condition),
                         true)).CreateResponse();
@@ -343,7 +296,7 @@ namespace Microsoft.Dash.Server.Controllers
                     }
                     TimeSpan breakDurationSpan = new TimeSpan(0, 0, breakDuration);
                     TimeSpan remainingTime = await container.BreakLeaseAsync(breakDurationSpan);
-                    response = (await DoForDataContainersAsync(container.Name, 
+                    response = new DelegatedResponse(await ContainerHandler.DoForDataContainersAsync(container.Name, 
                         HttpStatusCode.Accepted, 
                         async containerObj => await containerObj.BreakLeaseAsync(breakDurationSpan),
                         true)).CreateResponse();
@@ -411,141 +364,10 @@ namespace Microsoft.Dash.Server.Controllers
 
         private async Task<HttpResponseMessage> GetBlobList(string container)
         {
-            // Extract query parameters
-            var queryParams = this.Request.GetQueryParameters();
-            var prefix = queryParams.Value<string>("prefix");
-            var delim = queryParams.Value<string>("delimiter");
-            var marker = queryParams.Value<string>("marker");
-            var indicatedMaxResults = queryParams.Value<string>("maxresults");
-            var maxResults = queryParams.Value("maxresults", 5000);
-            var includedDataSets = String.Join(",", queryParams.Values<string>("include"));
-
-            var blobTasks = DashConfiguration.DataAccounts
-                .Select(account => ChildBlobListAsync(account, container, prefix, delim, includedDataSets));
-            var blobs = await Task.WhenAll(blobTasks);
-            var sortedBlobs = blobs
-                .SelectMany(blobList => blobList)
-                .OrderBy(blob => blob.Uri.AbsolutePath, StringComparer.Ordinal)  
-                .Distinct(new BlobComparer())
-                .SkipWhile(blob => !String.IsNullOrWhiteSpace(marker) && GetMarkerForBlob(blob) != marker)
-                .Take(maxResults + 1);                  // Get an extra listing so that we can generate the nextMarker
-            var blobResults = new EnumerationResults
-            {
-                RequestVersion = this.Request.GetHeaders().Value("x-ms-version", StorageServiceVersions.Version_2009_09_19),
-                ServiceEndpoint = this.Request.RequestUri.GetComponents(UriComponents.SchemeAndServer, UriFormat.Unescaped),
-                ContainerName = container,
-                MaxResults = maxResults,
-                IndicatedMaxResults = indicatedMaxResults,
-                Delimiter = delim,
-                Marker = marker,
-                Prefix = prefix,
-                Blobs = sortedBlobs,
-                IncludeDetails = String.IsNullOrWhiteSpace(includedDataSets) ? BlobListingDetails.None : (BlobListingDetails)Enum.Parse(typeof(BlobListingDetails), includedDataSets, true),
-            };
-            return CreateResponse(blobResults);
+            return CreateResponse(await BlobListHandler.GetBlobListing(container, DashHttpRequestWrapper.Create(this.Request)));
         }
 
-        private async Task<IEnumerable<IListBlobItem>> ChildBlobListAsync(CloudStorageAccount dataAccount, string container, string prefix, string delimiter, string includeFlags)
-        {
-            CloudBlobContainer containerObj = NamespaceHandler.GetContainerByName(dataAccount, container);
-            if (!String.IsNullOrWhiteSpace(delimiter))
-            {
-                containerObj.ServiceClient.DefaultDelimiter = delimiter;
-            }
-            var results = new List<IEnumerable<IListBlobItem>>();
-            BlobListingDetails listDetails;
-            Enum.TryParse(includeFlags, true, out listDetails);
-            string nextMarker = null;
-            try
-            {
-                do
-                {
-                    var continuationToken = new BlobContinuationToken
-                    {
-                        NextMarker = nextMarker,
-                    };
-                    var blobResults = await containerObj.ListBlobsSegmentedAsync(prefix, String.IsNullOrWhiteSpace(delimiter), listDetails, null, continuationToken, null, null);
-                    results.Add(blobResults.Results);
-                    if (blobResults.ContinuationToken != null)
-                    {
-                        nextMarker = blobResults.ContinuationToken.NextMarker;
-                    }
-                    else
-                    {
-                        nextMarker = null;
-                    }
-                } while (!String.IsNullOrWhiteSpace(nextMarker));
-            }
-            catch (StorageException)
-            {
-                // Silently swallow the exception if we're missing the container for this account
-                
-            }
-
-            return results
-                .SelectMany(segmentResults => segmentResults);
-        }
-
-        class BlobComparer : IEqualityComparer<IListBlobItem>
-        {
-            public bool Equals(IListBlobItem lhs, IListBlobItem rhs)
-            {
-                if (lhs == null && rhs == null)
-                {
-                    return true;
-                }
-                else if (lhs == null)
-                {
-                    return false;
-                }
-                else if (!String.Equals(lhs.Uri.AbsolutePath, rhs.Uri.AbsolutePath, StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
-                var lhsBlob = lhs as ICloudBlob;
-                var rhsBlob = rhs as ICloudBlob;
-                if (lhsBlob == null && rhsBlob == null)
-                {
-                    return true;
-                }
-                else if (lhsBlob == null)
-                {
-                    return false;
-                }
-                else if (lhsBlob.SnapshotTime != rhsBlob.SnapshotTime)
-                {
-                    return false;
-                }
-                return true;
-            }
-
-            public int GetHashCode(IListBlobItem obj)
-            {
-                var hash = obj.Uri.AbsolutePath.ToLowerInvariant().GetHashCode();
-                if (obj is ICloudBlob)
-                {
-                    hash ^= ((ICloudBlob)obj).SnapshotTime.GetHashCode();
-                }
-                return hash;
-            }
-        }
-
-        class EnumerationResults
-        {
-            public DateTimeOffset RequestVersion { get; set; }
-            public string ServiceEndpoint { get; set; }
-            public string ContainerName { get; set; }
-            public string Prefix { get; set; }
-            public string Marker { get; set; }
-            public string IndicatedMaxResults { get; set; }
-            public int MaxResults { get; set; }
-            public string Delimiter { get; set; }
-            public IEnumerable<IListBlobItem> Blobs { get; set; }
-            public string NextMarker { get; set; }
-            public BlobListingDetails IncludeDetails { get; set; }
-        }
-
-        static void SerializeBlobListing(XmlWriter writer, EnumerationResults results)
+        static void SerializeBlobListing(XmlWriter writer, BlobListHandler.BlobListResults results)
         {
             var uri = new UriBuilder(results.ServiceEndpoint);
             writer.WriteStartElement("EnumerationResults");
@@ -584,7 +406,7 @@ namespace Microsoft.Dash.Server.Controllers
                     }
                     if (realBlob.IsSnapshot && results.IncludeDetails.IsFlagSet(BlobListingDetails.Snapshots))
                     {
-                        writer.WriteElementString("Snapshot", realBlob.SnapshotTime);
+                        writer.WriteElementString("Snapshot", realBlob.SnapshotTime, true);
                     }
                     writer.WriteStartElement("Properties");
                     writer.WriteElementString("Last-Modified", realBlob.Properties.LastModified);
@@ -609,7 +431,7 @@ namespace Microsoft.Dash.Server.Controllers
                         writer.WriteElementStringIfNotNull("CopyId", realBlob.CopyState.CopyId);
                         writer.WriteElementStringIfNotEnumValue("CopyStatus", realBlob.CopyState.Status, CopyStatus.Invalid);
                         writer.WriteElementStringIfNotNull("CopySource", realBlob.CopyState.Source.ToString());
-                        writer.WriteElementStringIfNotNull("CopyProgress", (realBlob.CopyState.BytesCopied / realBlob.CopyState.TotalBytes).ToString());
+                        writer.WriteElementString("CopyProgress", String.Format("{0}/{1}", realBlob.CopyState.BytesCopied, realBlob.CopyState.TotalBytes));
                         writer.WriteElementStringIfNotNull("CopyCompletionTime", realBlob.CopyState.CompletionTime);
                         writer.WriteElementStringIfNotNull("CopyStatusDescription", realBlob.CopyState.StatusDescription);
                     }
@@ -639,23 +461,9 @@ namespace Microsoft.Dash.Server.Controllers
             writer.WriteEndElement();           // Blobs
             if (nextBlob != null)
             {
-                writer.WriteElementString("NextMarker", GetMarkerForBlob(nextBlob));
+                writer.WriteElementString("NextMarker", BlobListHandler.GetMarkerForBlob(nextBlob));
             }
             writer.WriteEndElement();           // EnumerationResults
-        }
-
-        static string GetMarkerForBlob(IListBlobItem blob)
-        {
-            string markerValue;
-            if (blob is ICloudBlob && ((ICloudBlob)blob).IsSnapshot)
-            {
-                markerValue = blob.Uri.AbsolutePath + "|" + ((ICloudBlob)blob).SnapshotTime.Value.ToString("o");
-            }
-            else 
-            {
-                markerValue = blob.Uri.AbsolutePath + "|";
-            }
-            return Convert.ToBase64String(Encoding.UTF8.GetBytes(markerValue));
         }
 
         static void SerializeAccessPolicies(XmlWriter writer, SharedAccessBlobPolicies policies)

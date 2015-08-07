@@ -31,7 +31,9 @@ namespace Microsoft.Dash.Server.Handlers
                 // Modified client
                 retval = DashClientCapabilities.FullSupport;
             }
-            else if (agent.Contains(".net") || agent.StartsWith("wa-storage/2.0.6"))
+            else if (agent.StartsWith("wa-storage/2.0.6") || 
+                agent.Contains(".net") ||
+                agent.Contains("windowspowershell"))
             {
                 // .NET clients can handle redirects seamlessly (they omit the Authorization header as they follow the redirect)
                 retval = DashClientCapabilities.FollowRedirects;

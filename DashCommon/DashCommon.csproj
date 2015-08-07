@@ -85,18 +85,35 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Diagnostics\CorrelationContext.cs" />
     <Compile Include="Diagnostics\DashErrorInformation.cs" />
     <Compile Include="Diagnostics\DashTrace.cs" />
+    <Compile Include="Diagnostics\OperationRunner.cs" />
     <Compile Include="Diagnostics\TraceMessage.cs" />
+    <Compile Include="Handlers\BlobReplicationHandler.cs" />
+    <Compile Include="Handlers\ContainerHandler.cs" />
     <Compile Include="Handlers\NamespaceBlob.cs" />
     <Compile Include="Handlers\NamespaceHandler.cs" />
+    <Compile Include="Platform\Payloads\DeleteReplicaPayload.cs" />
+    <Compile Include="Processors\AccountManager.cs" />
+    <Compile Include="Processors\BlobReplicator.cs" />
+    <Compile Include="Utils\AccountStatus.cs" />
+    <Compile Include="Platform\AzureMessageQueue.cs" />
+    <Compile Include="Platform\MessageTypes.cs" />
+    <Compile Include="Platform\QueueMessage.cs" />
+    <Compile Include="Platform\Payloads\ReplicatePayload.cs" />
+    <Compile Include="Platform\Payloads\ReplicateProgressPayload.cs" />
     <Compile Include="Update\ApiUriBuilder.cs" />
     <Compile Include="Update\FilePackage.cs" />
     <Compile Include="Update\PackageManifest.cs" />
     <Compile Include="Update\VersionUtils.cs" />
     <Compile Include="Utils\AzureUtils.cs" />
     <Compile Include="Utils\DashConfiguration.cs" />
+    <Compile Include="Utils\PathUtils.cs" />
     <Compile Include="Utils\SharedKeySignature.cs" />
+    <Compile Include="Utils\SimpleHttpResponse.cs" />
+    <Compile Include="Utils\StorageListAsync.cs" />
+    <Compile Include="Platform\MessageQueue.cs" />
     <Compile Include="Utils\StorageServiceVersions.cs" />
     <Compile Include="Update\UpdateClient.cs" />
   </ItemGroup>

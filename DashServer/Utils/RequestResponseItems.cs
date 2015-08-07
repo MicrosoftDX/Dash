@@ -18,6 +18,7 @@ namespace Microsoft.Dash.Server.Utils
         {
             _items = items
                 .GroupBy(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase)
+                .Where(item => !String.IsNullOrWhiteSpace(item.Key))
                 .ToDictionary(item => item.Key, item => (IList<string>)item.ToList(), StringComparer.OrdinalIgnoreCase);
         }
 
@@ -25,6 +26,7 @@ namespace Microsoft.Dash.Server.Utils
         {
             _items = items
                 .GroupBy(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase)
+                .Where(item => !String.IsNullOrWhiteSpace(item.Key))
                 .ToDictionary(groupedItems => groupedItems.Key,
                               groupedItems => (IList<string>)groupedItems
                                   .SelectMany(keyItems => keyItems)
@@ -51,6 +53,42 @@ namespace Microsoft.Dash.Server.Utils
         public bool Contains(string key)
         {
             return _items.ContainsKey(key);
+        }
+
+        public bool ContainsAny(IEnumerable<string> keys)
+        {
+            // The relative sizes of this collection vs the keys determines the
+            // best lookup approach (allowing for the overhead of creating the lookup hash)
+            if (this.Count + 2 < keys.Count())
+            {
+                return ContainsAny(new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase));
+            }
+            foreach (var key in keys)
+            {
+                if (_items.ContainsKey(key))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public bool ContainsAny(ISet<string> keys)
+        {
+            // The relative sizes of this collection vs the keys determines the
+            // best lookup approach 
+            if (keys.Count < this.Count)
+            {
+                return ContainsAny((IEnumerable<string>)keys);
+            }
+            foreach (var item in _items)
+            {
+                if (keys.Contains(item.Key))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public int Count

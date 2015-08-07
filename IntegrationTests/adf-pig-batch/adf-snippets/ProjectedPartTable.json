@@ -1,0 +1,56 @@
+{
+    "name": "ProjectedPart",
+    "properties": {
+        "structure": [
+            {
+                "position": 0,
+                "name": "P_PARTKEY",
+                "type": "Int"
+            },
+            {
+                "position": 0,
+                "name": "P_NAME",
+                "type": "String"
+            }
+        ],
+        "published": false,
+        "location": {
+            "type": "AzureBlobLocation",
+            "folderPath": "dash-adf-test/output-blobs/{Year}/{Month}/{Day}",
+            "format": {
+                "type": "TextFormat"
+            },
+            "partitionedBy": [
+                {
+                    "name": "Year",
+                    "value": {
+                        "type": "DateTime",
+                        "date": "SliceStart",
+                        "format": "yyyy"
+                    }
+                },
+                {
+                    "name": "Month",
+                    "value": {
+                        "type": "DateTime",
+                        "date": "SliceStart",
+                        "format": "%M"
+                    }
+                },
+                {
+                    "name": "Day",
+                    "value": {
+                        "type": "DateTime",
+                        "date": "SliceStart",
+                        "format": "%d"
+                    }
+                }
+            ],
+            "linkedServiceName": "DashTestEast"
+        },
+        "availability": {
+            "frequency": "Day",
+            "interval": 1
+        }
+    }
+}

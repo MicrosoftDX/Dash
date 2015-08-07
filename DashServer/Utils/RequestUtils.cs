@@ -1,11 +1,10 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
 using System.Web;
 using System.Xml;
+using Microsoft.Dash.Common.Utils;
 
 namespace Microsoft.Dash.Server.Utils
 {
@@ -37,6 +36,21 @@ namespace Microsoft.Dash.Server.Utils
             {
                 writer.WriteElementString(localName, value);
             }
+        }
+
+        public static void WriteElementString(this XmlWriter writer, string localName, DateTimeOffset? value, bool highPrecision)
+        {
+            if (!highPrecision)
+            {
+                writer.WriteElementString(localName, value);
+                return;
+            }
+            string valueToWrite = String.Empty;
+            if (value.HasValue)
+            {
+                valueToWrite = value.Value.UtcDateTime.ToString("O");
+            }
+            writer.WriteElementString(localName, valueToWrite);
         }
 
         public static void WriteElementString(this XmlWriter writer, string localName, DateTimeOffset? value)
@@ -97,14 +111,8 @@ namespace Microsoft.Dash.Server.Utils
         public static UriBuilder AddPathSegment(this UriBuilder baseUri, string pathToAdd)
         {
             var retval = new UriBuilder(baseUri.Uri);
-            var segments = retval.Uri.Segments
-                .Select(segment => segment.Trim('/'))
-                .Where(segment => !String.IsNullOrWhiteSpace(segment))
-                .ToList();
-            segments.Add(pathToAdd);
-            retval.Path = String.Join("/", segments);
+            retval.Path = PathUtils.AddPathSegment(retval.Path, pathToAdd);
             return retval;
         }
     }
-
 }

@@ -40,7 +40,7 @@ namespace Microsoft.Dash.Server.Controllers
 
         protected async Task<HttpResponseMessage> DoHandlerAsync(string handlerName, Func<Task<HttpResponseMessage>> handler)
         {
-            return await OperationRunner.DoActionAsync(handlerName, handler, (ex) =>
+            return await WebOperationRunner.DoActionAsync(handlerName, handler, (ex) =>
                 {
                     return ProcessResultResponse(HandlerResult.FromException(ex));
                 });

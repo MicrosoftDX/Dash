@@ -117,8 +117,10 @@
     <Compile Include="Controllers\AccountController.cs" />
     <Compile Include="Controllers\BlobController.cs" />
     <Compile Include="Controllers\CommonController.cs" />
-    <Compile Include="Diagnostics\OperationRunner.cs" />
+    <Compile Include="Diagnostics\WebOperationRunner.cs" />
     <Compile Include="Handlers\BlobHandler.cs" />
+    <Compile Include="Handlers\BlobListHandler.cs" />
+    <Compile Include="Handlers\BlobReplicationOperations.cs" />
     <Compile Include="Handlers\ControllerOperations.cs" />
     <Compile Include="Controllers\ContainerController.cs" />
     <Compile Include="Handlers\DashClientCapabilities.cs" />
@@ -131,6 +133,7 @@
     <Compile Include="Handlers\StorageRequestHelpers.cs" />
     <Compile Include="Utils\DelegatedResponse.cs" />
     <Compile Include="Utils\HttpContextFactory.cs" />
+    <Compile Include="Utils\HttpCorrelationContext.cs" />
     <Compile Include="Utils\HttpRequestBaseWrapper.cs" />
     <Compile Include="Utils\HttpRequestWrapper.cs" />
     <Compile Include="Utils\ObjectSerializer.cs" />
@@ -165,6 +168,10 @@
     <Folder Include="Properties\PublishProfiles\" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\DashAsync\DashAsync.csproj">
+      <Project>{193f0bfb-0859-4e42-91d0-f4cc415b8cb6}</Project>
+      <Name>DashAsync</Name>
+    </ProjectReference>
     <ProjectReference Include="..\DashCommon\DashCommon.csproj">
       <Project>{9514a309-45d1-45e1-b77b-a99cd59b8c77}</Project>
       <Name>DashCommon</Name>

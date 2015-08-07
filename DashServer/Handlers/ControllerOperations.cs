@@ -1,7 +1,9 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Web;
 using Microsoft.Dash.Common.Diagnostics;
 using Microsoft.Dash.Common.Handlers;
@@ -27,22 +29,38 @@ namespace Microsoft.Dash.Server.Handlers
             return forwardUri.Uri;
         }
 
-        public static Uri GetRedirectUri(HttpRequestBase request, CloudStorageAccount account, string containerName, string blobName)
+        public static Uri GetRedirectUri(HttpRequestBase request, 
+            CloudStorageAccount account, 
+            string containerName, 
+            string blobName,
+            bool decodeQueryParams = true)
         {
-            return GetRedirectUri(request.Url, request.HttpMethod, account, containerName, blobName);
+            return GetRedirectUri(request.Url, request.HttpMethod, account, containerName, blobName, decodeQueryParams);
         }
 
-        public static Uri GetRedirectUri(Uri originalUri, string method, CloudStorageAccount account, string containerName, string blobName)
+        public static Uri GetRedirectUri(Uri originalUri, 
+            string method, 
+            CloudStorageAccount account, 
+            string containerName, 
+            string blobName,
+            bool decodeQueryParams = true)
         {
-            var redirectUri = GetRedirectUriBuilder(method, originalUri.Scheme, account, containerName, blobName, true, originalUri.Query);
+            var redirectUri = GetRedirectUriBuilder(method, originalUri.Scheme, account, containerName, blobName, true, originalUri.Query, decodeQueryParams);
             return redirectUri.Uri;
         }
 
-        public static UriBuilder GetRedirectUriBuilder(string method, string scheme, CloudStorageAccount account, string containerName, string blobName, bool useSas, string queryString)
+        public static UriBuilder GetRedirectUriBuilder(string method, 
+            string scheme, 
+            CloudStorageAccount account, 
+            string containerName, 
+            string blobName, 
+            bool useSas, 
+            string queryString, 
+            bool decodeQueryParams = true)
         {
             CloudBlobContainer container = NamespaceHandler.GetContainerByName(account, containerName);
             // Strip any existing SAS query params as we'll replace them with our own SAS calculation
-            var queryParams = RequestQueryParameters.Create(queryString);
+            var queryParams = RequestQueryParameters.Create(queryString, decodeQueryParams);
             SharedAccessSignature.RemoveSasQueryParameters(queryParams);
             if (useSas)
             {
@@ -53,7 +71,7 @@ namespace Microsoft.Dash.Server.Handlers
             {
                 Scheme = scheme,
                 Host = account.BlobEndpoint.Host,
-                Path = containerName + "/" + blobName.TrimStart('/'),
+                Path = PathUtils.CombineContainerAndBlob(containerName, PathUtils.PathEncode(blobName)),
                 Query = queryParams.ToString(),
             };
         }
