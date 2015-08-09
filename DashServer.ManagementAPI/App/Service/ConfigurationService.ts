@@ -1,4 +1,6 @@
-﻿/// <reference path="../../scripts/_references.ts" />
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
+/// <reference path="../../scripts/_references.ts" />
 
 module Dash.Management.Service {
     "use strict";

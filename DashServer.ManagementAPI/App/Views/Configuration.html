@@ -1,7 +1,7 @@
 ﻿<div>
     <h2>Dash Configuration</h2>
-    <p class="error">{{configuration.error}}</p>
-    <p>{{configuration.loadingMessage}}</p>
+    <p class="error">{{error}}</p>
+    <p>{{loadingMessage}}</p>
 
     <tabset class="tab-container" ng-hide="configuration.loadingMessage">
         <tab heading="Account Settings" active="true">
@@ -28,18 +28,46 @@
     </tabset>
 </div>
 <script type="text/ng-template" id="ConfigSetting.html">
-    <td>
-        <label>{{setting.setting}}:</label>
-        <input type="text" value="{{setting.value}}" class="form-control" ng-disabled="{{!setting.editing}}" />
+    <td class="col-sm-10">
+        <label>{{setting.displayLabel}}:</label>
+        <input type="text"
+               ng-hide="isEditStyle(setting, 4)"
+               ng-model="setting.value"
+               class="form-control"
+               ng-readonly="isEditStyle(setting, 11) && !setting.editing"
+               ng-change="notifyChange(setting)" />
+        <div class="input-group" ng-hide="!isEditStyle(setting, 4)">
+            <span class="input-group-addon" id="{{'StorageAccount' + $index}}">Name</span>
+            <input type="text"
+                   class="form-control"
+                   placeholder="Account Name"
+                   aria-describedby="{{'StorageAccount' + $index}}"
+                   ng-model="setting.accountName"
+                   ng-readonly="isEditStyle(setting, 11) && !setting.editing"
+                   ng-change="notifyChange(setting)" />
+        </div>
+        <div class="input-group" ng-hide="!isEditStyle(setting, 4)">
+            <span class="input-group-addon" id="{{'StorageKey' + $index}}">Key</span>
+            <input type="text"
+                   class="form-control"
+                   placeholder="Account Key"
+                   aria-describedby="{{'StorageKey' + $index}}"
+                   ng-model="setting.accountKey"
+                   ng-readonly="isEditStyle(setting, 11) && !setting.editing"
+                   ng-change="notifyChange(setting)" />
+        </div>
     </td>
-    <td>
-        <p data-ng-hide="configuration.editingInProgress">
-            <a data-ng-click="editSwitch(setting)" href="javascript:;">Edit</a> |
-            <a data-ng-click="delete(setting)" href="javascript:;">Delete</a>
+    <td class="col-sm-2">
+        <p ng-show="isEditStyle(setting, 9) && !configuration.editingInProgress">
+            <button type="button" class="btn btn-link" ng-show="isEditStyle(setting, 8)" data-ng-click="editSwitch(setting, false)">Edit</button>
+            <button type="button" class="btn btn-link" ng-show="isEditStyle(setting, 1)" data-ng-click="delete(setting)">Delete</button>
         </p>
-        <p data-ng-show="setting.editing">
-            <a data-ng-click="update(setting)" href="javascript:;">Save</a> |
-            <a data-ng-click="editSwitch(setting)" href="javascript:;">Cancel</a>
+        <p ng-show="setting.editing">
+            <button type="button" class="btn btn-link" data-ng-click="editSwitch(setting, false)">Save</button>
+            <button type="button" class="btn btn-link" data-ng-click="editSwitch(setting, true)">Cancel</button>
+        </p>
+        <p ng-show="isEditStyle(setting, 2) && !configuration.editingInProgress">
+            <button type="button" class="btn btn-link" data-ng-click="generateStorageKey(setting)">Generate</button>
         </p>
     </td>
 </script>

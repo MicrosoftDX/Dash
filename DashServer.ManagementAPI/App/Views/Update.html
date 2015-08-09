@@ -1,5 +1,7 @@
 ﻿<div>
     <h2>Available DASH Updates</h2>
+    <p class="error">{{error}}</p>
+    <p>{{loadingMessage}}</p>
     <table class="table">
         <tr>
             <th>&nbsp;</th>
@@ -9,11 +11,13 @@
         </tr>
         <tr data-ng-repeat="update in availableUpdates" ng-class="update.getSeverityClass()">
             <td>
-                <a class="applyLink" ng-disable="updateInProgress" href="#" onclick="applyUpdate('@VersionUtils.GatewayFormat(update.Version)')">Apply Update</a>
+                <button type="button" class="btn btn-link" ng-disabled="updateInProgress" data-ng-click="applyUpdate(update)">
+                    Apply Update
+                </button>
             </td>
             <td>{{update.versionString}}</td>
             <td>{{update.severity}}</td>
-            <td>{{update.description}}</td>
+            <td><span ng-bind-html="getHtmlDescription(update)"></span></td>
         </tr>
     </table>
 </div>

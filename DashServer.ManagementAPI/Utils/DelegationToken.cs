@@ -1,12 +1,11 @@
-﻿using Microsoft.Dash.Common.Diagnostics;
-using Microsoft.Dash.Common.Utils;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using System.Web;
+using Microsoft.Dash.Common.Diagnostics;
+using Microsoft.Dash.Common.Utils;
+using Microsoft.IdentityModel.Clients.ActiveDirectory;
 
 namespace DashServer.ManagementAPI.Utils
 {

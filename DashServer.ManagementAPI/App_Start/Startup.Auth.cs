@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Configuration;
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
+using System;
 using System.IdentityModel.Tokens;
-using System.Linq;
-using Microsoft.Owin.Security;
+using Microsoft.Dash.Common.Utils;
 using Microsoft.Owin.Security.ActiveDirectory;
 using Owin;
-using Microsoft.Dash.Common.Utils;
 
 namespace DashServer.ManagementAPI
 {

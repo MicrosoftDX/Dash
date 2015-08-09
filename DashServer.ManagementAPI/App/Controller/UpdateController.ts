@@ -1,30 +1,63 @@
-﻿/// <reference path="../../scripts/_references.ts" />
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
+/// <reference path="../../scripts/_references.ts" />
 
 module Dash.Management.Controller {
     "use strict";
 
     export class UpdateController {
-        static $inject = ['$scope', 'updateService'];
+        static $inject = ['$scope', '$rootScope', 'updateService', '$sce'];
 
-        constructor(private $scope: Dash.Management.Model.IDashManagementScope, private updateService: Dash.Management.Service.UpdateService) {
+        constructor(private $scope: Model.IDashManagementScope, $rootScope: Model.IDashManagementScope, private updateService: Service.UpdateService, private $sce: ng.ISCEService) {
 
-            $scope.availableUpdates = null;
+            $scope.getHtmlDescription = (update: Model.VersionUpdate) => this.getHtmlDescription(update);
+            $scope.applyUpdate = (update: Model.VersionUpdate) => this.applyUpdate(update);
+
+            $scope.loadingMessage = "Retrieving available versions for the Dash service...";
+            $scope.error = "";
+            $scope.availableUpdates = [];
+
+            $rootScope.buttonBarButtons = [];
+
+            this.getAvailableUpdates(true);
         }
 
-        public applyUpdate(version: string) {
-            this.$scope.updateInProgress = true;
-            this.$scope.updateMessage = "Updating DASH service to version: " + version;
-        //if (confirm('You have selected to upgrade this Management Console site to version: ' + version + '\n\nThis operation cannot be undone.\n\nAre you sure you want to continue?')) {
-            this.updateService.applyUpdate(version)
-                .success((results: any) => {
-                    this.$scope.updateMessage = "DASH service has been successfully updated to version: " + version;
+        public getAvailableUpdates(clearLoadingMessage: boolean) {
+            this.updateService.getAvailableUpdates()
+                .then((versions: Model.VersionUpdate[]) => {
+                    this.$scope.availableUpdates = versions;
                 })
-                .error((err: any) => {
-                    this.$scope.updateMessage = "An error occurred updating the DASH service. Details: " + err;
+                .catch((err) => {
+                    this.$scope.error = err;
                 })
                 .finally(() => {
-                    this.$scope.updateInProgress = false;
+                    if (clearLoadingMessage) {
+                        this.$scope.loadingMessage = "";
+                    }
                 });
+        }
+
+        public applyUpdate(version: Model.VersionUpdate) {
+            if (confirm('You have selected to upgrade this DASH server to version: ' + version.versionString + '\n\nThis operation cannot be undone.\n\nAre you sure you want to continue?')) {
+                this.$scope.updateInProgress = true;
+                this.$scope.loadingMessage = "Updating DASH service to version: " + version.versionString;
+                this.updateService.applyUpdate(version.versionString)
+                    .success((results: any) => {
+                        this.$scope.loadingMessage = "The DASH service is being updated to version: " + version.versionString + ". The request id: " + results.RequestId;
+                    })
+                    .error((err: any) => {
+                        this.$scope.error = err;
+                        this.$scope.loadingMessage = "";
+                    })
+                    .finally(() => {
+                        this.$scope.updateInProgress = false;
+                        this.getAvailableUpdates(false);
+                    });
+            }
+        }
+
+        public getHtmlDescription(update: Model.VersionUpdate) {
+            return this.$sce.trustAsHtml(update.description);
         }
     }
 }

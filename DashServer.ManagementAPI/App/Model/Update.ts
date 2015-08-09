@@ -1,4 +1,6 @@
-﻿/// <reference path="../../scripts/_references.ts" />
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
+/// <reference path="../../scripts/_references.ts" />
 
 module Dash.Management.Model {
     "use strict";
@@ -16,23 +18,27 @@ module Dash.Management.Model {
 
     export class VersionUpdate {
 
-        constructor(public versionString: string, public severity: string, public description: string) {
+        constructor(public versionString: string, severity: number, public description: string) {
 
             switch (severity) {
-                case 'Critical':
+                case 3:
+                    this.severity = 'Critical';
                     this.severityClass = 'alert-danger';
                     break;
 
-                case 'Important':
-                    this.severityClass = 'alert-warning'
+                case 2:
+                    this.severity = 'Important';
+                    this.severityClass = 'alert-warning';
                     break;
 
                 default:
+                    this.severity = 'Optional';
                     this.severityClass = 'alert-info';
                     break;
             }
         }
 
+        public severity: string;
         public severityClass: string;
     }
 } 

@@ -1,4 +1,10 @@
-﻿using Owin;
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
+using System;
+using Microsoft.Owin;
+using Owin;
+
+[assembly: OwinStartup(typeof(DashServer.ManagementAPI.Startup))]
 
 namespace DashServer.ManagementAPI
 {

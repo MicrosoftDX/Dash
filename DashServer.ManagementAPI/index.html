@@ -14,6 +14,10 @@
         .nav-tabs {
             margin-bottom: 0;
         }
+        .input-group-addon {
+            min-width:75px;
+            text-align:left;
+        }    
     </style>
 </head>
 <body ng-app="dashApp" role="document">
@@ -45,7 +49,6 @@
         </div>
     </div>
 
-
     <br />
     <div class="container" role="main">
         <div class="row">
@@ -63,13 +66,25 @@
             </div>
         </div>
     </div>
-        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.js"></script>
-        <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.3/angular.js"></script>
-        <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.3/angular-route.js"></script>
-        <script src="//angular-ui.github.io/bootstrap/ui-bootstrap-tpls-0.13.2.js"></script>
-        <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.js"></script>
-        <script src="App/Scripts/adal.js"></script>
-        <script src="App/Scripts/adal-angular.js"></script>
-        <script src="App/app.js" ></script>
+
+    <div class="navbar navbar-inverse navbar-fixed-bottom" role="navigation">
+        <div class="container">
+            <div class="navbar-collapse collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li ng-repeat="button in buttonBarButtons" ng-class="{ active: button.enabled }"><a href="#/">{{button.displayText}}</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.3/angular.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.3/angular-route.js"></script>
+    <script src="//angular-ui.github.io/bootstrap/ui-bootstrap-tpls-0.13.2.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.js"></script>
+    <script src="App/Scripts/adal.js"></script>
+    <script src="App/Scripts/adal-angular.js"></script>
+    <script src="App/Scripts/jquery.base64.js"></script>
+    <script src="App/app.js" ></script>
 </body>
 </html>

@@ -18,3 +18,4 @@ csx/
 rcf/
 AssemblyVersion.cs
 .nuget/NuGet.exe
+/DashServer.ManagementAPI/Scripts/typings

@@ -1,126 +1,158 @@
-﻿using Microsoft.Dash.Common.Update;
-using Microsoft.Dash.Common.Utils;
-//     Copyright (c) Microsoft Corporation.  All rights reserved.
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.Web.Http;
+using System.Xml.Linq;
+using DashServer.ManagementAPI.Utils;
+using DashServer.ManagementAPI.Utils.Azure;
+using Microsoft.Dash.Common.Update;
+using Microsoft.Dash.Common.Utils;
+using Microsoft.WindowsAzure;
+using Microsoft.WindowsAzure.Management.Compute.Models;
 
 namespace DashServer.ManagementAPI.Controllers
 {
     public class UpdateController : ApiController
     {
-        [HttpGet]
-        public async Task<HttpResponseMessage> IsUpdateAvailable()
+        [HttpGet, ActionName("Index")]
+        public async Task<IHttpActionResult> IsUpdateAvailable()
         {
             var availableUpdates = await GetAvailableUpdates();
-            return this.Request.CreateResponse(HttpStatusCode.OK, new
+            if (availableUpdates.Any())
             {
-                AvailableUpdate = availableUpdates.Any(),
-                HighestServerify = availableUpdates.Max(manifest => manifest.Severity).ToString(),
-                UpdateVersion = availableUpdates.Max(manifest => manifest.Version).ToString(),
+                return Json(new
+                {
+                    AvailableUpdate = true,
+                    HighestSeverity = availableUpdates.Max(manifest => manifest.Severity).ToString(),
+                    UpdateVersion = availableUpdates.Max(manifest => manifest.Version).ToString(),
+                });
+            }
+            return Json(new
+            {
+                AvailableUpdate = false,
             });
         }
 
-        public async Task<HttpResponseMessage> Updates()
+        [HttpGet, ActionName("Updates")]
+        public async Task<IHttpActionResult> Updates()
         {
-            return this.Request.CreateResponse(HttpStatusCode.OK, await GetAvailableUpdates());
+            return Json(await GetAvailableUpdates());
         }
 
-        [HttpPost, ActionName("Update")]
-        public async Task<HttpResponseMessage> PostUpdate(string version)
+        public class UpdateVersion
         {
-            var updateClient = new UpdateClient(this.Request.ServerVariables["SERVER_NAME"],
-                Configuration.PackageUpdateServiceLocation);
-            var updateManifest = await updateClient.GetUpdateVersionAsync(UpdateClient.Components.ManagementConsole, version);
+            public string version { get; set; }
+        }
+
+        [Authorize]
+        [HttpPost, ActionName("Update")]
+        public async Task<IHttpActionResult> Update(UpdateVersion version)
+        {
+            string accessToken = await DelegationToken.GetRdfeToken(this.Request.Headers.Authorization.ToString());
+            if (String.IsNullOrWhiteSpace(accessToken))
+            {
+                return StatusCode(HttpStatusCode.Forbidden);
+            }
+
+            var updateClient = new UpdateClient(null, DashConfiguration.PackageUpdateServiceLocation);
+            var updateManifest = await updateClient.GetUpdateVersionAsync(UpdateClient.Components.DashServer, version.version);
             if (updateManifest == null)
             {
-                return HttpNotFound();
+                return NotFound();
             }
-            var package = updateManifest.GetPackage(FilePackage.PackageNameConsole);
+            var package = updateManifest.GetPackage(UpdateClient.GetPackageFlavorLabel(AzureService.GetServiceFlavor()));
             if (package == null)
             {
-                return HttpNotFound();
+                return NotFound();
             }
-            var msDeployPackage = package.FindFileByExtension(".zip");
-            var msDeployParameters = package.FindFileByExtension(".xml");
-            if (msDeployPackage == null || msDeployParameters == null)
+            var servicePackage = package.FindFileByExtension(".cspkg");
+            var serviceConfig = package.FindFileByExtension(".cscfg");
+            if (servicePackage == null || serviceConfig == null)
             {
-                return HttpNotFound();
+                return NotFound();
             }
             try
             {
-                string localPackageLocation = await updateClient.DownloadPackageFileToTempFileAsync(UpdateClient.Components.ManagementConsole, updateManifest, package, msDeployPackage);
-                string parametersFile = String.Empty;
-                if (!String.IsNullOrWhiteSpace(localPackageLocation))
+                // Do a couple of things up-front to ensure that we can upgrade & then kick the upgrade off & don't wait for it to complete.
+                using (var serviceClient = await AzureService.GetServiceManagementClient(accessToken))
                 {
-                    using (var parametersStream = await updateClient.DownloadPackageFileToTempFileStreamAsync(UpdateClient.Components.ManagementConsole, updateManifest, package, msDeployParameters))
+                    // Make sure reverse-DNS is configured
+                    var updateResponse = await serviceClient.UpdateService(new HostedServiceUpdateParameters
                     {
-                        var parametersDoc = XDocument.Load(parametersStream);
-                        var parameters = parametersDoc.Element("parameters")
-                            .Elements()
-                            .ToDictionary(element => element.Attribute("name").Value, element => element.Attribute("value"), StringComparer.OrdinalIgnoreCase);
-                        // Process specific parameters that we know about
-                        parameters["AD_RealmAppSetting"].Value = "1";
-                        parameters["AD_AudienceUriAppSetting"].Value = "1";
-                        parameters["AD_ClientID"].Value = Configuration.ClientID;
-                        parameters["AD_ClientPassword"].Value = Configuration.ClientKey;
-                        parameters["AD_APPIDUri"].Value = Url.Action("Index", "Home", null, "http");
-                        parameters["ConsoleContext-Web.config Connection String"].Value = Configuration.ConsoleConnectionString;
-                        parameters["AD_Tenant"].Value = Configuration.Tenant;
-                        // Process all other parameters that we don't need specific handling for. ie. there's a 1:1 mapping between parameter & appSetting
-                        foreach (var setting in ConfigurationManager.AppSettings.AllKeys
-                                                    .Where(setting => parameters.ContainsKey(setting)))
+                        ReverseDnsFqdn = String.Format("{0}.cloudapp.net.", serviceClient.ServiceName),
+                    });
+                    // Copy current config to config for new version
+                    var currentConfig = await serviceClient.GetDeploymentConfiguration();
+                    var currentSettings = AzureServiceConfiguration.GetSettingsProjected(currentConfig);
+                    var newConfigDoc = XDocument.Load(
+                        await updateClient.DownloadPackageFileAsync(UpdateClient.Components.DashServer, updateManifest, package, serviceConfig));
+                    var newSettings = AzureServiceConfiguration.GetSettings(newConfigDoc);
+                    // Keep the same number of instances
+                    var ns = AzureServiceConfiguration.Namespace;
+                    AzureServiceConfiguration.GetInstances(newConfigDoc).Value = AzureServiceConfiguration.GetInstances(currentConfig).Value;
+                    foreach (var currentSetting in currentSettings)
+                    {
+                        var newSetting = AzureServiceConfiguration.GetSetting(newSettings, currentSetting.Item1);
+                        if (newSetting != null)
                         {
-                            parameters[setting].Value = ConfigurationManager.AppSettings[setting];
+                            newSetting.SetAttributeValue("value", currentSetting.Item2);
                         }
-
-                        parametersStream.Seek(0, SeekOrigin.Begin);
-                        parametersStream.SetLength(0);
-                        parametersDoc.Save(parametersStream);
-
-                        parametersFile = ((FileStream)parametersStream).Name;
                     }
+                    // Certificates (if there are any)
+                    var currentCerts = AzureServiceConfiguration.GetCertificates(currentConfig);
+                    if (currentCerts != null)
+                    {
+                        var newCerts = AzureServiceConfiguration.GetCertificates(newConfigDoc);
+                        newCerts.RemoveNodes();
+                        foreach (var currentCert in currentCerts.Elements())
+                        {
+                            var newCert = new XElement(ns + "Certificate");
+                            foreach (var currentAttrib in currentCert.Attributes())
+                            {
+                                newCert.SetAttributeValue(currentAttrib.Name, currentAttrib.Value);
+                            }
+                            newCerts.Add(newCert);
+                        }
+                    }
+                    // Send the update to the service
+                    var packageUri = await updateClient.GetPackageFileSasUriAsync(UpdateClient.Components.DashServer, updateManifest, package, servicePackage);
+                    var upgradeResponse = await serviceClient.UpgradeDeployment(new DeploymentUpgradeParameters
+                    {
+                        Label = String.Format("{0}-{1:o}", serviceClient.ServiceName, DateTime.UtcNow),
+                        PackageUri = packageUri,
+                        Configuration = newConfigDoc.ToString(),
+                        Mode = DeploymentUpgradeMode.Auto,
+                    });
+                    return Content(upgradeResponse.StatusCode, upgradeResponse);
                 }
-
-                var msdeploy = new Process();
-                msdeploy.StartInfo.FileName = Environment.ExpandEnvironmentVariables("%systemdrive%\\Program Files\\IIS\\Microsoft Web Deploy V3\\msdeploy.exe");
-                string sitePath = Environment.ExpandEnvironmentVariables("%systemdrive%\\inetpub\\wwwroot");
-                if (!String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DEPLOYMENT_TARGET")))
+            }
+            catch (CloudException ex)
+            {
+                return Content(HttpStatusCode.BadRequest, new
                 {
-                    sitePath = Environment.ExpandEnvironmentVariables("%DEPLOYMENT_TARGET%");
-                }
-                else if (!String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("HOME")))
-                {
-                    sitePath = Environment.ExpandEnvironmentVariables("%HOME%\\site\\wwwroot");
-                }
-                else
-                {
-                    Trace.TraceInformation("DEPLOYMENT_TARGET or HOME environment variables not set. Maybe not running in WAWS?");
-                }
-                msdeploy.StartInfo.Arguments = String.Format("-verb:sync -useCheckSum -source:package='{0}' -dest:contentPath='{1}' -setParamFile={2}",
-                    localPackageLocation, sitePath, parametersFile);
-                msdeploy.StartInfo.UseShellExecute = false;
-                msdeploy.StartInfo.RedirectStandardOutput = true;
-                msdeploy.StartInfo.RedirectStandardError = true;
-                msdeploy.Start();
-                return Json(new { Output = msdeploy.StandardOutput.ReadToEnd(), Error = msdeploy.StandardError.ReadToEnd() });
+                    ErrorCode = ex.ErrorCode,
+                    ErrorMessage = ex.ErrorMessage,
+                    RequestId = ex.RequestId,
+                    RoutingRequestId = ex.RoutingRequestId,
+                });
             }
             catch (Exception ex)
             {
-                return Json(new { Output = "", Error = ex.ToString() });
+                return InternalServerError(ex);
             }
         }
 
         async Task<IEnumerable<PackageManifest>> GetAvailableUpdates()
         {
-            var updateClient = new UpdateClient(this.Request.ServerVariables["SERVER_NAME"],
-                DashConfiguration.PackageUpdateServiceLocation);
-            var currentVersion = Assembly.GetAssembly(typeof(HomeController)).GetName().Version;
-            return (await updateClient.GetAvailableManifestsAsync(UpdateClient.Components.ManagementConsole))
+            var updateClient = new UpdateClient(null, DashConfiguration.PackageUpdateServiceLocation);
+            var currentVersion = Assembly.GetAssembly(this.GetType()).GetName().Version;
+            currentVersion = new Version(0, 2);
+            return (await updateClient.GetAvailableManifestsAsync(UpdateClient.Components.DashServer))
                 .Where(manifest => manifest.Version > currentVersion)
                 .ToList();
         }

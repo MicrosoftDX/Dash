@@ -1,4 +1,6 @@
-﻿/// <reference path="../../scripts/_references.ts" />
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
+/// <reference path="../../scripts/_references.ts" />
 
 module Dash.Management.Controller {
     "use strict";
@@ -15,6 +17,8 @@ module Dash.Management.Controller {
             $rootScope.login = () => this.login();
             $rootScope.logout = () => this.logout();
             $rootScope.isControllerActive = (loc) => this.isActive(loc);
+            $rootScope.buttonBarButtons = [];
+
             $scope.areUpdatesAvailable = false;
             $scope.updateBannerClass = "";
 

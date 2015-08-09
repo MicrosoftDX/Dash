@@ -1,6 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
+using System;
 using System.Web.Http;
 
 namespace DashServer.ManagementAPI
@@ -16,8 +16,8 @@ namespace DashServer.ManagementAPI
 
             config.Routes.MapHttpRoute(
                 name: "DefaultApi",
-                routeTemplate: "api/{controller}/{id}",
-                defaults: new { id = RouteParameter.Optional }
+                routeTemplate: "api/{controller}/{action}/{id}",
+                defaults: new { action = "Index", id = RouteParameter.Optional }
             );
         }
     }

@@ -202,5 +202,10 @@ namespace Microsoft.Dash.Common.Utils
         {
             get { return ConfigurationSource.GetSetting("ReplicationMetadataValue", "true"); }
         }
+
+        public static string PackageUpdateServiceLocation
+        {
+            get { return ConfigurationSource.GetSetting("PackageUpdateServiceLocation", "https://www.dash-update.net/"); }
+        }
     }
 }

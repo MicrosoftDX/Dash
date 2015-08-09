@@ -1,27 +1,37 @@
-﻿using System;
-using System.Collections.Generic;
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
+using System;
 using System.Linq;
-using System.Web;
-using Microsoft.WindowsAzure.Subscriptions;
 using System.Threading.Tasks;
-using Microsoft.WindowsAzure.Management.Models;
-using Microsoft.WindowsAzure.Management.Compute;
 using Microsoft.Dash.Common.Diagnostics;
+using Microsoft.Dash.Common.Update;
 using Microsoft.Dash.Common.Utils;
 using Microsoft.WindowsAzure;
+using Microsoft.WindowsAzure.Management.Compute;
 using Microsoft.WindowsAzure.ServiceRuntime;
+using Microsoft.WindowsAzure.Subscriptions;
 
 namespace DashServer.ManagementAPI.Utils.Azure
 {
     public class AzureService
     {
+        static string _lazyInitBearerToken = String.Empty;
+        static Lazy<Task<ServiceInformation>> _serviceInformation = new Lazy<Task<ServiceInformation>>(() => GetAzureServiceInformation(_lazyInitBearerToken));
+
+        public static async Task<AzureServiceManagementClient> GetServiceManagementClient(string bearerToken)
+        {
+            var serviceInfo = await GetServiceInformation(bearerToken);
+            return new AzureServiceManagementClient(new ComputeManagementClient(new TokenCloudCredentials(serviceInfo.SubscriptionId, bearerToken)), serviceInfo.ServiceName);
+        }
+
         public static async Task<ServiceInformation> GetServiceInformation(string bearerToken)
         {
             try
             {
                 if (AzureUtils.IsRunningInAzureWebRole())
                 {
-                    return await GetAzureServiceInformation(bearerToken);
+                    _lazyInitBearerToken = bearerToken;
+                    return await _serviceInformation.Value;
                 }
                 else
                 {
@@ -38,6 +48,15 @@ namespace DashServer.ManagementAPI.Utils.Azure
                 DashTrace.TraceWarning("Failed to obtain service information. Details: {0}", ex);
             }
             return null;
+        }
+
+        public static UpdateClient.PackageFlavors GetServiceFlavor()
+        {
+            if (AzureUtils.IsRunningInAzureWebRole())
+            {
+                return GetAzureServiceFlavor();
+            }
+            return UpdateClient.PackageFlavors.Http;
         }
 
         private static async Task<ServiceInformation> GetAzureServiceInformation(string bearerToken)
@@ -67,6 +86,25 @@ namespace DashServer.ManagementAPI.Utils.Azure
             }
             DashTrace.TraceWarning("Unable to identify running service. Possible unauthorized user.");
             return null;
+        }
+
+        private static UpdateClient.PackageFlavors GetAzureServiceFlavor()
+        {
+            bool isHttps = RoleEnvironment.CurrentRoleInstance.InstanceEndpoints.Any((endpoint) => String.Equals(endpoint.Value.Protocol, "https", StringComparison.OrdinalIgnoreCase));
+            bool isVnet = RoleEnvironment.CurrentRoleInstance.VirtualIPGroups.Any();
+            if (isHttps && isVnet)
+            {
+                return UpdateClient.PackageFlavors.HttpsWithIlb;
+            }
+            else if (isVnet)
+            {
+                return UpdateClient.PackageFlavors.HttpWithIlb;
+            }
+            else if (isHttps)
+            {
+                return UpdateClient.PackageFlavors.Https;
+            }
+            return UpdateClient.PackageFlavors.Http;
         }
     }
 }

@@ -1,7 +1,5 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
-using Microsoft.Dash.Common.Diagnostics;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,7 +10,8 @@ using System.Net.Http.Formatting;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Threading.Tasks;
-using System.Web;
+using Microsoft.Dash.Common.Diagnostics;
+using Newtonsoft.Json;
 
 namespace Microsoft.Dash.Common.Update
 {
@@ -22,8 +21,16 @@ namespace Microsoft.Dash.Common.Update
 
         public enum Components
         {
-            Server,
+            DashServer,
             Client,
+        }
+
+        public enum PackageFlavors
+        {
+            Http,
+            HttpWithIlb,
+            Https,
+            HttpsWithIlb,
         }
 
         public UpdateClient(string requestor = null, string updateServiceRoot = null)
@@ -124,7 +131,7 @@ namespace Microsoft.Dash.Common.Update
             return null;
         }
 
-        public Uri GetPackageFileUri(Components component, PackageManifest manifest, FilePackage package, string file)
+        public Uri GetPackageFileUri(Components component, PackageManifest manifest, FilePackage package, string file, string operation = null)
         {
             var requestUri = new ApiUriBuilder(this.UpdateServiceUri, new Dictionary<string, string>
                 {
@@ -135,26 +142,44 @@ namespace Microsoft.Dash.Common.Update
                 manifest.Version.SemanticVersionFormat(),
                 package.PackageName,
                 file);
+            if (!String.IsNullOrWhiteSpace(operation))
+            {
+                requestUri.Query = "comp=" + operation;
+            }
             return requestUri.Uri;
         }
 
-        public async Task DownloadPackageFileToStreamAsync(Components component, PackageManifest manifest, FilePackage package, string file, Stream destination)
+        public async Task<Uri> GetPackageFileSasUriAsync(Components component, PackageManifest manifest, FilePackage package, string file)
+        {
+            var fileUri = GetPackageFileUri(component, manifest, package, file, "sas");
+            var sas = await ReadObjectAsync<string>(fileUri);
+            return new Uri(sas);
+        }
+
+        public async Task<Stream> DownloadPackageFileAsync(Components component, PackageManifest manifest, FilePackage package, string file)
         {
             var fileUri = GetPackageFileUri(component, manifest, package, file);
             try
             {
                 using (var downloadClient = new HttpClient())
                 {
-                    using (var response = await downloadClient.GetAsync(fileUri))
-                    {
-                        await response.Content.CopyToAsync(destination);
-                    }
+                    var response = await downloadClient.GetAsync(fileUri);
+                    response.EnsureSuccessStatusCode();
+                    return await response.Content.ReadAsStreamAsync();
                 }
             }
             catch (Exception ex)
             {
                 DashTrace.TraceWarning("Failed to download package file [{0}] to local stream. Details: {1}", fileUri, ex);
                 throw new InvalidOperationException(String.Format("Failed to download package file [{0}] to local stream.", fileUri), ex);
+            }
+        }
+
+        public async Task DownloadPackageFileToStreamAsync(Components component, PackageManifest manifest, FilePackage package, string file, Stream destination)
+        {
+            using (var stream = await DownloadPackageFileAsync(component, manifest, package, file))
+            { 
+                await stream.CopyToAsync(destination);
             }
         }
 
@@ -183,6 +208,29 @@ namespace Microsoft.Dash.Common.Update
             string tempLocation = Path.ChangeExtension(Path.GetTempFileName(), Path.GetExtension(file));
             await DownloadPackageFileToLocalFileAsync(component, manifest, package, file, tempLocation);
             return tempLocation;
+        }
+
+        public static string GetPackageFlavorLabel(PackageFlavors packageFlavor)
+        {
+            switch (packageFlavor)
+            {
+                case PackageFlavors.Http:
+                    return "HTTP";
+
+                case PackageFlavors.HttpWithIlb:
+                    return "HTTP.ILB";
+
+                case PackageFlavors.Https:
+                    return "HTTPS";
+
+                case PackageFlavors.HttpsWithIlb:
+                    return "HTTPS.ILB";
+
+                default:
+                    System.Diagnostics.Debug.Assert(false);
+                    break;
+            }
+            return String.Empty;
         }
 
         static string GetComponentPath(Components component)

@@ -1,25 +1,16 @@
-﻿using System;
+﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
+
+using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Dynamic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Net.Http.Formatting;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
-using System.Xml.Linq;
-using DashServer.ManagementAPI.Models;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using Microsoft.Dash.Common.Utils;
 using DashServer.ManagementAPI.Utils;
-using Microsoft.WindowsAzure;
-using Microsoft.WindowsAzure.Management.Compute;
-using Microsoft.WindowsAzure.Management.Compute.Models;
 using DashServer.ManagementAPI.Utils.Azure;
+using Newtonsoft.Json;
 
 namespace DashServer.ManagementAPI.Controllers
 {
@@ -98,34 +89,24 @@ namespace DashServer.ManagementAPI.Controllers
         };
         const string _scaleOutStoragePrefix = "ScaleoutStorage";
 
-        [HttpGet]
-        public async Task<HttpResponseMessage> GetCurrentConfiguration()
+        [HttpGet, ActionName("Index")]
+        public async Task<IHttpActionResult> GetCurrentConfiguration()
         {
             string accessToken = await DelegationToken.GetRdfeToken(this.Request.Headers.Authorization.ToString());
             if (String.IsNullOrWhiteSpace(accessToken))
             {
-                return new HttpResponseMessage(HttpStatusCode.Forbidden);
+                return StatusCode(HttpStatusCode.Forbidden);
             }
-            var serviceInfo = await AzureService.GetServiceInformation(accessToken);
-            using (var computeClient = new ComputeManagementClient(new TokenCloudCredentials(serviceInfo.SubscriptionId, accessToken)))
+            using (var serviceClient = await AzureService.GetServiceManagementClient(accessToken))
             {
-                var deployment = await computeClient.Deployments.GetBySlotAsync(serviceInfo.ServiceName, DeploymentSlot.Production);
-                
                 // Load the XML config from RDFE
                 // Get only Dash storage related settings to show and make a dictionary
                 // which we can use to return the properties dynamic
-                Func<XElement, Tuple<string, string>> projectSetting = (elem) => Tuple.Create(elem.Attribute("name").Value, elem.Attribute("value").Value);
                 Func<Tuple<string, string>, bool> filterSpecialName = (elem) => _specialConfigNames.Contains(elem.Item1);
                 Func<Tuple<string, string>, bool> filterScaleoutStorage = (elem) => elem.Item1.StartsWith(_scaleOutStoragePrefix, StringComparison.OrdinalIgnoreCase);
 
-                XNamespace ns = "http://schemas.microsoft.com/ServiceHosting/2008/10/ServiceConfiguration";
-                var root = XDocument.Parse(deployment.Configuration).Root;
-                var settings = root
-                    .Element(ns + "Role")
-                    .Element(ns + "ConfigurationSettings")
-                    .Elements()
-                    .Select(projectSetting);
-
+                var settings = AzureServiceConfiguration.GetSettingsProjected(await serviceClient.GetDeploymentConfiguration())
+                    .ToList();
                 var response = settings
                     .Where(filterSpecialName)
                     .ToDictionary(elem => elem.Item1, elem => (object)elem.Item2);
@@ -136,7 +117,7 @@ namespace DashServer.ManagementAPI.Controllers
                     .Where(elem => !filterSpecialName(elem) && !filterScaleoutStorage(elem))
                     .ToDictionary(elem => elem.Item1, elem => (object)elem.Item2);
 
-                return this.Request.CreateResponse(HttpStatusCode.OK, response);
+                return Ok(response);
             }
         }
     }
