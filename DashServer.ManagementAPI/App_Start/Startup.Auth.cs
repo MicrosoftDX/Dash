@@ -16,9 +16,9 @@ namespace DashServer.ManagementAPI
             app.UseWindowsAzureActiveDirectoryBearerAuthentication(
                 new WindowsAzureActiveDirectoryBearerAuthenticationOptions
                 {
-                    Tenant = DashConfiguration.ConfigurationSource.GetSetting("ida:Tenant", String.Empty),
+                    Tenant = DashConfiguration.Tenant,
                     TokenValidationParameters = new TokenValidationParameters {
-                        ValidAudience = DashConfiguration.ConfigurationSource.GetSetting("ida:ClientID", String.Empty)
+                        ValidAudience = DashConfiguration.ClientId,
                     },
                 });
         }

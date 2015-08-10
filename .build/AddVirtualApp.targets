@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- 
+Copyright (c) Microsoft Corporation.  All rights reserved. 
+Shared msbuild logic to build, publish & incorporate into a cloud service package additional web projects
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Executes before CSPack so that virtual applications are found -->
+  <!-- Manually add PublishToFileSystem target to each virtual application .csproj file -->
+  <Target
+    Name="PublishVirtualApplicationsBeforeCSPack"
+    BeforeTargets="CorePublish;CsPackForDevFabric"
+    Condition="'$(PackageForComputeEmulator)' == 'true' Or '$(IsExecutingPublishTarget)' == 'true' ">
+    <Message Text="Start - PublishVirtualApplicationsBeforeCSPack" />
+    <PropertyGroup Condition=" '$(PublishDestinationPath)'=='' and '$(BuildingInsideVisualStudio)'=='true' ">
+      <!-- When Visual Studio build -->
+      <PublishDestinationPath>$(ProjectDir)$(OutDir)</PublishDestinationPath>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(PublishDestinationPath)'=='' ">
+      <!-- When TFS build -->
+      <PublishDestinationPath>$(OutDir)</PublishDestinationPath>
+    </PropertyGroup>
+    <Message Text="Publishing '%(VirtualApp.Identity)' to '$(PublishDestinationPath)%(VirtualApp.PhysicalDirectory)'" />
+    <MSBuild
+      Projects="%(VirtualApp.Identity)"
+      ContinueOnError="false"
+      Targets="PublishToFileSystem"
+      Properties="Configuration=$(Configuration);PublishDestination=$(PublishDestinationPath)%(VirtualApp.PhysicalDirectory);AutoParameterizationWebConfigConnectionStrings=False" />
+    <!-- Delete files excluded from packaging; take care not to delete xml files unless there is a matching dll -->
+    <CreateItem Include="$(PublishDestinationPath)%(VirtualApp.PhysicalDirectory)\**\*.dll">
+      <Output ItemName="DllFiles" TaskParameter="Include" />
+    </CreateItem>
+    <ItemGroup>
+      <FilesToDelete Include="@(DllFiles -> '%(RootDir)%(Directory)%(Filename).pdb')" />
+      <FilesToDelete Include="@(DllFiles -> '%(RootDir)%(Directory)%(Filename).xml')" />
+    </ItemGroup>
+    <Message Text="Files excluded from packaging '@(FilesToDelete)'" />
+    <Delete Files="@(FilesToDelete)" />
+    <Message Text="End - PublishVirtualApplicationsBeforeCSPack" />
+  </Target>
+
+  <!-- Performs publishing prior to the Azure project packaging -->
+  <!-- Called by PublishVirtualApplicationsBeforeCSPack target in .ccproj -->
+  <Target Name="PublishToFileSystem" DependsOnTargets="PipelinePreDeployCopyAllFilesToOneFolder">
+    <Error Condition="'$(PublishDestination)'==''" Text="The PublishDestination property is not set." />
+    <MakeDir Condition="!Exists($(PublishDestination))" Directories="$(PublishDestination)" />
+    <ItemGroup>
+      <PublishFiles Include="$(_PackageTempDir)\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PublishFiles)" DestinationFiles="@(PublishFiles->'$(PublishDestination)\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="True" />
+  </Target>
+</Project>

@@ -8,10 +8,16 @@
           <Binding name="HttpsExternal" endpointName="HttpsExternal" />
         </Bindings>
       </Site>
+      <Site name="ManagementAPI" physicalDirectory="_PublishedWebsites\DashServer.ManagementAPI">
+        <Bindings>
+          <Binding name="ManagementAPI" endpointName="ManagementAPI" />
+        </Bindings>
+      </Site>
     </Sites>
     <Endpoints>
       <InputEndpoint name="HttpExternal" protocol="http" port="80" />
       <InputEndpoint name="HttpsExternal" protocol="https" port="443" certificate="TlsCertificate" />
+      <InputEndpoint name="ManagementAPI" protocol="https" port="8081" certificate="TlsCertificate" />
     </Endpoints>
     <Imports>
       <Import moduleName="Diagnostics" />
@@ -45,6 +51,8 @@
       <Setting name="AsyncWorkerTimeout" />
       <Setting name="WorkerQueueInitialDelay" />
       <Setting name="WorkerQueueDequeueLimit" />
+      <Setting name="Tenant" />
+      <Setting name="ClientId" />
     </ConfigurationSettings>
     <Certificates>
       <Certificate name="TlsCertificate" storeLocation="LocalMachine" storeName="My" />

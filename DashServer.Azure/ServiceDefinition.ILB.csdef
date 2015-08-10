@@ -8,10 +8,16 @@
           <Binding name="HttpExternal" endpointName="HttpExternal" />
         </Bindings>
       </Site>
+      <Site name="ManagementAPI" physicalDirectory="_PublishedWebsites\DashServer.ManagementAPI">
+        <Bindings>
+          <Binding name="ManagementAPI" endpointName="ManagementAPI" />
+        </Bindings>
+      </Site>
     </Sites>
     <Endpoints>
       <InputEndpoint name="HttpInternal" protocol="http" port="80" loadBalancer="Dash_ILB" />
       <InputEndpoint name="HttpExternal" protocol="http" port="8080" />
+      <InputEndpoint name="ManagementAPI" protocol="http" port="8081" />
     </Endpoints>
     <Imports>
       <Import moduleName="Diagnostics" />
@@ -45,6 +51,8 @@
       <Setting name="AsyncWorkerTimeout" />
       <Setting name="WorkerQueueInitialDelay" />
       <Setting name="WorkerQueueDequeueLimit" />
+      <Setting name="Tenant" />
+      <Setting name="ClientId" />
     </ConfigurationSettings>
     <Startup>
       <Task commandLine=".\startup\RunWorkerQueue.cmd" executionContext="elevated" taskType="simple">

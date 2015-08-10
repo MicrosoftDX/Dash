@@ -8,11 +8,11 @@ module Dash.Management.Controller {
     export class HomeController {
         static $inject = ['$scope', '$rootScope', 'adalAuthenticationService', '$location', 'updateService'];
 
-        constructor(private $scope: Dash.Management.Model.IDashManagementScope,
-            $rootScope: Dash.Management.Model.IDashManagementScope,
+        constructor(private $scope: Model.IDashManagementScope,
+            $rootScope: Model.IDashManagementScope,
             private adalAuthenticationService,
             private $location: ng.ILocationService,
-            private updateService: Dash.Management.Service.UpdateService) {
+            private updateService: Service.UpdateService) {
 
             $rootScope.login = () => this.login();
             $rootScope.logout = () => this.logout();

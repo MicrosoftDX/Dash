@@ -6,7 +6,7 @@ module Dash.Management {
     "use strict";
     export class AppBuilder {
 
-        app: ng.IModule;
+        private app: ng.IModule;
 
         constructor(name: string) {
             this.app = angular.module(name, [
@@ -17,24 +17,24 @@ module Dash.Management {
                 'AdalAngular'
             ]);
             this.app.config(['$routeProvider', '$httpProvider', 'adalAuthenticationServiceProvider',
-                ($routeProvider: ng.route.IRouteProvider, $httpProvider, adalProvider) => {
+                ($routeProvider: ng.route.IRouteProvider, $httpProvider: ng.IHttpProvider, adalProvider) => {
                     $routeProvider
                         .when("/Home",
                         {
-                            controller: 'homeCtrl',
+                            controller: Controller.HomeController,
                             templateUrl: "/app/views/home.html",
                             caseInsensitiveMatch: true,
                         })
                         .when("/Configuration",
                         {
-                            controller: Dash.Management.Controller.ConfigurationController,
+                            controller: Controller.ConfigurationController,
                             templateUrl: "/App/Views/Configuration.html",
                             requireADLogin: true,
                             caseInsensitiveMatch: true,
                         })
                         .when("/Update",
                         {
-                            controller: Dash.Management.Controller.UpdateController,
+                            controller: Controller.UpdateController,
                             templateUrl: "/App/Views/Update.html",
                             requireADLogin: true,
                             caseInsensitiveMatch: true,
@@ -43,19 +43,26 @@ module Dash.Management {
                         {
                             redirectTo: "/Home"
                         });
-
-                    adalProvider.init(
-                    {
-                        tenant: 'microsoft.com',
-                        clientId: '3528d0b3-8502-44d5-bf1b-378488650187',
-                        cacheLocation: 'localStorage', // enable this for IE, as sessionStorage does not work for localhost.
-                    },
-                    $httpProvider);
-
+                    // Configure ADAL - we use the config values from the server.
+                    // We cheat a bit here - the $http service is not yet available, but jQuery's $.ajax is - and we 
+                    // need synchronous behavior so that other services/controllers don't try to acquire the adal service
+                    // prior to us initializing it here
+                    $.ajax({
+                        url: "/api/authconfig",
+                        async: false,
+                        success: (results: any) => {
+                            adalProvider.init(
+                                {
+                                    tenant: results.Tenant,
+                                    clientId: results.ClientId,
+                                    cacheLocation: 'localStorage', // enable this for IE, as sessionStorage does not work for localhost.
+                                },
+                                $httpProvider);
+                        }
+                    });
                 }]);
-            this.app.service('configurationService', Dash.Management.Service.ConfigurationService);
-            this.app.service('updateService', Dash.Management.Service.UpdateService);
-            this.app.controller('homeCtrl', Dash.Management.Controller.HomeController);
+            this.app.service('configurationService', Service.ConfigurationService);
+            this.app.service('updateService', Service.UpdateService);
         }
 
         public start() {

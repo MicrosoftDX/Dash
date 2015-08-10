@@ -26,8 +26,8 @@ namespace DashServer.ManagementAPI.Utils
                 var tenantId = ClaimsPrincipal.Current.FindFirst("http://schemas.microsoft.com/identity/claims/tenantid").Value;
 
                 var authContext = new AuthenticationContext(String.Format("https://login.windows.net/{0}", tenantId), new ADALTokenCache(signInUserId));
-                var clientCredential = new ClientCredential(DashConfiguration.ConfigurationSource.GetSetting("ida:ClientID", String.Empty),
-                    DashConfiguration.ConfigurationSource.GetSetting("ida:AppKey", String.Empty));
+                var clientCredential = new ClientCredential(DashConfiguration.ClientId,
+                    DashConfiguration.ConfigurationSource.GetSetting("AppKey", String.Empty));
                 if (bearerToken.StartsWith(BearerAuthType, StringComparison.OrdinalIgnoreCase))
                 {
                     bearerToken = bearerToken.Substring(BearerAuthType.Length);

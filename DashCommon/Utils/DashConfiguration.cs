@@ -207,5 +207,15 @@ namespace Microsoft.Dash.Common.Utils
         {
             get { return ConfigurationSource.GetSetting("PackageUpdateServiceLocation", "https://www.dash-update.net/"); }
         }
+
+        public static string Tenant
+        {
+            get { return ConfigurationSource.GetSetting("Tenant", String.Empty); }
+        }
+
+        public static string ClientId
+        {
+            get { return ConfigurationSource.GetSetting("ClientID", String.Empty); }
+        }
     }
 }

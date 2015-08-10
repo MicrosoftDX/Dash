@@ -30,8 +30,10 @@
       <Setting name="ReplicationMetadataValue" value="" />
       <Setting name="WorkerQueueName" value="" />
       <Setting name="AsyncWorkerTimeout" value="" />
-      <Setting name="WorkerQueueInitialDelay"  value="" />
+      <Setting name="WorkerQueueInitialDelay" value="" />
       <Setting name="WorkerQueueDequeueLimit" value="" />
+      <Setting name="Tenant" value="" />
+      <Setting name="ClientId" value="" />
     </ConfigurationSettings>
     <Certificates>
     </Certificates>
