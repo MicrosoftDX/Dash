@@ -14,7 +14,7 @@
         <tab heading="Storage Accounts">
             <table class="table table-striped">
                 <tbody>
-                    <tr data-ng-repeat="setting in configuration.settings.scaleOutStorage" ng-include="'ConfigSetting.html'" />
+                    <tr data-ng-repeat="setting in configuration.settings.scaleOutStorage.accounts" ng-include="'ConfigSetting.html'" />
                 </tbody>
             </table>
         </tab>
@@ -29,44 +29,62 @@
 </div>
 <script type="text/ng-template" id="ConfigSetting.html">
     <td class="col-sm-10">
-        <label>{{setting.displayLabel}}:</label>
+        <label ng-hide="!setting.displayLabel">{{setting.displayLabel}}:</label>
+        <!-- Standard input edit box -->
         <input type="text"
-               ng-hide="isEditStyle(setting, 4)"
+               ng-if="!setting.isEditorStyleStorageAccount()"
                ng-model="setting.value"
                class="form-control"
-               ng-readonly="isEditStyle(setting, 11) && !setting.editing"
-               ng-change="notifyChange(setting)" />
-        <div class="input-group" ng-hide="!isEditStyle(setting, 4)">
-            <span class="input-group-addon" id="{{'StorageAccount' + $index}}">Name</span>
-            <input type="text"
-                   class="form-control"
-                   placeholder="Account Name"
-                   aria-describedby="{{'StorageAccount' + $index}}"
-                   ng-model="setting.accountName"
-                   ng-readonly="isEditStyle(setting, 11) && !setting.editing"
-                   ng-change="notifyChange(setting)" />
-        </div>
-        <div class="input-group" ng-hide="!isEditStyle(setting, 4)">
-            <span class="input-group-addon" id="{{'StorageKey' + $index}}">Key</span>
-            <input type="text"
-                   class="form-control"
-                   placeholder="Account Key"
-                   aria-describedby="{{'StorageKey' + $index}}"
-                   ng-model="setting.accountKey"
-                   ng-readonly="isEditStyle(setting, 11) && !setting.editing"
-                   ng-change="notifyChange(setting)" />
+               ng-readonly="(setting.isEditorStyleEditMode() && !setting.editing) || setting.isEditorStyleGenerate()" />
+        <!-- Input edit group for account name -->
+        <div class="has-feedback"
+             storage-validator="{accountName: 'setting.accountName', accountKey: 'setting.accountKey'}"
+             storage-validator-controls="{accountName: 'StorageAccount.AccountName', accountKey: 'StorageAccount.AccountKey'}"
+             ng-show="setting.isEditorStyleStorageAccount()"
+             ng-form="StorageAccount"
+             ng-class="{'has-error': StorageAccount.$invalid}">
+            <div class="has-feedback" ng-class="{'has-error': StorageAccount.AccountName.$invalid}">
+                <div class="input-group">
+                    <span class="input-group-addon" id="{{'StorageAccount' + $index}}">Name</span>
+                    <input type="text"
+                           name="AccountName"
+                           class="form-control"
+                           placeholder="Account Name"
+                           aria-describedby="{{'StorageAccount' + $index}}"
+                           ng-model="setting.accountName"
+                           ng-readonly="setting.isEditorStyleEditMode() && !setting.editing"
+                           ng-required="true"
+                           ng-model-options="{ updateOn: 'blur' }" />
+                </div>
+                <span class="glyphicon glyphicon-exclamation-sign form-control-feedback" ng-show="StorageAccount.AccountName.$invalid" title="The entered Account Name is not valid or already used" aria-hidden="true"></span>
+            </div>
+            <!-- Input edit group for account key -->
+            <div class="has-feedback" ng-class="{has-error: StorageAccount.AccountKey.$invalid}">
+                <div class="input-group">
+                    <span class="input-group-addon" id="{{'StorageKey' + $index}}">Key</span>
+                    <input type="text"
+                           name="AccountKey"
+                           class="form-control"
+                           placeholder="Account Key (Leave blank for new accounts)"
+                           aria-describedby="{{'StorageKey' + $index}}"
+                           ng-model="setting.accountKey"
+                           ng-readonly="(setting.isEditorStyleEditMode() && !setting.editing) || setting.isNew"
+                           ng-model-options="{ updateOn: 'blur' }" />
+                </div>
+                <span class="glyphicon glyphicon-exclamation-sign form-control-feedback" ng-show="StorageAccount.AccountKey.$invalid" title="This is bad" aria-hidden="true"></span>
+            </div>
         </div>
     </td>
     <td class="col-sm-2">
-        <p ng-show="isEditStyle(setting, 9) && !configuration.editingInProgress">
-            <button type="button" class="btn btn-link" ng-show="isEditStyle(setting, 8)" data-ng-click="editSwitch(setting, false)">Edit</button>
-            <button type="button" class="btn btn-link" ng-show="isEditStyle(setting, 1)" data-ng-click="delete(setting)">Delete</button>
+        <p ng-show="(setting.isEditorStyleEditMode() || setting.isEditorStyleDelete()) && !configuration.editingInProgress">
+            <button type="button" class="btn btn-link" ng-show="setting.isEditorStyleEditMode()" data-ng-click="editSwitch(setting, false)">Edit</button>
+            <button type="button" class="btn btn-link" ng-show="setting.isEditorStyleDelete()" data-ng-click="delete(setting)">Delete</button>
         </p>
         <p ng-show="setting.editing">
             <button type="button" class="btn btn-link" data-ng-click="editSwitch(setting, false)">Save</button>
             <button type="button" class="btn btn-link" data-ng-click="editSwitch(setting, true)">Cancel</button>
         </p>
-        <p ng-show="isEditStyle(setting, 2) && !configuration.editingInProgress">
+        <p ng-show="setting.isEditorStyleGenerate() && !configuration.editingInProgress">
             <button type="button" class="btn btn-link" data-ng-click="generateStorageKey(setting)">Generate</button>
         </p>
     </td>

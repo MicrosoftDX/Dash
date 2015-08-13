@@ -11,6 +11,7 @@ using Microsoft.Dash.Common.Handlers;
 using Microsoft.Dash.Common.Utils;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
+using Microsoft.Dash.Common.OperationStatus;
 
 namespace Microsoft.Dash.Common.Processors
 {

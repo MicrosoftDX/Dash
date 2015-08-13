@@ -13,12 +13,12 @@ namespace DashServer.ManagementAPI.Utils
     {
         const string BearerAuthType = "Bearer ";
 
-        public static async Task<string> GetRdfeToken(string bearerToken)
+        public static async Task<AuthenticationResult> GetRdfeToken(string bearerToken)
         {
             return await GetDelegationToken("https://management.core.windows.net/", bearerToken);
         }
 
-        public static async Task<string> GetDelegationToken(string resource, string bearerToken)
+        public static async Task<AuthenticationResult> GetDelegationToken(string resource, string bearerToken)
         {
             try
             {
@@ -32,14 +32,13 @@ namespace DashServer.ManagementAPI.Utils
                 {
                     bearerToken = bearerToken.Substring(BearerAuthType.Length);
                 }
-                var authResult = await authContext.AcquireTokenAsync(resource, clientCredential, new UserAssertion(bearerToken));
-                return authResult.AccessToken;
+                return await authContext.AcquireTokenAsync(resource, clientCredential, new UserAssertion(bearerToken));
             }
             catch (Exception ex)
             {
                 DashTrace.TraceWarning("Error attempting to retrieve delegation token for resource [{0}]. Details: {1}", resource, ex);
             }
-            return String.Empty;
+            return null;
         }
 
         class ADALTokenCache : TokenCache

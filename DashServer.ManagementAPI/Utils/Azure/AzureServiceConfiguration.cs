@@ -1,5 +1,6 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
+using Microsoft.Dash.Common.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -52,6 +53,32 @@ namespace DashServer.ManagementAPI.Utils.Azure
         {
             return settings.Elements(_configNs + "Setting")
                 .FirstOrDefault(x => String.Equals(x.Attribute("name").Value, settingName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Special configuration attribute names
+        static ISet<string> _specialConfigNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            DashConfiguration.KeyDiagnosticsAccount,
+            "AccountName",
+            "AccountKey",
+            "SecondaryAccountKey",
+            DashConfiguration.KeyNamespaceAccount,
+        };
+
+        public static bool SettingPredicateSpecialName(Tuple<string, string> elem)
+        {
+            return _specialConfigNames.Contains(elem.Item1);
+        }
+
+        public static bool SettingPredicateScaleoutStorage(Tuple<string, string> elem)
+        {
+            return elem.Item1.StartsWith(DashConfiguration.KeyScaleoutAccountPrefix, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool SettingPredicateRdp(Tuple<string, string> elem)
+        {
+            return elem.Item1.StartsWith("Microsoft.WindowsAzure.Plugins.RemoteForwarder", StringComparison.OrdinalIgnoreCase) ||
+                   elem.Item1.StartsWith("Microsoft.WindowsAzure.Plugins.RemoteAccess", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

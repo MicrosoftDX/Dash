@@ -12,6 +12,7 @@ module Dash.Management {
             this.app = angular.module(name, [
                 // Angular modules 
                 "ngRoute",
+                "ngResource",
                 "ui.bootstrap",
                 // ADAL
                 'AdalAngular'
@@ -63,6 +64,7 @@ module Dash.Management {
                 }]);
             this.app.service('configurationService', Service.ConfigurationService);
             this.app.service('updateService', Service.UpdateService);
+            this.app.directive('storageValidator', ['configurationService', (configurationService) => new Controller.StorageValidationDirective(configurationService)]);
         }
 
         public start() {

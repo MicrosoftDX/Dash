@@ -18,6 +18,13 @@
             min-width:75px;
             text-align:left;
         }    
+        .has-feedback .form-control-feedback {
+            position: absolute;
+            top: 0px;
+            right: 10px;
+            display: block;
+            text-align: right;
+        }
     </style>
 </head>
 <body ng-app="dashApp" role="document">
@@ -71,7 +78,7 @@
         <div class="container">
             <div class="navbar-collapse collapse">
                 <ul class="nav navbar-nav navbar-right">
-                    <li ng-repeat="button in buttonBarButtons" ng-class="{ active: button.enabled }"><a href="#/">{{button.displayText}}</a></li>
+                    <li ng-repeat="button in buttonBarButtons" ng-class="{ active: button.enabled }"><a class="btn btn-link" ng-click="button.doClick()">{{button.displayText}}</a></li>
                 </ul>
             </div>
         </div>
@@ -80,6 +87,7 @@
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.js"></script>
     <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.3/angular.js"></script>
     <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.3/angular-route.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.3/angular-resource.js"></script>
     <script src="//angular-ui.github.io/bootstrap/ui-bootstrap-tpls-0.13.2.js"></script>
     <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.js"></script>
     <script src="App/Scripts/adal.js"></script>

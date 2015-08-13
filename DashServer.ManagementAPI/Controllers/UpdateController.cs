@@ -53,8 +53,8 @@ namespace DashServer.ManagementAPI.Controllers
         [HttpPost, ActionName("Update")]
         public async Task<IHttpActionResult> Update(UpdateVersion version)
         {
-            string accessToken = await DelegationToken.GetRdfeToken(this.Request.Headers.Authorization.ToString());
-            if (String.IsNullOrWhiteSpace(accessToken))
+            var accessToken = await DelegationToken.GetRdfeToken(this.Request.Headers.Authorization.ToString());
+            if (accessToken == null)
             {
                 return StatusCode(HttpStatusCode.Forbidden);
             }
@@ -79,7 +79,7 @@ namespace DashServer.ManagementAPI.Controllers
             try
             {
                 // Do a couple of things up-front to ensure that we can upgrade & then kick the upgrade off & don't wait for it to complete.
-                using (var serviceClient = await AzureService.GetServiceManagementClient(accessToken))
+                using (var serviceClient = await AzureService.GetServiceManagementClient(accessToken.AccessToken))
                 {
                     // Make sure reverse-DNS is configured
                     var updateResponse = await serviceClient.UpdateService(new HostedServiceUpdateParameters

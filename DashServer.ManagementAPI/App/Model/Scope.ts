@@ -8,7 +8,7 @@ module Dash.Management.Model {
     export interface IDashManagementScope extends ng.IScope {
         error: string
         loadingMessage: string
-        configuration: Configuration
+        configuration: Model.Configuration
         login: Function
         logout: Function
         isControllerActive: Function
@@ -16,7 +16,6 @@ module Dash.Management.Model {
         delete: Function
         generateStorageKey: Function
         isEditStyle: Function
-        notifyChange: Function
         areUpdatesAvailable: boolean
         updateBannerClass: string
         updateInProgress: boolean

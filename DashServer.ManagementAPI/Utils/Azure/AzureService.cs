@@ -21,7 +21,7 @@ namespace DashServer.ManagementAPI.Utils.Azure
         public static async Task<AzureServiceManagementClient> GetServiceManagementClient(string bearerToken)
         {
             var serviceInfo = await GetServiceInformation(bearerToken);
-            return new AzureServiceManagementClient(new ComputeManagementClient(new TokenCloudCredentials(serviceInfo.SubscriptionId, bearerToken)), serviceInfo.ServiceName);
+            return new AzureServiceManagementClient(serviceInfo.SubscriptionId, serviceInfo.ServiceName, bearerToken);
         }
 
         public static async Task<ServiceInformation> GetServiceInformation(string bearerToken)

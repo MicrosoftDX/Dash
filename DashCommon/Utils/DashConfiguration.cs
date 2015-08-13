@@ -21,6 +21,11 @@ namespace Microsoft.Dash.Common.Utils
 
     public static class DashConfiguration
     {
+        // Some well known keys
+        public const string KeyNamespaceAccount     = "StorageConnectionStringMaster";
+        public const string KeyScaleoutAccountPrefix= "ScaleoutStorage";
+        public const string KeyDiagnosticsAccount   = "Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString";
+
         class DashConfigurationSource : IDashConfigurationSource
         {
             static Lazy<IList<CloudStorageAccount>> _dataAccounts;
@@ -36,7 +41,7 @@ namespace Microsoft.Dash.Common.Utils
                 _namespaceAccount = new Lazy<CloudStorageAccount>(() =>
                 {
                     CloudStorageAccount account;
-                    string connectString = AzureUtils.GetConfigSetting("StorageConnectionStringMaster", "");
+                    string connectString = AzureUtils.GetConfigSetting(DashConfiguration.KeyNamespaceAccount, "");
                     if (!CloudStorageAccount.TryParse(connectString, out account))
                     {
                         DashTrace.TraceError("Error reading namespace account connection string from configuration. Details: {0}", connectString);
@@ -51,7 +56,7 @@ namespace Microsoft.Dash.Common.Utils
             {
                 for (int accountIndex = 0; true; accountIndex++)
                 {
-                    var connectString = AzureUtils.GetConfigSetting("ScaleoutStorage" + accountIndex.ToString(), "");
+                    var connectString = AzureUtils.GetConfigSetting(DashConfiguration.KeyScaleoutAccountPrefix + accountIndex.ToString(), "");
                     if (String.IsNullOrWhiteSpace(connectString))
                     {
                         yield break;

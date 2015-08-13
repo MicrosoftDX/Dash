@@ -5,19 +5,51 @@
 module Dash.Management.Service {
     "use strict";
 
+    export interface IConfigurationResourceClass extends ng.resource.IResourceClass<Model.Configuration> {
+
+        validate(params: Object, success: Function, error?: Function): Model.Configuration;
+    }
+
     export class ConfigurationService {
-        static $inject = ['$http'];
+        static $inject = ['$resource'];
 
-        apiHost: string = '/api/configuration/';
+        private resourceClass: IConfigurationResourceClass;
 
-        constructor(private $http : ng.IHttpService) { }
-
-        public getItems(): ng.IHttpPromise<any> {
-            return this.$http.get(this.apiHost);
+        constructor($resource: ng.resource.IResourceService) {
+            var tmp = 10;
+            this.resourceClass = <IConfigurationResourceClass>$resource<Model.Configuration>(
+                '/api/configuration/:action',
+                null,
+                {
+                    get: {
+                        method: 'GET',
+                        isArray: false,
+                        transformResponse: (results) => {
+                            var responseObj = angular.fromJson(results);
+                            if (responseObj["AccountSettings"] !== undefined) {
+                                return new Model.Configuration(new Model.ConfigurationSettings(angular.fromJson(results)));
+                            }
+                            return responseObj;
+                        }
+                    },
+                    save: {
+                        method: 'PUT',
+                        transformRequest: (data: Model.Configuration, headers) => {
+                            return data.settings.toString();
+                        }
+                    },
+                    validate: {
+                        method: 'GET',
+                        isArray: false,
+                        params: {
+                            action: 'validate',
+                        },
+                    }
+            });
         }
 
-        public putItem(editItem): ng.IHttpPromise<any> {
-            return this.$http.put(this.apiHost, editItem);
+        public getResourceClass(): IConfigurationResourceClass {
+            return this.resourceClass;
         }
     }
 }
