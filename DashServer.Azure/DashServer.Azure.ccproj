@@ -57,6 +57,7 @@
       <RoleType>Web</RoleType>
       <RoleName>DashServer</RoleName>
       <UpdateDiagnosticsConnectionStringOnPublish>True</UpdateDiagnosticsConnectionStringOnPublish>
+      <Properties>SkipValidatePackageReferences=true</Properties>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

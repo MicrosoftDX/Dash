@@ -2,29 +2,24 @@
 
 using System;
 using System.Collections.Generic;
-using System.Dynamic;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Http;
-using DashServer.ManagementAPI.Models;
-using DashServer.ManagementAPI.Utils;
-using DashServer.ManagementAPI.Utils.Azure;
-using Newtonsoft.Json;
-using Microsoft.WindowsAzure.Storage;
 using System.Xml.Linq;
-using Microsoft.Dash.Common.Utils;
+using DashServer.ManagementAPI.Models;
 using Microsoft.Dash.Common.Diagnostics;
-using Microsoft.WindowsAzure.Storage.Table;
 using Microsoft.Dash.Common.OperationStatus;
 using Microsoft.Dash.Common.Platform;
 using Microsoft.Dash.Common.Platform.Payloads;
+using Microsoft.Dash.Common.ServiceManagement;
+using Microsoft.Dash.Common.Utils;
+using Microsoft.WindowsAzure.Storage;
 
 namespace DashServer.ManagementAPI.Controllers
 {
     [Authorize]
-    public class ConfigurationController : ApiController
+    public class ConfigurationController : DelegatedAuthController
     {
         [HttpGet, ActionName("Index")]
         public async Task<IHttpActionResult> GetCurrentConfiguration()
@@ -94,14 +89,14 @@ namespace DashServer.ManagementAPI.Controllers
                     }
                 }
                 var operationStatus = await UpdateConfigStatus.GetConfigUpdateStatus(operationId, namespaceAccount);
-                await operationStatus.UpdateStatus(UpdateConfigStatus.States.InProgress, "Begin service update process. OperationId: {0}", operationId);
+                await operationStatus.UpdateStatus(UpdateConfigStatus.States.NotStarted, "Begin service update process. OperationId: [{0}]", operationId);
                 operationStatus.AccountsToBeCreated = newAccounts
                     .Select(account => account.Item1.AccountName)
                     .ToList();
                 if (newAccounts.Any())
                 {
                     string location = await serviceClient.GetServiceLocation();
-                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.InProgress, "Creating new storage accounts: [{0}]", String.Join(", ", operationStatus.AccountsToBeCreated));
+                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.CreatingAccounts, "Creating new storage accounts: [{0}]", String.Join(", ", operationStatus.AccountsToBeCreated));
                     foreach (var accountToCreate in newAccounts)
                     {
                         DashTrace.TraceInformation("Creating storage account: [{0}]", accountToCreate.Item1.AccountName);
@@ -121,7 +116,7 @@ namespace DashServer.ManagementAPI.Controllers
                         }
                     }
                     operationStatus.AccountsToBeCreated.Clear();
-                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.InProgress, "Creation of new storage accounts completed");
+                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.CreatingAccounts, "Creation of new storage accounts completed");
                 }
                 // Work out the list of accounts to import
                 var newConfigSettings = newConfig.AccountSettings
@@ -143,14 +138,18 @@ namespace DashServer.ManagementAPI.Controllers
                 if (importAccounts.Any())
                 {
                     // We have accounts to import - post the message to the async queue & let it process the remainder
+                    var rdfeAccessToken = await GetRdfeToken();
                     operationStatus.AccountsToBeImported = importAccounts
                         .Select(account => account.AccountName)
                         .ToList();
-                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.InProgress, "Waiting to begin importing of new storage accounts");
+                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.ImportingAccounts, "Waiting to begin importing of new storage accounts");
                     var message = new QueueMessage(MessageTypes.UpdateService, 
                         new Dictionary<string, string>
                         {
-                            { UpdateServicePayload.OperationId, operationId }
+                            { UpdateServicePayload.OperationId, operationId },
+                            { UpdateServicePayload.SubscriptionId, serviceClient.SubscriptionId },
+                            { UpdateServicePayload.ServiceName, serviceClient.ServiceName },
+                            { UpdateServicePayload.RefreshToken, rdfeAccessToken.RefreshToken },
                         },
                         DashTrace.CorrelationId);
                     var messageWrapper = new UpdateServicePayload(message);
@@ -161,13 +160,19 @@ namespace DashServer.ManagementAPI.Controllers
                 }
                 else
                 {
+                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.UpdatingService, "Updating service configuration");
                     // No accounts to import - move directly to the service config update
-
+                    var response = await serviceClient.ChangeDeploymentConfiguration(AzureServiceConfiguration.ApplySettings(serviceSettings, newConfigSettings));
+                    operationStatus.CloudServiceUpdateOperationId = response.RequestId;
+                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.UpdatingService, "Cloud service configuration update in progress");
+                    await EnqueueServiceOperationUpdate(serviceClient, operationId);
                 }
                 newConfig.OperationId = operationId;
                 return Content(HttpStatusCode.Accepted, newConfig);
             });
         }
+
+        [HttpGet, ActionName("")]
 
         [HttpGet, ActionName("validate")]
         public async Task<IHttpActionResult> ValidateStorage(string storageAccountName, string storageAccountKey = null)
@@ -177,7 +182,10 @@ namespace DashServer.ManagementAPI.Controllers
                 var result = new StorageValidation();
                 if (!String.IsNullOrWhiteSpace(storageAccountKey))
                 {
-                    await serviceClient.ValidateStorageAccount(storageAccountName, storageAccountKey, result);
+                    var response = await serviceClient.ValidateStorageAccount(storageAccountName, storageAccountKey);
+                    result.NewStorageNameValid = response.NewStorageNameValid;
+                    result.ExistingStorageNameValid = response.ExistingStorageNameValid;
+                    result.StorageKeyValid = response.StorageKeyValid;
                 }
                 else
                 {
@@ -186,22 +194,6 @@ namespace DashServer.ManagementAPI.Controllers
                 }
 
                 return Ok(result);
-            });
-        }
-
-        public async Task<IHttpActionResult> DoActionAsync(string operation, Func<AzureServiceManagementClient, Task<IHttpActionResult>> action)
-        {
-            var accessToken = await DelegationToken.GetRdfeToken(this.Request.Headers.Authorization.ToString());
-            if (accessToken == null)
-            {
-                return StatusCode(HttpStatusCode.Forbidden);
-            }
-            return await OperationRunner.DoActionAsync(operation, async () =>
-            {
-                using (var serviceClient = await AzureService.GetServiceManagementClient(accessToken.AccessToken))
-                {
-                    return await action(serviceClient);
-                }
             });
         }
 
@@ -236,18 +228,6 @@ namespace DashServer.ManagementAPI.Controllers
                 account.UseTls ? "https" : "http",
                 account.AccountName,
                 account.AccountKey);
-        }
-
-        static void ApplySettings(IDictionary<string, string> newValues, XElement settingsElement)
-        {
-            foreach (var setting in newValues)
-            {
-                var settingElement = AzureServiceConfiguration.GetSetting(settingsElement, setting.Key);
-                if (settingElement != null)
-                {
-                    settingElement.SetAttributeValue("value", setting.Value);
-                }
-            }
         }
     }
 }

@@ -11,5 +11,6 @@ namespace Microsoft.Dash.Common.Platform
         ReplicateProgress = 2,
         DeleteReplica = 3,
         UpdateService = 4,
+        ServiceOperationUpdate = 5,
     }
 }

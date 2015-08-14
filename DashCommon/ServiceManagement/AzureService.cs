@@ -11,7 +11,7 @@ using Microsoft.WindowsAzure.Management.Compute;
 using Microsoft.WindowsAzure.ServiceRuntime;
 using Microsoft.WindowsAzure.Subscriptions;
 
-namespace DashServer.ManagementAPI.Utils.Azure
+namespace Microsoft.Dash.Common.ServiceManagement
 {
     public class AzureService
     {

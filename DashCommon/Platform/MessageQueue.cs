@@ -15,6 +15,7 @@ namespace Microsoft.Dash.Common.Platform
         QueueMessage Dequeue(int? invisibilityTimeout = null);
         // Delete the currently active message
         void DeleteCurrentMessage();
+        // Update 
         // Delete the referenced queue
         void DeleteQueue();
     }

@@ -7,7 +7,7 @@ using Microsoft.Dash.Common.Diagnostics;
 using Microsoft.Dash.Common.Utils;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 
-namespace DashServer.ManagementAPI.Utils
+namespace Microsoft.Dash.Common.Authentication
 {
     public class DelegationToken
     {
@@ -26,8 +26,7 @@ namespace DashServer.ManagementAPI.Utils
                 var tenantId = ClaimsPrincipal.Current.FindFirst("http://schemas.microsoft.com/identity/claims/tenantid").Value;
 
                 var authContext = new AuthenticationContext(String.Format("https://login.windows.net/{0}", tenantId), new ADALTokenCache(signInUserId));
-                var clientCredential = new ClientCredential(DashConfiguration.ClientId,
-                    DashConfiguration.ConfigurationSource.GetSetting("AppKey", String.Empty));
+                var clientCredential = new ClientCredential(DashConfiguration.ClientId, DashConfiguration.AppKey);
                 if (bearerToken.StartsWith(BearerAuthType, StringComparison.OrdinalIgnoreCase))
                 {
                     bearerToken = bearerToken.Substring(BearerAuthType.Length);
@@ -37,6 +36,21 @@ namespace DashServer.ManagementAPI.Utils
             catch (Exception ex)
             {
                 DashTrace.TraceWarning("Error attempting to retrieve delegation token for resource [{0}]. Details: {1}", resource, ex);
+            }
+            return null;
+        }
+
+        public static async Task<AuthenticationResult> GetAccessTokenFromRefreshToken(string refreshToken)
+        {
+            try
+            {
+                var authContext = new AuthenticationContext("https://login.windows.net/common", new ADALTokenCache(String.Empty));
+                var clientCredential = new ClientCredential(DashConfiguration.ClientId, DashConfiguration.AppKey);
+                return await authContext.AcquireTokenByRefreshTokenAsync(refreshToken, clientCredential);
+            }
+            catch (Exception ex)
+            {
+                DashTrace.TraceWarning("Error attempting to retrieve access token from refresh token. Details: {0}", ex);
             }
             return null;
         }

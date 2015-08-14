@@ -2,7 +2,7 @@
 
 using System;
 
-namespace DashServer.ManagementAPI.Utils.Azure
+namespace Microsoft.Dash.Common.ServiceManagement
 {
     public class ServiceInformation
     {

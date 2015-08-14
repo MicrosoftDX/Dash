@@ -202,17 +202,15 @@
     <Compile Include="App_Start\WebApiConfig.cs" />
     <Compile Include="Controllers\AuthConfigController.cs" />
     <Compile Include="Controllers\ConfigurationController.cs" />
+    <Compile Include="Controllers\DelegatedAuthController.cs" />
+    <Compile Include="Controllers\OperationsController.cs" />
     <Compile Include="Controllers\UpdateController.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
     <Compile Include="Models\Configuration.cs" />
+    <Compile Include="Models\OperationState.cs" />
     <Compile Include="Startup.cs" />
-    <Compile Include="Utils\Azure\AzureService.cs" />
-    <Compile Include="Utils\Azure\AzureServiceConfiguration.cs" />
-    <Compile Include="Utils\Azure\AzureServiceManagementClient.cs" />
-    <Compile Include="Utils\Azure\ServiceInformation.cs" />
-    <Compile Include="Utils\DelegationToken.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="App\Scripts\adal-angular.js" />

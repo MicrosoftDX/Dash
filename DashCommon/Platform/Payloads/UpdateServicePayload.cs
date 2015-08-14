@@ -6,11 +6,8 @@ using Newtonsoft.Json;
 
 namespace Microsoft.Dash.Common.Platform.Payloads
 {
-    public class UpdateServicePayload
+    public class UpdateServicePayload : ServiceOperationPayload
     {
-        public const string OperationId         = "operationid";
-        public const string ServiceName         = "servicename";
-        public const string RefreshToken        = "refreshtoken";
         public const string AccountsToImport    = "accountstoimport";
         public const string ConfigSettings      = "configsettings";
 

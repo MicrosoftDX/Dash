@@ -13,8 +13,11 @@ namespace Microsoft.Dash.Common.OperationStatus
     {
         public enum States
         {
+            Unknown,
             NotStarted,
-            InProgress,
+            CreatingAccounts,
+            ImportingAccounts,
+            UpdatingService,
             Completed,
             Failed
         }
@@ -23,6 +26,8 @@ namespace Microsoft.Dash.Common.OperationStatus
         {
             public string OperationId { get; set; }
             public States State { get; set; }
+            public DateTime StartTime { get; set; }
+            public DateTime EndTime { get; set; }
             public IList<string> AccountsToBeCreated { get; set; }
             public IList<string> AccountsToBeImported { get; set; }
             public IList<string> AccountsImportedSuccess { get; set; }
@@ -44,6 +49,8 @@ namespace Microsoft.Dash.Common.OperationStatus
         }
 
         const string FieldState                         = "State";
+        const string FieldStartTime                     = "StartTime";
+        const string FieldEndTime                       = "EndTime";
         const string FieldMessage                       = "StatusMessage";
         const string FieldAccountsToBeCreated           = "AccountsToBeCreated";
         const string FieldAccountsToBeImported          = "AccountsToBeImported";
@@ -57,7 +64,8 @@ namespace Microsoft.Dash.Common.OperationStatus
             {
                 StatusHandler = statusHandler,
                 OperationId = operationId,
-                State = States.NotStarted,
+                State = States.Unknown,
+                StartTime = DateTime.UtcNow,
                 AccountsToBeCreated = new List<string>(),
                 AccountsToBeImported = new List<string>(),
                 AccountsImportedFailed = new List<string>(),
@@ -68,6 +76,8 @@ namespace Microsoft.Dash.Common.OperationStatus
                 StatusHandler = statusHandler,
                 OperationId = entity.PartitionKey,
                 State = EntityAttribute(entity, FieldState, States.NotStarted),
+                StartTime = EntityAttribute(entity, FieldStartTime, DateTime.UtcNow),
+                EndTime = EntityAttribute(entity, FieldEndTime, DateTime.MinValue),
                 StatusMessage = EntityAttribute(entity, FieldMessage, String.Empty),
                 AccountsToBeCreated = EntityAttribute(entity, FieldAccountsToBeCreated, new List<string>()),
                 AccountsToBeImported = EntityAttribute(entity, FieldAccountsToBeImported, new List<string>()),
@@ -78,6 +88,8 @@ namespace Microsoft.Dash.Common.OperationStatus
             (status) => {
                 var entity = new DynamicTableEntity(status.OperationId, String.Empty);
                 entity[FieldState] = EntityPropertyValue(status.State);
+                entity[FieldStartTime] = EntityPropertyValue(status.StartTime);
+                entity[FieldEndTime] = EntityPropertyValue(status.EndTime);
                 entity[FieldMessage] = EntityPropertyValue(status.StatusMessage);
                 entity[FieldAccountsToBeCreated] = EntityPropertyValue(status.AccountsToBeCreated);
                 entity[FieldAccountsToBeImported] = EntityPropertyValue(status.AccountsToBeImported);

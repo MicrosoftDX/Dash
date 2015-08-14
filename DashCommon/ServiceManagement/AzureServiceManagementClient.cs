@@ -7,15 +7,15 @@ using Microsoft.WindowsAzure;
 using Microsoft.WindowsAzure.Management.Compute;
 using Microsoft.WindowsAzure.Management.Compute.Models;
 using Microsoft.WindowsAzure.Management.Storage;
-using DashServer.ManagementAPI.Models;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Auth;
 using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.WindowsAzure.Storage.RetryPolicies;
 using Microsoft.WindowsAzure.Management.Storage.Models;
 using Microsoft.Dash.Common.Diagnostics;
+using System.Text;
 
-namespace DashServer.ManagementAPI.Utils.Azure
+namespace Microsoft.Dash.Common.ServiceManagement
 {
     public class AzureServiceManagementClient : IDisposable
     {
@@ -51,7 +51,7 @@ namespace DashServer.ManagementAPI.Utils.Azure
         }
 
         public string ServiceName { get; private set; }
-        private string SubscriptionId { get; set; }
+        public string SubscriptionId { get; set; }
         private string RdfeBearerToken { get; set; }
 
         public async Task<OperationResponse> UpdateService(HostedServiceUpdateParameters updateParameters)
@@ -69,9 +69,18 @@ namespace DashServer.ManagementAPI.Utils.Azure
             return await _computeClient.Value.Deployments.BeginUpgradingBySlotAsync(this.ServiceName, slot, upgradeParameters);
         }
 
-        public async Task<OperationResponse> UpgradeDeployment(DeploymentChangeConfigurationParameters changeConfigParameters, DeploymentSlot slot = DeploymentSlot.Production)
+        public async Task<OperationResponse> ChangeDeploymentConfiguration(DeploymentChangeConfigurationParameters changeConfigParameters, DeploymentSlot slot = DeploymentSlot.Production)
         {
             return await _computeClient.Value.Deployments.BeginChangingConfigurationBySlotAsync(this.ServiceName, slot, changeConfigParameters);
+        }
+
+        public async Task<OperationResponse> ChangeDeploymentConfiguration(XDocument serviceConfiguration, DeploymentSlot slot = DeploymentSlot.Production)
+        {
+            return await ChangeDeploymentConfiguration(new DeploymentChangeConfigurationParameters
+                {
+                    Configuration = Convert.ToBase64String(Encoding.UTF8.GetBytes(serviceConfiguration.ToString())),
+                    Mode = DeploymentChangeConfigurationMode.Auto,
+                }, slot);
         }
 
         public async Task<string> GetServiceLocation()
@@ -117,8 +126,16 @@ namespace DashServer.ManagementAPI.Utils.Azure
             return response.IsAvailable;
         }
 
-        public async Task ValidateStorageAccount(string storageAccountName, string storageAccountKey, StorageValidation results)
+        public class StorageValidation
         {
+            public bool NewStorageNameValid { get; set; }
+            public bool ExistingStorageNameValid { get; set; }
+            public bool StorageKeyValid { get; set; }
+        }
+
+        public async Task<StorageValidation> ValidateStorageAccount(string storageAccountName, string storageAccountKey)
+        {
+            var retval = new StorageValidation();
             try
             {
                 // We don't use the management API here because the storage account credentials may be for a subscription that this
@@ -131,28 +148,26 @@ namespace DashServer.ManagementAPI.Utils.Azure
                     RetryPolicy = new NoRetry(),
                     MaximumExecutionTime = TimeSpan.FromSeconds(5),
                 }, null);
-                results.ExistingStorageNameValid = true;
-                results.StorageKeyValid = true;
+                retval.ExistingStorageNameValid = true;
+                retval.StorageKeyValid = true;
             }
             catch (StorageException ex)
             {
                 if (ex.RequestInformation.HttpStatusCode == 0)
                 {
                     // Couldn't resolve the name to get the request off
-                    results.ExistingStorageNameValid = false;
-                    results.StorageKeyValid = true;
+                    retval.StorageKeyValid = true;
                 }
                 else
                 {
-                    results.ExistingStorageNameValid = true;
+                    retval.ExistingStorageNameValid = true;
                     // We could check here for a Fobidden response
-                    results.StorageKeyValid = false;
                 }
             }
             catch (FormatException)
             {
-                results.StorageKeyValid = false;
             }
+            return retval;
         }
     }
 }

@@ -8,16 +8,17 @@ using System.Reflection;
 using System.Threading.Tasks;
 using System.Web.Http;
 using System.Xml.Linq;
-using DashServer.ManagementAPI.Utils;
-using DashServer.ManagementAPI.Utils.Azure;
+using Microsoft.Dash.Common.ServiceManagement;
 using Microsoft.Dash.Common.Update;
 using Microsoft.Dash.Common.Utils;
 using Microsoft.WindowsAzure;
 using Microsoft.WindowsAzure.Management.Compute.Models;
+using Microsoft.Dash.Common.Diagnostics;
+using Microsoft.Dash.Common.OperationStatus;
 
 namespace DashServer.ManagementAPI.Controllers
 {
-    public class UpdateController : ApiController
+    public class UpdateController : DelegatedAuthController
     {
         [HttpGet, ActionName("Index")]
         public async Task<IHttpActionResult> IsUpdateAvailable()
@@ -53,34 +54,31 @@ namespace DashServer.ManagementAPI.Controllers
         [HttpPost, ActionName("Update")]
         public async Task<IHttpActionResult> Update(UpdateVersion version)
         {
-            var accessToken = await DelegationToken.GetRdfeToken(this.Request.Headers.Authorization.ToString());
-            if (accessToken == null)
+            return await DoActionAsync("UpdateController.Update", async (serviceClient) =>
             {
-                return StatusCode(HttpStatusCode.Forbidden);
-            }
-
-            var updateClient = new UpdateClient(null, DashConfiguration.PackageUpdateServiceLocation);
-            var updateManifest = await updateClient.GetUpdateVersionAsync(UpdateClient.Components.DashServer, version.version);
-            if (updateManifest == null)
-            {
-                return NotFound();
-            }
-            var package = updateManifest.GetPackage(UpdateClient.GetPackageFlavorLabel(AzureService.GetServiceFlavor()));
-            if (package == null)
-            {
-                return NotFound();
-            }
-            var servicePackage = package.FindFileByExtension(".cspkg");
-            var serviceConfig = package.FindFileByExtension(".cscfg");
-            if (servicePackage == null || serviceConfig == null)
-            {
-                return NotFound();
-            }
-            try
-            {
-                // Do a couple of things up-front to ensure that we can upgrade & then kick the upgrade off & don't wait for it to complete.
-                using (var serviceClient = await AzureService.GetServiceManagementClient(accessToken.AccessToken))
+                var updateClient = new UpdateClient(null, DashConfiguration.PackageUpdateServiceLocation);
+                var updateManifest = await updateClient.GetUpdateVersionAsync(UpdateClient.Components.DashServer, version.version);
+                if (updateManifest == null)
                 {
+                    return NotFound();
+                }
+                var package = updateManifest.GetPackage(UpdateClient.GetPackageFlavorLabel(AzureService.GetServiceFlavor()));
+                if (package == null)
+                {
+                    return NotFound();
+                }
+                var servicePackage = package.FindFileByExtension(".cspkg");
+                var serviceConfig = package.FindFileByExtension(".cscfg");
+                if (servicePackage == null || serviceConfig == null)
+                {
+                    return NotFound();
+                }
+                try
+                {
+                    var operationId = DashTrace.CorrelationId.ToString();
+                    var operationStatus = await UpdateConfigStatus.GetConfigUpdateStatus(operationId);
+                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.UpdatingService, "Begin software upgrade to version [{0}]. Operation Id: [{1}]", version.version, operationId);
+                    // Do a couple of things up-front to ensure that we can upgrade & then kick the upgrade off & don't wait for it to complete.
                     // Make sure reverse-DNS is configured
                     var updateResponse = await serviceClient.UpdateService(new HostedServiceUpdateParameters
                     {
@@ -121,37 +119,41 @@ namespace DashServer.ManagementAPI.Controllers
                     }
                     // Send the update to the service
                     var packageUri = await updateClient.GetPackageFileSasUriAsync(UpdateClient.Components.DashServer, updateManifest, package, servicePackage);
+                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.UpdatingService, "Service upgrade using package [{0}].", packageUri.ToString());
                     var upgradeResponse = await serviceClient.UpgradeDeployment(new DeploymentUpgradeParameters
                     {
-                        Label = String.Format("{0}-{1:o}", serviceClient.ServiceName, DateTime.UtcNow),
+                        Label = String.Format("Dash.ManagementAPI-{0:o}", DateTime.UtcNow),
                         PackageUri = packageUri,
                         Configuration = newConfigDoc.ToString(),
                         Mode = DeploymentUpgradeMode.Auto,
                     });
-                    return Content(upgradeResponse.StatusCode, upgradeResponse);
+                    operationStatus.CloudServiceUpdateOperationId = upgradeResponse.RequestId;
+                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.UpdatingService, "Service upgrade in progress.");
+                    await EnqueueServiceOperationUpdate(serviceClient, operationId);
+
+                    return Content(upgradeResponse.StatusCode, new { OperationId = upgradeResponse.RequestId });
                 }
-            }
-            catch (CloudException ex)
-            {
-                return Content(HttpStatusCode.BadRequest, new
+                catch (CloudException ex)
                 {
-                    ErrorCode = ex.ErrorCode,
-                    ErrorMessage = ex.ErrorMessage,
-                    RequestId = ex.RequestId,
-                    RoutingRequestId = ex.RoutingRequestId,
-                });
-            }
-            catch (Exception ex)
-            {
-                return InternalServerError(ex);
-            }
+                    return Content(HttpStatusCode.BadRequest, new
+                    {
+                        ErrorCode = ex.ErrorCode,
+                        ErrorMessage = ex.ErrorMessage,
+                        RequestId = ex.RequestId,
+                        RoutingRequestId = ex.RoutingRequestId,
+                    });
+                }
+                catch (Exception ex)
+                {
+                    return InternalServerError(ex);
+                }
+            });
         }
 
         async Task<IEnumerable<PackageManifest>> GetAvailableUpdates()
         {
             var updateClient = new UpdateClient(null, DashConfiguration.PackageUpdateServiceLocation);
             var currentVersion = Assembly.GetAssembly(this.GetType()).GetName().Version;
-            currentVersion = new Version(0, 2);
             return (await updateClient.GetAvailableManifestsAsync(UpdateClient.Components.DashServer))
                 .Where(manifest => manifest.Version > currentVersion)
                 .ToList();

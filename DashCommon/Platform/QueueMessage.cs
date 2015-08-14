@@ -12,12 +12,14 @@ namespace Microsoft.Dash.Common.Platform
     //Represents a payload of a queue message
     public class QueueMessage
     {
+        private IMessageQueue _owningQueue;
+
         public QueueMessage()
         {
             this.Payload = new Dictionary<string, string>();
         }
 
-        public QueueMessage(MessageTypes type, Dictionary<string, string> payload, Guid? correlationId = null)
+        public QueueMessage(MessageTypes type, IDictionary<string, string> payload, Guid? correlationId = null)
         {
             this.MessageType = type;
             this.Payload = payload;
@@ -26,6 +28,8 @@ namespace Microsoft.Dash.Common.Platform
                 this.CorrelationId = correlationId.Value;
             }
         }
+
+        internal void SetOwningQueue(IMessageQueue)
 
         public MessageTypes MessageType { get; set; }
         public Guid? CorrelationId { get; set; }

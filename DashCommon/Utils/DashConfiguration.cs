@@ -222,5 +222,10 @@ namespace Microsoft.Dash.Common.Utils
         {
             get { return ConfigurationSource.GetSetting("ClientID", String.Empty); }
         }
+
+        public static string AppKey
+        {
+            get { return ConfigurationSource.GetSetting("AppKey", String.Empty); }
+        }
     }
 }

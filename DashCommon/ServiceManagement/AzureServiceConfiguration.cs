@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 
-namespace DashServer.ManagementAPI.Utils.Azure
+namespace Microsoft.Dash.Common.ServiceManagement
 {
     public static class AzureServiceConfiguration
     {
@@ -53,6 +53,20 @@ namespace DashServer.ManagementAPI.Utils.Azure
         {
             return settings.Elements(_configNs + "Setting")
                 .FirstOrDefault(x => String.Equals(x.Attribute("name").Value, settingName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static XDocument ApplySettings(XDocument serviceConfig, IDictionary<string, string> newSettings)
+        {
+            var settingsElement = GetSettings(serviceConfig);
+            foreach (var newSetting in newSettings)
+            {
+                var settingElement = AzureServiceConfiguration.GetSetting(settingsElement, newSetting.Key);
+                if (settingElement != null)
+                {
+                    settingElement.SetAttributeValue("value", newSetting.Value);
+                }
+            }
+            return serviceConfig;
         }
 
         // Special configuration attribute names
