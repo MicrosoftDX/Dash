@@ -41,9 +41,9 @@ namespace Microsoft.Dash.Common.Update
             return false;
         }
 
-        public static string SemanticVersionFormat(this Version version)
+        public static string SemanticVersionFormat(this Version version, int fieldCount = -1)
         {
-            return VersionFormatPrefix + version.ToString();
+            return VersionFormatPrefix + (fieldCount == -1 ? version.ToString() : version.ToString(fieldCount));
         }
     }
 

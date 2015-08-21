@@ -26,14 +26,14 @@ namespace DashServer.ManagementAPI.Controllers
             var availableUpdates = await GetAvailableUpdates();
             if (availableUpdates.Any())
             {
-                return Json(new
+                return Ok(new
                 {
                     AvailableUpdate = true,
                     HighestSeverity = availableUpdates.Max(manifest => manifest.Severity).ToString(),
                     UpdateVersion = availableUpdates.Max(manifest => manifest.Version).ToString(),
                 });
             }
-            return Json(new
+            return Ok(new
             {
                 AvailableUpdate = false,
             });
@@ -42,7 +42,11 @@ namespace DashServer.ManagementAPI.Controllers
         [HttpGet, ActionName("Updates")]
         public async Task<IHttpActionResult> Updates()
         {
-            return Json(await GetAvailableUpdates());
+            return Ok(new
+            {
+                CurrentVersion = GetCurrentVersion().SemanticVersionFormat(2),
+                AvailableUpdates = await GetAvailableUpdates(),
+            });
         }
 
         public class UpdateVersion
@@ -119,7 +123,7 @@ namespace DashServer.ManagementAPI.Controllers
                     }
                     // Send the update to the service
                     var packageUri = await updateClient.GetPackageFileSasUriAsync(UpdateClient.Components.DashServer, updateManifest, package, servicePackage);
-                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.UpdatingService, "Service upgrade using package [{0}].", packageUri.ToString());
+                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.PreServiceUpdate, "Service upgrade using package [{0}].", packageUri.ToString());
                     var upgradeResponse = await serviceClient.UpgradeDeployment(new DeploymentUpgradeParameters
                     {
                         Label = String.Format("Dash.ManagementAPI-{0:o}", DateTime.UtcNow),
@@ -153,10 +157,15 @@ namespace DashServer.ManagementAPI.Controllers
         async Task<IEnumerable<PackageManifest>> GetAvailableUpdates()
         {
             var updateClient = new UpdateClient(null, DashConfiguration.PackageUpdateServiceLocation);
-            var currentVersion = Assembly.GetAssembly(this.GetType()).GetName().Version;
+            var currentVersion = GetCurrentVersion();
             return (await updateClient.GetAvailableManifestsAsync(UpdateClient.Components.DashServer))
                 .Where(manifest => manifest.Version > currentVersion)
                 .ToList();
+        }
+
+        Version GetCurrentVersion()
+        {
+            return Assembly.GetAssembly(this.GetType()).GetName().Version;
         }
 
     }

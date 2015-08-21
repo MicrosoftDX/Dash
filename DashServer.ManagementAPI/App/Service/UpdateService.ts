@@ -40,12 +40,15 @@ module Dash.Management.Service {
                 })
         }
 
-        public getAvailableUpdates(): ng.IPromise<Array<Model.VersionUpdate>> {
+        public getAvailableUpdates(): ng.IPromise<Model.AvailableUpdates> {
             return this.$http.get(this.apiHost + "Updates")
                 .then((results: any) => {
-                    return $.map(results.data, (update, index) => {
+                    var updates = new Model.AvailableUpdates();
+                    updates.currentVersion = results.data.CurrentVersion;
+                    updates.availableUpdates = $.map(results.data.AvailableUpdates, (update, index) => {
                         return new Model.VersionUpdate(update.Version, update.Severity, update.Description);
                     });
+                    return updates;
                 })
         }
 

@@ -13,14 +13,14 @@ module Dash.Management.Model {
         logout: Function
         isControllerActive: Function
         editSwitch: Function
-        delete: Function
+        addAccount: Function
+        deleteAccount: Function
         generateStorageKey: Function
-        isEditStyle: Function
         areUpdatesAvailable: boolean
         updateBannerClass: string
         updateInProgress: boolean
         updateMessage: string
-        availableUpdates: VersionUpdate[]
+        availableUpdates: AvailableUpdates
         getHtmlDescription: Function
         applyUpdate: Function
         buttonBarButtons: ButtonBarButton[]

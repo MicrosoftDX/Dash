@@ -2,6 +2,8 @@
 
 using System;
 using System.Web.Http;
+using Microsoft.Dash.Common.Diagnostics;
+using Microsoft.Dash.Common.Utils;
 
 namespace DashServer.ManagementAPI
 {
@@ -9,6 +11,8 @@ namespace DashServer.ManagementAPI
     {
         protected void Application_Start()
         {
+            AzureUtils.AddAzureDiagnosticsListener();
+            DashTrace.TraceInformation("Starting application instance");
             GlobalConfiguration.Configure(WebApiConfig.Register);
         }
     }

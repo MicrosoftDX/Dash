@@ -1,16 +1,17 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using System.Web.Http;
 using Microsoft.Dash.Common.Authentication;
 using Microsoft.Dash.Common.Diagnostics;
+using Microsoft.Dash.Common.Platform;
+using Microsoft.Dash.Common.Platform.Payloads;
 using Microsoft.Dash.Common.ServiceManagement;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
-using Microsoft.Dash.Common.Platform;
-using System.Collections.Generic;
-using Microsoft.Dash.Common.Platform.Payloads;
+using Microsoft.WindowsAzure.Storage;
 
 namespace DashServer.ManagementAPI.Controllers
 {
@@ -45,19 +46,19 @@ namespace DashServer.ManagementAPI.Controllers
             return await DelegationToken.GetRdfeToken(this.Request.Headers.Authorization.ToString());
         }
 
-        protected async Task EnqueueServiceOperationUpdate(AzureServiceManagementClient serviceClient, string operationId, string refreshToken = null)
+        protected async Task EnqueueServiceOperationUpdate(AzureServiceManagementClient serviceClient, string operationId, string refreshToken = null, CloudStorageAccount namespaceAccount = null, string asyncQueueName = null)
         {
-            await EnqueueServiceOperationUpdate(serviceClient.SubscriptionId, serviceClient.ServiceName, operationId, refreshToken);
+            await EnqueueServiceOperationUpdate(serviceClient.SubscriptionId, serviceClient.ServiceName, operationId, refreshToken, namespaceAccount, asyncQueueName);
         }
 
-        protected async Task EnqueueServiceOperationUpdate(string subscriptionId, string serviceName, string operationId, string refreshToken = null)
+        protected async Task EnqueueServiceOperationUpdate(string subscriptionId, string serviceName, string operationId, string refreshToken = null, CloudStorageAccount namespaceAccount = null, string asyncQueueName = null)
         {
             if (String.IsNullOrWhiteSpace(refreshToken))
             {
                 var authToken = await GetRdfeToken();
                 refreshToken = authToken.RefreshToken;
             }
-            await new AzureMessageQueue().EnqueueAsync(new QueueMessage(MessageTypes.ServiceOperationUpdate,
+            await new AzureMessageQueue(namespaceAccount, asyncQueueName).EnqueueAsync(new QueueMessage(MessageTypes.ServiceOperationUpdate,
                 new Dictionary<string, string>
                 {
                     { UpdateServicePayload.OperationId, operationId },

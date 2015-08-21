@@ -12,8 +12,6 @@ namespace Microsoft.Dash.Common.Platform
     //Represents a payload of a queue message
     public class QueueMessage
     {
-        private IMessageQueue _owningQueue;
-
         public QueueMessage()
         {
             this.Payload = new Dictionary<string, string>();
@@ -29,11 +27,22 @@ namespace Microsoft.Dash.Common.Platform
             }
         }
 
-        internal void SetOwningQueue(IMessageQueue)
+        [JsonIgnore]
+        internal IMessageItem MessageItem { get; set; }
 
         public MessageTypes MessageType { get; set; }
         public Guid? CorrelationId { get; set; }
         public IDictionary<string, string> Payload { get; private set; }
+
+        public void Delete()
+        {
+            this.MessageItem.Delete();
+        }
+
+        public void UpdateInvisibility(int invisibilitySeconds)
+        {
+            this.MessageItem.UpdateInvisibility(TimeSpan.FromSeconds(invisibilitySeconds));
+        }
 
         public string ToJson()
         {

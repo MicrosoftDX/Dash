@@ -34,6 +34,7 @@
       <Setting name="WorkerQueueDequeueLimit" value="" />
       <Setting name="Tenant" value="" />
       <Setting name="ClientId" value="" />
+      <Setting name="AppKey" value="" />
     </ConfigurationSettings>
     <Certificates>
       <Certificate name="TlsCertificate" thumbprint="0000000000000000000000000000000000000000" thumbprintAlgorithm="sha1" />

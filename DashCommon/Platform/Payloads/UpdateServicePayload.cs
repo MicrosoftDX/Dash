@@ -8,6 +8,7 @@ namespace Microsoft.Dash.Common.Platform.Payloads
 {
     public class UpdateServicePayload : ServiceOperationPayload
     {
+        public const string AccountsToCreate    = "accountstocreate";
         public const string AccountsToImport    = "accountstoimport";
         public const string ConfigSettings      = "configsettings";
 
@@ -16,6 +17,18 @@ namespace Microsoft.Dash.Common.Platform.Payloads
         public UpdateServicePayload(QueueMessage message)
         {
             this._message = message;
+        }
+
+        public IEnumerable<string> CreateAccountRequestIds
+        {
+            get
+            {
+                return JsonConvert.DeserializeObject<string[]>(_message.Payload[AccountsToCreate]);
+            }
+            set
+            {
+                _message.Payload[AccountsToCreate] = JsonConvert.SerializeObject(value, Formatting.None);
+            }
         }
 
         public IEnumerable<string> ImportAccounts

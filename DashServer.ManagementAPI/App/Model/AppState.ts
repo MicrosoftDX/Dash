@@ -6,6 +6,11 @@ module Dash.Management.Model {
     "use strict";
 
     export class ButtonBarButton {
-        constructor(public displayText: string, public enabled: boolean, public doClick: Function, private imageUrl?: string) { }
+        constructor(public displayText: string, $scope: Model.IDashManagementScope, enabledExpression: string, public doClick: Function, private imageUrl?: string) {
+            this.enabled = false;
+            $scope.$watch(enabledExpression, (newValue: boolean) => this.enabled = newValue);
+        }
+
+        public enabled: boolean;
     }
 } 

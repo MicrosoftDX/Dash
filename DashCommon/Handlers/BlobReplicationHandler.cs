@@ -90,12 +90,13 @@ namespace Microsoft.Dash.Common.Handlers
                 var queue = new AzureMessageQueue();
                 var tasks = DashConfiguration.DataAccounts
                     .Where(dataAccount => !dataAccount.Credentials.AccountName.Equals(primaryAccount, StringComparison.OrdinalIgnoreCase))
-                    .Select(async dataAccount => await queue.EnqueueAsync(ConstructReplicationMessage(deleteReplica, 
-                                                                                                        primaryAccount, 
-                                                                                                        dataAccount.Credentials.AccountName, 
+                    .Select(async dataAccount => await queue.EnqueueAsync(ConstructReplicationMessage(deleteReplica,
+                                                                                                        primaryAccount,
+                                                                                                        dataAccount.Credentials.AccountName,
                                                                                                         namespaceBlob.Container,
                                                                                                         namespaceBlob.BlobName,
-                                                                                                        deleteReplica ? await GetBlobETagAsync(dataAccount, namespaceBlob.Container, namespaceBlob.BlobName) : null)));
+                                                                                                        deleteReplica ? await GetBlobETagAsync(dataAccount, namespaceBlob.Container, namespaceBlob.BlobName) : null)))
+                    .ToArray();
                 Task.WhenAll(tasks)
                     .ContinueWith(antecedent =>
                         {

@@ -1,19 +1,20 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using Microsoft.Dash.Common.Diagnostics;
 using Microsoft.WindowsAzure;
 using Microsoft.WindowsAzure.Management.Compute;
 using Microsoft.WindowsAzure.Management.Compute.Models;
 using Microsoft.WindowsAzure.Management.Storage;
+using Microsoft.WindowsAzure.Management.Storage.Models;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Auth;
 using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.WindowsAzure.Storage.RetryPolicies;
-using Microsoft.WindowsAzure.Management.Storage.Models;
-using Microsoft.Dash.Common.Diagnostics;
-using System.Text;
 
 namespace Microsoft.Dash.Common.ServiceManagement
 {
@@ -77,10 +78,10 @@ namespace Microsoft.Dash.Common.ServiceManagement
         public async Task<OperationResponse> ChangeDeploymentConfiguration(XDocument serviceConfiguration, DeploymentSlot slot = DeploymentSlot.Production)
         {
             return await ChangeDeploymentConfiguration(new DeploymentChangeConfigurationParameters
-                {
-                    Configuration = Convert.ToBase64String(Encoding.UTF8.GetBytes(serviceConfiguration.ToString())),
-                    Mode = DeploymentChangeConfigurationMode.Auto,
-                }, slot);
+            {
+                Configuration = serviceConfiguration.ToString(),
+                Mode = DeploymentChangeConfigurationMode.Auto,
+            }, slot);
         }
 
         public async Task<string> GetServiceLocation()
@@ -89,15 +90,49 @@ namespace Microsoft.Dash.Common.ServiceManagement
             return  response.Properties.Location;
         }
 
+        public async Task<DeploymentGetResponse> GetDeploymentStatus(DeploymentSlot slot = DeploymentSlot.Production)
+        {
+            return await _computeClient.Value.Deployments.GetBySlotAsync(this.ServiceName, slot);
+        }
+
         public async Task<OperationStatusResponse> GetOperationStatus(string requestId)
         {
+            // Both compute & storage request ids are valid here (they both map to the same REST API)
             return await _computeClient.Value.GetOperationStatusAsync(requestId);
+        }
+
+        public async Task<OperationStatusResponse> WaitForOperationToComplete(string requestId, CancellationToken cancelToken)
+        {
+            // Both compute & storage request ids are valid here (they both map to the same REST API)
+            while (true)
+            {
+                cancelToken.ThrowIfCancellationRequested();
+                var response = await GetOperationStatus(requestId);
+                switch (response.Status)
+                {
+                    case WindowsAzure.OperationStatus.Failed:
+                    case WindowsAzure.OperationStatus.Succeeded:
+                        return response;
+                }
+                await Task.Delay(2500, cancelToken);
+            }
         }
 
         public async Task<XDocument> GetDeploymentConfiguration(DeploymentSlot slot = DeploymentSlot.Production)
         {
             var deployment = await _computeClient.Value.Deployments.GetBySlotAsync(this.ServiceName, slot);
             return XDocument.Parse(deployment.Configuration);
+        }
+
+        public async Task<string> BeginCreateStorageAccount(string accountName, string location)
+        {
+            var response = await _storageClient.Value.StorageAccounts.BeginCreatingAsync(new StorageAccountCreateParameters
+            {
+                Name = accountName,
+                Location = location,
+                AccountType = "Standard_LRS",
+            });
+            return response.RequestId;
         }
 
         public async Task<string> CreateStorageAccount(string accountName, string location)
@@ -117,6 +152,36 @@ namespace Microsoft.Dash.Common.ServiceManagement
             {
                 DashTrace.TraceWarning("Failed to create new storage account [{0}]. Details: {1}", accountName, ex);
                 return String.Empty;
+            }
+        }
+
+        public async Task<string> GetStorageAccountKey(string accountName)
+        {
+            var keysResponse = await _storageClient.Value.StorageAccounts.GetKeysAsync(accountName);
+            return keysResponse.PrimaryKey;
+        }
+
+        public async Task<string> GetStorageAccountKey(string accountName, int retryDelay, CancellationToken cancelToken)
+        {
+            while (true)
+            {
+                cancelToken.ThrowIfCancellationRequested();
+                try
+                {
+                    var key = await GetStorageAccountKey(accountName);
+                    if (!String.IsNullOrWhiteSpace(key))
+                    {
+                        return key;
+                    }
+                }
+                catch (CloudException ex)
+                {
+                    if (ex.Response.StatusCode != HttpStatusCode.NotFound)
+                    {
+                        throw;
+                    }
+                }
+                await Task.Delay(retryDelay, cancelToken);
             }
         }
 

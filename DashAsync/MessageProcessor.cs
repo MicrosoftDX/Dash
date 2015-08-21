@@ -1,19 +1,29 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using Microsoft.Dash.Common.Diagnostics;
 using Microsoft.Dash.Common.Platform;
 using Microsoft.Dash.Common.Platform.Payloads;
 using Microsoft.Dash.Common.Processors;
-using System.Collections.Generic;
+using Microsoft.Dash.Common.Utils;
+using Microsoft.WindowsAzure.Storage;
 
 namespace Microsoft.Dash.Async
 {
     public class MessageProcessor
     {
-        public static void ProcessMessageLoop(ref int msgProcessed, ref int msgErrors, int? invisibilityTimeout = null)
+        public static void ProcessMessageLoop(ref int msgProcessed, ref int msgErrors, int? invisibilityTimeout = null, string namespaceAccount = null, string queueName = null)
         {
-            IMessageQueue queue = new AzureMessageQueue();
+            CloudStorageAccount newNamespace = null;
+            if (!String.IsNullOrWhiteSpace(namespaceAccount))
+            {
+                if (CloudStorageAccount.TryParse(namespaceAccount, out newNamespace))
+                {
+                    DashConfiguration.NamespaceAccount = newNamespace;
+                }
+            }
+            IMessageQueue queue = new AzureMessageQueue(newNamespace, queueName);
             while (true)
             {
                 try
@@ -27,7 +37,7 @@ namespace Microsoft.Dash.Async
                     // Do we want to surround this with a try/catch and use exceptions instead?
                     if (ProcessMessage(payload, invisibilityTimeout))
                     {
-                        queue.DeleteCurrentMessage();
+                        payload.Delete();
                         msgProcessed++;
                     }
                     else
@@ -62,6 +72,10 @@ namespace Microsoft.Dash.Async
 
                     case MessageTypes.DeleteReplica:
                         messageProcessed = DoDeleteReplicaJob(message, invisibilityTimeout);
+                        break;
+
+                    case MessageTypes.UpdateService:
+                        messageProcessed = DoUpdateServiceJob(message, invisibilityTimeout);
                         break;
 
                     case MessageTypes.ServiceOperationUpdate:
@@ -113,6 +127,31 @@ namespace Microsoft.Dash.Async
                 message.Payload[DeleteReplicaPayload.ETag]);
         }
 
+        static bool DoUpdateServiceJob(QueueMessage message, int? invisibilityTimeout = null)
+        {
+            // Extend the timeout on this message (5 mins for account creation, 1 min for account import & 30 secs to upgrade service)
+            if (!invisibilityTimeout.HasValue || invisibilityTimeout.Value < 390)
+            {
+                message.UpdateInvisibility(390);
+            }
+            var payload = new UpdateServicePayload(message);
+            string operationId = ServiceUpdater.ImportAccountsAndUpdateService(
+                message.Payload[ServiceOperationPayload.SubscriptionId],
+                message.Payload[ServiceOperationPayload.ServiceName],
+                message.Payload[ServiceOperationPayload.OperationId],
+                message.Payload[ServiceOperationPayload.RefreshToken],
+                payload.CreateAccountRequestIds,
+                payload.ImportAccounts,
+                payload.Settings).Result;
+            if (!String.IsNullOrWhiteSpace(operationId))
+            {
+                // Enqueue a follow-up message to check the progress of this operation
+                EnqueueServiceOperationUpdate(message);
+                return true;
+            }
+            return false;
+        }
+
         static bool DoServiceOperationUpdate(QueueMessage message)
         {
             if (ServiceUpdater.UpdateOperationStatus(
@@ -122,11 +161,23 @@ namespace Microsoft.Dash.Async
                 message.Payload[ServiceOperationPayload.RefreshToken]).Result)
             {
                 // Re-enqueue another message to continue to check on the operation
-                new AzureMessageQueue().Enqueue(new QueueMessage(MessageTypes.ServiceOperationUpdate,
-                    message.Payload,
-                    message.CorrelationId));
+                EnqueueServiceOperationUpdate(message);
             }
             return true;
+        }
+
+        static void EnqueueServiceOperationUpdate(QueueMessage message)
+        {
+            // Ensure that this message isn't visible immediately as we'll sit in a tight loop
+            new AzureMessageQueue(message).Enqueue(new QueueMessage(MessageTypes.ServiceOperationUpdate,
+                new Dictionary<string, string>
+                {
+                    { UpdateServicePayload.OperationId, message.Payload[UpdateServicePayload.OperationId] },
+                    { UpdateServicePayload.SubscriptionId, message.Payload[ServiceOperationPayload.SubscriptionId] },
+                    { UpdateServicePayload.ServiceName, message.Payload[ServiceOperationPayload.ServiceName] },
+                    { UpdateServicePayload.RefreshToken, message.Payload[ServiceOperationPayload.RefreshToken] },
+                },
+                message.CorrelationId), 10);
         }
     }
 }

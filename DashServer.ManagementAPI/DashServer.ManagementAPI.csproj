@@ -231,6 +231,10 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\DashAsync\DashAsync.csproj">
+      <Project>{193f0bfb-0859-4e42-91d0-f4cc415b8cb6}</Project>
+      <Name>DashAsync</Name>
+    </ProjectReference>
     <ProjectReference Include="..\DashCommon\DashCommon.csproj">
       <Project>{9514a309-45d1-45e1-b77b-a99cd59b8c77}</Project>
       <Name>DashCommon</Name>
@@ -247,9 +251,11 @@
     <TypeScriptCompile Include="App\Controller\UpdateController.ts" />
     <TypeScriptCompile Include="App\Model\AppState.ts" />
     <TypeScriptCompile Include="App\Model\Configuration.ts" />
+    <TypeScriptCompile Include="App\Model\OperationStatus.ts" />
     <TypeScriptCompile Include="App\Model\Scope.ts" />
     <TypeScriptCompile Include="App\Model\Update.ts" />
     <TypeScriptCompile Include="App\Service\ConfigurationService.ts" />
+    <TypeScriptCompile Include="App\Service\OperationStatusService.ts" />
     <TypeScriptCompile Include="App\Service\UpdateService.ts" />
     <TypeScriptCompile Include="App\start.ts" />
     <TypeScriptCompile Include="Scripts\typings\angularjs\angular-animate.d.ts" />

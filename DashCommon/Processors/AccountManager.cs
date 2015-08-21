@@ -17,18 +17,16 @@ namespace Microsoft.Dash.Common.Processors
 {
     public static class AccountManager
     {
-        public static void ImportAccounts(IEnumerable<string> importAccounts)
+        public static IEnumerable<Tuple<string, Task<bool>>> ImportAccounts(IEnumerable<string> importAccounts)
         {
-            importAccounts
-                .AsParallel()
-                .ForAll(account => {
-                    var completionTask = ImportAccountAsync(account);
-                });
+            return importAccounts
+                .Select(account => Tuple.Create(account, ImportAccountAsync(account)))
+                .ToList();
         }
 
-        public static async Task ImportAccountAsync(string accountName)
+        public static async Task<bool> ImportAccountAsync(string accountName)
         {
-            await OperationRunner.DoActionAsync(String.Format("Importing data account: {0}", accountName), async () =>
+            return await OperationRunner.DoActionAsync(String.Format("Importing data account: {0}", accountName), async () =>
             {
                 // This method will only import the blobs into the namespace. A future task may be
                 // to redistribute the blobs to balance the entire virtual account.
@@ -37,7 +35,7 @@ namespace Microsoft.Dash.Common.Processors
                 {
                     DashTrace.TraceWarning("Failure importing storage account: {0}. The storage account has not been configured as part of this virtual account",
                         accountName);
-                    return;
+                    return false;
                 }
                 // Check if we've already imported this account
                 var accountClient = account.CreateCloudBlobClient();
@@ -58,7 +56,7 @@ namespace Microsoft.Dash.Common.Processors
                 if (alreadyImported)
                 {
                     await status.UpdateStatusWarning("Importing storage account: {0} has already been imported. This account cannot be imported again.", accountName);
-                    return;
+                    return true;
                 }
                 // Sync the container structure first - add containers in the imported account to the virtual account
                 await status.UpdateStatusInformation("Importing storage account: {0}. Synchronizing container structure", accountName);
@@ -160,11 +158,13 @@ namespace Microsoft.Dash.Common.Processors
                 }
                 DashTrace.TraceInformation("Successfully imported the contents of storage account: '{0}' into the virtual namespace. Blobs added: {1}, duplicates detected: {2}, errors encountered: {3}",
                     accountName, blobsAddedCount, duplicateCount, warningCount);
+                return true;
             }, 
             ex =>
             {
                 var status = AccountStatus.GetAccountStatus(accountName).Result;
                 status.UpdateStatusWarning("Error importing storage account: {0} into virtual account. Details: {1}", accountName, ex.ToString()).Wait();
+                return false;
             }, false, true);
         }
 

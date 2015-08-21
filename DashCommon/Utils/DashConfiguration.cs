@@ -15,7 +15,7 @@ namespace Microsoft.Dash.Common.Utils
     {
         IList<CloudStorageAccount> DataAccounts { get; }
         IDictionary<string, CloudStorageAccount> DataAccountsByName { get; }
-        CloudStorageAccount NamespaceAccount { get; }
+        CloudStorageAccount NamespaceAccount { get; set; }
         T GetSetting<T>(string settingName, T defaultValue);
     }
 
@@ -25,6 +25,7 @@ namespace Microsoft.Dash.Common.Utils
         public const string KeyNamespaceAccount     = "StorageConnectionStringMaster";
         public const string KeyScaleoutAccountPrefix= "ScaleoutStorage";
         public const string KeyDiagnosticsAccount   = "Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString";
+        public const string KeyWorkerQueueName      = "WorkerQueueName";
 
         class DashConfigurationSource : IDashConfigurationSource
         {
@@ -87,6 +88,7 @@ namespace Microsoft.Dash.Common.Utils
             public CloudStorageAccount NamespaceAccount
             {
                 get { return _namespaceAccount.Value; }
+                set { _namespaceAccount = new Lazy<CloudStorageAccount>(() => value); }
             }
 
             public T GetSetting<T>(string settingName, T defaultValue)
@@ -107,9 +109,24 @@ namespace Microsoft.Dash.Common.Utils
             return ConfigurationSource.DataAccountsByName[accountName];
         }
 
+        public static void AddDataAccounts(IList<CloudStorageAccount> newDataAccounts)
+        {
+            foreach (var newAccount in newDataAccounts)
+            {
+                ConfigurationSource.DataAccounts.Add(newAccount);
+                ConfigurationSource.DataAccountsByName[newAccount.Credentials.AccountName] = newAccount;
+            }
+        }
+
+        public static int MaxDataAccounts
+        {
+            get { return 16; }
+        }
+
         public static CloudStorageAccount NamespaceAccount
         {
             get { return ConfigurationSource.NamespaceAccount; }
+            set { ConfigurationSource.NamespaceAccount = value; }
         }
 
         public static IEnumerable<CloudStorageAccount> AllAccounts
@@ -166,7 +183,7 @@ namespace Microsoft.Dash.Common.Utils
 
         public static string WorkerQueueName
         {
-            get { return ConfigurationSource.GetSetting("WorkerQueueName", "dashworkerqueue"); }
+            get { return ConfigurationSource.GetSetting(KeyWorkerQueueName, "dashworkerqueue"); }
         }
 
         public static int AsyncWorkerTimeout

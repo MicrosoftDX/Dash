@@ -43,7 +43,8 @@ namespace Microsoft.Dash.Server.Handlers
             bool isHierarchicalListing = !String.IsNullOrWhiteSpace(delim);
 
             var blobTasks = DashConfiguration.DataAccounts
-                .Select(account => ChildBlobListAsync(account, container, prefix, delim, includedDataSets));
+                .Select(account => ChildBlobListAsync(account, container, prefix, delim, includedDataSets))
+                .ToArray();
             var namespaceTask = ChildBlobListAsync(DashConfiguration.NamespaceAccount, container, prefix, delim, BlobListingDetails.Metadata.ToString());
             var blobs = await Task.WhenAll(blobTasks);
             var namespaceBlobs = await namespaceTask;
@@ -97,7 +98,8 @@ namespace Microsoft.Dash.Server.Handlers
                 // This is required to mitigate our eventual consistency model for replication.
                 var validDirectoryTasks = joinedList
                     .Where(blobPair => blobPair.NamespaceWrapper.IsDirectory)
-                    .Select(blobPair => IsValidNamespaceDirectoryAsync((CloudBlobDirectory)blobPair.NamespaceWrapper.SourceItem));
+                    .Select(blobPair => IsValidNamespaceDirectoryAsync((CloudBlobDirectory)blobPair.NamespaceWrapper.SourceItem))
+                    .ToArray();
                 var validDirectories = new HashSet<string>((await Task.WhenAll(validDirectoryTasks))
                         .Where(directory => directory.Item2)
                         .Select(directory => directory.Item1.Prefix),

@@ -56,14 +56,24 @@ namespace Microsoft.Dash.Common.OperationStatus
 
         public async Task<T> GetStatus(string statusItemKey)
         {
-            var result = await ExecuteAsync(TableOperation.Retrieve(statusItemKey, String.Empty));
-            if (result == null || result.HttpStatusCode == (int)HttpStatusCode.NotFound)
+            return await GetStatus(() => ExecuteAsync(TableOperation.Retrieve(statusItemKey, String.Empty)), statusItemKey);
+        }
+
+        public async Task<T> QueryStatus<U>(TableQuery query, Func<ITableEntity, U> orderingKeySelector = null)
+        {
+            return await GetStatus(() => ExecuteAsync(query, orderingKeySelector), String.Empty);
+        }
+
+        public async Task<T> GetStatus(Func<Task<ITableEntity>> predicate, string itemKey)
+        {
+            var result = await predicate();
+            if (result == null)
             {
-                return this._newItemFactory(statusItemKey, this);
+                return this._newItemFactory(itemKey, this);
             }
             else
             {
-                return this._readItemFactory((DynamicTableEntity)result.Result, this);
+                return this._readItemFactory((DynamicTableEntity)result, this);
             }
         }
 
@@ -72,19 +82,45 @@ namespace Microsoft.Dash.Common.OperationStatus
             await ExecuteAsync(TableOperation.InsertOrReplace(_updateItemFactory((T)statusItem)));
         }
 
-        private async Task<TableResult> ExecuteAsync(TableOperation operation)
+        private async Task<ITableEntity> ExecuteAsync(TableOperation operation)
         {
             try
             {
                 var table = GetStatusTable();
                 if (table != null)
                 {
-                    return await GetStatusTable().ExecuteAsync(operation);
+                    var result = await table.ExecuteAsync(operation);
+                    if (result != null)
+                    {
+                        return (ITableEntity)result.Result;
+                    }
                 }
             }
             catch (Exception ex)
             {
                 DashTrace.TraceWarning("Error interacting with status table. Details: {0}", ex);
+            }
+            return null;
+        }
+
+        private async Task<ITableEntity> ExecuteAsync<U>(TableQuery query, Func<ITableEntity, U> orderingKeySelector = null)
+        {
+            try
+            {
+                var table = GetStatusTable();
+                if (table != null)
+                {
+                    IEnumerable<ITableEntity> statuses = await table.ExecuteQuerySegmentedAsync(query, null);
+                    if (orderingKeySelector != null)
+                    { 
+                        statuses = statuses.OrderByDescending(orderingKeySelector);
+                    }
+                    return statuses.FirstOrDefault();
+                }
+            }
+            catch (Exception ex)
+            {
+                DashTrace.TraceWarning("Error querying status table. Details: {0}", ex);
             }
             return null;
         }
@@ -136,9 +172,13 @@ namespace Microsoft.Dash.Common.OperationStatus
         protected static EntityProperty EntityPropertyValue<U>(U value)
         {
             string stringValue;
-            if (typeof(U) is IEnumerable)
+            if (typeof(IEnumerable<string>).IsAssignableFrom(typeof(U)))
             {
                 stringValue = String.Join(CollectionDelimiter, (IEnumerable<string>)value);
+            }
+            else if (typeof(U) == typeof(string))
+            {
+                stringValue = value as string;
             }
             else
             {

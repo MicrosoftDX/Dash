@@ -3,10 +3,11 @@
 using System;
 using System.Threading.Tasks;
 using System.Web.Http;
-using Microsoft.Dash.Common.OperationStatus;
 using DashServer.ManagementAPI.Models;
-using Microsoft.Dash.Common.ServiceManagement;
+using Microsoft.Dash.Common.OperationStatus;
 using Microsoft.Dash.Common.Processors;
+using Microsoft.Dash.Common.ServiceManagement;
+using Microsoft.WindowsAzure.Storage;
 
 namespace DashServer.ManagementAPI.Controllers
 {
@@ -14,21 +15,27 @@ namespace DashServer.ManagementAPI.Controllers
     public class OperationsController : DelegatedAuthController
     {
         [HttpGet, ActionName("Index")]
-        public async Task<IHttpActionResult> Get(string operationId)
+        public async Task<IHttpActionResult> Get(string id, string storageConnectionStringMaster = null)
         {
             return await DoActionAsync("OperationsController.Get", async () =>
             {
-                var operationStatus = await UpdateConfigStatus.GetConfigUpdateStatus(operationId);
+                CloudStorageAccount namespaceAccount = null;
+                if (!String.IsNullOrEmpty(storageConnectionStringMaster))
+                {
+                    CloudStorageAccount.TryParse(storageConnectionStringMaster, out namespaceAccount);
+                }
+                var operationStatus = await UpdateConfigStatus.GetConfigUpdateStatus(id, namespaceAccount);
                 if (operationStatus.State == UpdateConfigStatus.States.Unknown)
                 {
                     return NotFound();
                 }
                 var retval = new OperationState
                 {
-                    Id = operationId,
-                    Message = operationStatus.StatusMessage,
+                    Id = id,
                 };
-                await GetOperationState(operationStatus, retval, operationId);
+                await GetOperationState(operationStatus, retval, id);
+                retval.Message = operationStatus.StatusMessage;
+                
                 return Ok(retval);
             });
         }
@@ -43,14 +50,17 @@ namespace DashServer.ManagementAPI.Controllers
 
                 case UpdateConfigStatus.States.CreatingAccounts:
                 case UpdateConfigStatus.States.ImportingAccounts:
+                case UpdateConfigStatus.States.PreServiceUpdate:
                     state.Status = "InProgress";
                     break;
 
                 case UpdateConfigStatus.States.UpdatingService:
                     System.Diagnostics.Debug.Assert(!String.IsNullOrWhiteSpace(operationStatus.CloudServiceUpdateOperationId));
-                    using (var serviceClient = await AzureService.GetServiceManagementClient((await GetRdfeToken()).AccessToken))
+                    var accessResult = await GetRdfeToken();
+                    System.Diagnostics.Debug.Assert(accessResult != null && !String.IsNullOrWhiteSpace(accessResult.AccessToken));
+                    using (var serviceClient = await AzureService.GetServiceManagementClient(accessResult.AccessToken))
                     {
-                        await ServiceUpdater.UpdateOperationStatus(serviceClient, operationStatus, operationId);
+                        await ServiceUpdater.UpdateOperationStatus(serviceClient, operationStatus);
                         if (operationStatus.State != UpdateConfigStatus.States.UpdatingService)
                         {
                             await GetOperationState(operationStatus, state, operationId);
@@ -69,6 +79,7 @@ namespace DashServer.ManagementAPI.Controllers
                 case UpdateConfigStatus.States.Failed:
                     state.Status = "Failed";
                     break;
+            }
         }
     }
 }

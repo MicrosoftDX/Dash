@@ -17,9 +17,9 @@
     </Sites>
     <Endpoints>
       <InputEndpoint name="HttpInternal" protocol="http" port="80" loadBalancer="Dash_ILB" />
-      <InputEndpoint name="HttpExternal" protocol="http" port="8080" />
+      <InputEndpoint name="HttpExternal" protocol="https" port="8081" />
       <InputEndpoint name="HttpsExternal" protocol="https" port="443" certificate="TlsCertificate" />
-      <InputEndpoint name="ManagementAPI" protocol="https" port="8081" certificate="TlsCertificate" />
+      <InputEndpoint name="ManagementAPI" protocol="https" port="8080" certificate="TlsCertificate" />
     </Endpoints>
     <Imports>
       <Import moduleName="Diagnostics" />
@@ -55,6 +55,7 @@
       <Setting name="WorkerQueueDequeueLimit" />
       <Setting name="Tenant" />
       <Setting name="ClientId" />
+      <Setting name="AppKey" />
     </ConfigurationSettings>
     <Certificates>
       <Certificate name="TlsCertificate" storeLocation="LocalMachine" storeName="My" />

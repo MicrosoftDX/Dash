@@ -64,6 +64,7 @@ module Dash.Management {
                 }]);
             this.app.service('configurationService', Service.ConfigurationService);
             this.app.service('updateService', Service.UpdateService);
+            this.app.service('operationStatusService', Service.OperationStatusService);
             this.app.directive('storageValidator', ['configurationService', (configurationService) => new Controller.StorageValidationDirective(configurationService)]);
         }
 

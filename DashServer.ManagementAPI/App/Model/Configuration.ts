@@ -7,13 +7,15 @@ module Dash.Management.Model {
 
     export class Configuration {
 
-        constructor(settings: ConfigurationSettings) {
+        constructor(settings: ConfigurationSettings, operationId: string) {
             this.settings = settings;
             this.editingInProgress = false;
+            this.operationId = operationId;
         }
 
         public settings: ConfigurationSettings
         public editingInProgress: boolean
+        public operationId: string
     }
 
     export enum EditorStyles {
@@ -22,20 +24,21 @@ module Dash.Management.Model {
         Generate        = 0x02,
         StorageAccount  = 0x04,
         EditMode        = 0x08,
+        CantChangeAccount= 0x10,
     }
 
     export class ConfigurationSettings {
 
         constructor(settings: any) {
             this.specialSettings = new SpecialSettings();
-            this.specialSettings.accountName = new ConfigurationItem("AccountName", settings.AccountSettings, EditorStyles.Simple, "Account Name");
-            this.specialSettings.primaryKey = new ConfigurationItem("AccountKey", settings.AccountSettings, EditorStyles.Generate, "Primary Key");
+            this.specialSettings.accountName = new ConfigurationItem("AccountName", settings.AccountSettings, EditorStyles.Simple, "Account Name", false, true);
+            this.specialSettings.primaryKey = new ConfigurationItem("AccountKey", settings.AccountSettings, EditorStyles.Generate, "Primary Key", false, true);
             this.specialSettings.secondaryKey = new ConfigurationItem("SecondaryAccountKey", settings.AccountSettings, EditorStyles.Generate, "Secondary Key");
-            this.specialSettings.namespaceStorage = new StorageConnectionItem("StorageConnectionStringMaster", settings.AccountSettings.StorageConnectionStringMaster, EditorStyles.EditMode, "Namespace Account");
+            this.specialSettings.namespaceStorage = new StorageConnectionItem("StorageConnectionStringMaster", settings.AccountSettings.StorageConnectionStringMaster, EditorStyles.EditMode | EditorStyles.CantChangeAccount, "Namespace Account");
             this.specialSettings.diagnostics = new StorageConnectionItem("Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString", settings.AccountSettings["Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString"], EditorStyles.EditMode, "Diagnostics Account");
             this.scaleOutStorage = new ScaleSettings();
             this.scaleOutStorage.maxAccounts = settings.ScaleAccounts.MaxAccounts;
-            this.scaleOutStorage.accounts = $.map(settings.ScaleAccounts.Accounts, (value) => new StorageConnectionItem("", value, EditorStyles.Delete | EditorStyles.EditMode));
+            this.scaleOutStorage.accounts = $.map(settings.ScaleAccounts.Accounts, (value) => StorageConnectionItem.createScaleOutAccount(value));
             this.miscSettings = $.map(settings.GeneralSettings, (value, key) => new ConfigurationItem(key, value, EditorStyles.Simple));
         }
 
@@ -84,8 +87,8 @@ module Dash.Management.Model {
 
     export class ConfigurationItem {
 
-        constructor(setting: string, value: string, editorStyles: EditorStyles, displayLabel?: string, isNew?: boolean);
-        constructor(setting: string, value: any, editorStyles: EditorStyles, displayLabel?: string, isNew?: boolean) {
+        constructor(setting: string, value: string, editorStyles: EditorStyles, displayLabel?: string, isNew?: boolean, isRequired?: boolean);
+        constructor(setting: string, value: any, editorStyles: EditorStyles, displayLabel?: string, isNew?: boolean, isRequired?: boolean) {
             this.setting = setting;
             this.updatedValue = jQuery.isPlainObject(value) ? value[setting] : value;
             this.value = this.updatedValue;
@@ -93,6 +96,7 @@ module Dash.Management.Model {
             this.editorStyles = editorStyles;
             this.displayLabel = displayLabel || setting;
             this.isNew = isNew || false;
+            this.isRequired = isRequired || false;
         }
 
         public setting: string
@@ -102,6 +106,7 @@ module Dash.Management.Model {
         public editing: boolean
         public editorStyles: EditorStyles
         public isNew: boolean
+        public isRequired: boolean
 
         public toggleEdit(discardChanges: boolean): boolean {
             var retval: boolean = false;
@@ -135,6 +140,10 @@ module Dash.Management.Model {
 
         public isEditorStyleEditMode(): boolean {
             return this.isEditorStyle(EditorStyles.EditMode);
+        }
+
+        public isEditorStyleCantChangeAccount(): boolean {
+            return this.isEditorStyle(EditorStyles.CantChangeAccount);
         }
 
         public commitChanges(): boolean {
@@ -190,15 +199,23 @@ module Dash.Management.Model {
                 this.accountName = value.AccountName;
                 this.accountKey = value.AccountKey;
             }
-            this.updatedAccountName = this.accountName;
+            this.updatedAccountName = this.originalAccountName = this.accountName;
             this.updatedAccountKey = this.accountKey;
+        }
+
+        public static createScaleOutAccount(connectionString: string, isNew?: boolean): StorageConnectionItem {
+            var retval = new StorageConnectionItem("", connectionString, EditorStyles.EditMode | EditorStyles.CantChangeAccount);
+            if (isNew) {
+                retval.isNew = true;
+            }
+            return retval;
         }
 
         public accountName: string;
         public accountKey: string;
         public updatedAccountName: string;
         public updatedAccountKey: string;
-
+        public originalAccountName: string;
         protected discardChanges() {
             super.discardChanges();
             this.accountName = this.updatedAccountName;
@@ -213,7 +230,7 @@ module Dash.Management.Model {
         }
 
         public getValue(): string {
-            this.value = "DefaultEndpointsProtocol=https;AccountName=" + this.accountName + ";AccountKey=" + this.accountKey;
+            this.value = "DefaultEndpointsProtocol=https;AccountName=" + this.accountName + ";AccountKey=" + (this.accountKey || "");
             return this.value;
         }
     }

@@ -25,6 +25,10 @@
             display: block;
             text-align: right;
         }
+        div[role=main] {
+          overflow:auto;
+          padding-bottom:100px; /* this needs to be bigger than footer height*/
+        }
     </style>
 </head>
 <body ng-app="dashApp" role="document">
@@ -49,8 +53,13 @@
                     <li ng-class="{ active: isControllerActive('/Update') }"><a href="#/Update">Update Software</a></li>
                 </ul>
                 <ul class="nav navbar-nav navbar-right">
-                    <li><a class="btn btn-link" ng-show="userInfo.isAuthenticated" ng-click="logout()">Logout</a></li>
                     <li><a class="btn btn-link" ng-hide="userInfo.isAuthenticated" ng-click="login()">Login</a></li>
+                    <li ng-show="userInfo.isAuthenticated" class="dropdown">
+                        <a role="button" class="dropdown-toggle" data-toggle="dropdown">{{userInfo.userName}} <b class="caret"></b></a>
+                        <ul class="dropdown-menu" role="menu" aria-labelledby="drop3">
+                            <li role="presentation"><a class="btn btn-link" ng-click="logout()">Logout</a></li>
+                        </ul>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -58,19 +67,15 @@
 
     <br />
     <div class="container" role="main">
-        <div class="row">
-            <div class="col-xs-10 col-xs-offset-1" style="background-color: azure">
+        <div class="panel panel-info">
+            <div class="panel-heading">
                 <div class="page-header">
                     <h1>Data At Scale Hub (DASH)</h1>
                 </div>
                 <p>This portal allows you to edit DASH settings, like rotating storage keys, add new storage accounts and increase the number of instances</p>
             </div>
         </div>
-        <div class="row">
-            <div class="col-xs-10 col-xs-offset-1">
-                <div ng-view class="panel-body">
-                </div>
-            </div>
+        <div ng-view class="panel-body">
         </div>
     </div>
 
@@ -78,7 +83,9 @@
         <div class="container">
             <div class="navbar-collapse collapse">
                 <ul class="nav navbar-nav navbar-right">
-                    <li ng-repeat="button in buttonBarButtons" ng-class="{ active: button.enabled }"><a class="btn btn-link" ng-click="button.doClick()">{{button.displayText}}</a></li>
+                    <li ng-repeat="button in buttonBarButtons" ng-class="{ active: button.enabled }">
+                        <a class="btn btn-link" ng-disabled="!button.enabled" ng-click="button.doClick()">{{button.displayText}}</a>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -93,6 +100,6 @@
     <script src="App/Scripts/adal.js"></script>
     <script src="App/Scripts/adal-angular.js"></script>
     <script src="App/Scripts/jquery.base64.js"></script>
-    <script src="App/app.js" ></script>
+    <script src="App/app.js"></script>
 </body>
 </html>

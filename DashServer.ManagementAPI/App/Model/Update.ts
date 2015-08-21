@@ -16,6 +16,11 @@ module Dash.Management.Model {
         public highestSeverity: string
     }
 
+    export class AvailableUpdates {
+        public currentVersion: string
+        public availableUpdates: VersionUpdate[]
+    }
+
     export class VersionUpdate {
 
         constructor(public versionString: string, severity: number, public description: string) {

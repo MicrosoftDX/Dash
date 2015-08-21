@@ -16,7 +16,7 @@ module Dash.Management.Service {
         private resourceClass: IConfigurationResourceClass;
 
         constructor($resource: ng.resource.IResourceService) {
-            var tmp = 10;
+
             this.resourceClass = <IConfigurationResourceClass>$resource<Model.Configuration>(
                 '/api/configuration/:action',
                 null,
@@ -24,16 +24,11 @@ module Dash.Management.Service {
                     get: {
                         method: 'GET',
                         isArray: false,
-                        transformResponse: (results) => {
-                            var responseObj = angular.fromJson(results);
-                            if (responseObj["AccountSettings"] !== undefined) {
-                                return new Model.Configuration(new Model.ConfigurationSettings(angular.fromJson(results)));
-                            }
-                            return responseObj;
-                        }
+                        transformResponse: (results) => ConfigurationService.getModelFromResponse(results),
                     },
                     save: {
                         method: 'PUT',
+                        transformResponse: (results) => ConfigurationService.getModelFromResponse(results),
                         transformRequest: (data: Model.Configuration, headers) => {
                             return data.settings.toString();
                         }
@@ -46,6 +41,14 @@ module Dash.Management.Service {
                         },
                     }
             });
+        }
+
+        static getModelFromResponse(response) {
+            var responseObj = angular.fromJson(response);
+            if (responseObj["AccountSettings"] !== undefined) {
+                return new Model.Configuration(new Model.ConfigurationSettings(responseObj), responseObj.OperationId);
+            }
+            return responseObj;
         }
 
         public getResourceClass(): IConfigurationResourceClass {

@@ -4,10 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
-using System.Xml.Linq;
 using DashServer.ManagementAPI.Models;
+using Microsoft.Dash.Async;
 using Microsoft.Dash.Common.Diagnostics;
 using Microsoft.Dash.Common.OperationStatus;
 using Microsoft.Dash.Common.Platform;
@@ -29,29 +30,45 @@ namespace DashServer.ManagementAPI.Controllers
                 // Load the XML config from RDFE
                 // Get only Dash storage related settings to show and make a dictionary
                 // which we can use to return the properties dynamic
-                var settings = AzureServiceConfiguration.GetSettingsProjected(await serviceClient.GetDeploymentConfiguration())
+                var operationStatusTask = UpdateConfigStatus.GetMostRecentStatus();
+                var serviceConfigTask = serviceClient.GetDeploymentConfiguration();
+                await Task.WhenAll(operationStatusTask, serviceConfigTask);
+                string operationId = null;
+                if (operationStatusTask.Result.State != UpdateConfigStatus.States.Unknown)
+                {
+                    operationId = operationStatusTask.Result.OperationId;
+                }
+                var settings = AzureServiceConfiguration.GetSettingsProjected(serviceConfigTask.Result)
                     .ToList();
                 return Ok(new Configuration
-                    {
-                        AccountSettings = settings
-                                            .Where(AzureServiceConfiguration.SettingPredicateSpecialName)
-                                            .ToDictionary(elem => elem.Item1, elem => elem.Item2),
-                        ScaleAccounts = new ScaleAccounts
-                            {
-                                MaxAccounts = 16,
-                                Accounts = settings
-                                            .Where(AzureServiceConfiguration.SettingPredicateScaleoutStorage)
-                                            .Select(setting => ParseConnectionString(setting.Item2))
-                                            .Where(account => account != null)
-                                            .ToList(),
-                            },
-                        GeneralSettings = settings
-                                            .Where(elem => !AzureServiceConfiguration.SettingPredicateSpecialName(elem) && 
-                                                           !AzureServiceConfiguration.SettingPredicateScaleoutStorage(elem) && 
-                                                           !AzureServiceConfiguration.SettingPredicateRdp(elem))
-                                            .ToDictionary(elem => elem.Item1, elem => elem.Item2),
-                    });
+                {
+                    OperationId = operationId,
+                    AccountSettings = settings
+                                        .Where(AzureServiceConfiguration.SettingPredicateSpecialName)
+                                        .ToDictionary(elem => elem.Item1, elem => elem.Item2),
+                    ScaleAccounts = new ScaleAccounts
+                        {
+                            MaxAccounts = DashConfiguration.MaxDataAccounts,
+                            Accounts = settings
+                                        .Where(AzureServiceConfiguration.SettingPredicateScaleoutStorage)
+                                        .Select(setting => ParseConnectionString(setting.Item2))
+                                        .Where(account => account != null)
+                                        .ToList(),
+                        },
+                    GeneralSettings = settings
+                                        .Where(elem => !AzureServiceConfiguration.SettingPredicateSpecialName(elem) && 
+                                                        !AzureServiceConfiguration.SettingPredicateScaleoutStorage(elem) && 
+                                                        !AzureServiceConfiguration.SettingPredicateRdp(elem))
+                                        .ToDictionary(elem => elem.Item1, elem => elem.Item2),
+                });
             });
+        }
+
+        private class StorageAccountCreationInfo
+        {
+            public ScaleAccount AccountInfo { get; set; }
+            public string ConfigKey { get; set; }
+            public bool IsBlockingOperation { get; set; }
         }
 
         [HttpPut, ActionName("Index")]
@@ -59,90 +76,84 @@ namespace DashServer.ManagementAPI.Controllers
         {
             return await DoActionAsync("ConfigurationController.UpdateConfiguration", async (serviceClient) =>
             {
-                // We have 2 modes for update:
-                //  - Immediate - there's no actions on storage accounts and so we're only updating the config - we can do that from here
-                //  - Long running - if we need to import accounts into the virtual account - we post a message to our async queue so that
-                //                   we are resiliant to failure - we could get really screwed up if we partially import accounts and then
-                //                   fail and don't attempt to recover. The queue gives us that recovery.
-                // For both modes, we will return the updated config with a request id. The client can call the /Status action with that
-                // request id to determine progress (progress information is stored in a Table in the namespace account).
-                var operationId = DashTrace.CorrelationId.ToString();
-                // Reconcile storage accounts - any new accounts (indicated by a blank key) we will create immediately & include the key in the returned config
-                var newAccounts = new[] { 
-                        ParseConnectionString(newConfig.GeneralSettings, DashConfiguration.KeyNamespaceAccount),
-                        ParseConnectionString(newConfig.GeneralSettings, DashConfiguration.KeyDiagnosticsAccount)
-                    }
-                    .Concat(newConfig.ScaleAccounts.Accounts
-                        .Select(account => Tuple.Create(account, String.Empty)))
-                    .Where(account => account != null && String.IsNullOrWhiteSpace(account.Item1.AccountKey))
-                    .ToList();
-                // Start our operation log - use the existing namespace account, unless there isn't one
-                var namespaceAccount = DashConfiguration.NamespaceAccount;
-                if (namespaceAccount == null)
+                UpdateConfigStatus.ConfigUpdate operationStatus = null;
+                try
                 {
+                    // Do some preamble work here synchronously (begin creation of any new storage accounts - we need to return the keys),
+                    // but then enqueue a message on our async worker queue to complete the full update in a reliable manner without having
+                    // the client wait forever for a response. The response will be an operationid which can be checked on by calling
+                    // the /api/operations/operationid endpoint.
+                    var operationId = DashTrace.CorrelationId.ToString();
+                    // Reconcile storage accounts - any new accounts (indicated by a blank key) we will create immediately & include the key in the returned config
+                    var newAccounts = new[] { 
+                            ParseConnectionString(newConfig.AccountSettings, DashConfiguration.KeyNamespaceAccount, true),
+                            ParseConnectionString(newConfig.AccountSettings, DashConfiguration.KeyDiagnosticsAccount, true)
+                        }
+                        .Concat(newConfig.ScaleAccounts.Accounts
+                            .Select(account => new StorageAccountCreationInfo
+                            {
+                                AccountInfo = account,
+                            }))
+                        .Where(account => account != null && String.IsNullOrWhiteSpace(account.AccountInfo.AccountKey))
+                        .ToList();
+                    // Start our operation log - use the namespace account specified in the configuration
+                    var namespaceAccount = DashConfiguration.NamespaceAccount;
                     // See if they've specified an account in the new config
                     var toBeCreatedNamespace = newAccounts
-                        .FirstOrDefault(account => String.Equals(account.Item2, DashConfiguration.KeyNamespaceAccount, StringComparison.OrdinalIgnoreCase));
+                        .FirstOrDefault(account => String.Equals(account.ConfigKey, DashConfiguration.KeyNamespaceAccount, StringComparison.OrdinalIgnoreCase));
                     if (toBeCreatedNamespace == null)
                     {
-                        CloudStorageAccount.TryParse(newConfig.GeneralSettings[DashConfiguration.KeyNamespaceAccount], out namespaceAccount);
+                        CloudStorageAccount.TryParse(newConfig.AccountSettings[DashConfiguration.KeyNamespaceAccount], out namespaceAccount);
                     }
-                }
-                var operationStatus = await UpdateConfigStatus.GetConfigUpdateStatus(operationId, namespaceAccount);
-                await operationStatus.UpdateStatus(UpdateConfigStatus.States.NotStarted, "Begin service update process. OperationId: [{0}]", operationId);
-                operationStatus.AccountsToBeCreated = newAccounts
-                    .Select(account => account.Item1.AccountName)
-                    .ToList();
-                if (newAccounts.Any())
-                {
-                    string location = await serviceClient.GetServiceLocation();
-                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.CreatingAccounts, "Creating new storage accounts: [{0}]", String.Join(", ", operationStatus.AccountsToBeCreated));
-                    foreach (var accountToCreate in newAccounts)
+                    operationStatus = await UpdateConfigStatus.GetConfigUpdateStatus(operationId, namespaceAccount);
+                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.NotStarted, "Begin service update process. OperationId: [{0}]", operationId);
+                    operationStatus.AccountsToBeCreated = newAccounts
+                        .Select(account => account.AccountInfo.AccountName)
+                        .ToList();
+                    if (newAccounts.Any())
                     {
-                        DashTrace.TraceInformation("Creating storage account: [{0}]", accountToCreate.Item1.AccountName);
-                        accountToCreate.Item1.AccountKey = await serviceClient.CreateStorageAccount(accountToCreate.Item1.AccountName, location);
-                        // Update the config
-                        if (!String.IsNullOrWhiteSpace(accountToCreate.Item2))
-                        {
-                            newConfig.GeneralSettings[accountToCreate.Item2] = GenerateConnectionString(accountToCreate.Item1);
-                        }
-                    }
-                    // If we didn't previously have a namespace account, wire it up now
-                    if (namespaceAccount == null)
-                    {
-                        if (CloudStorageAccount.TryParse(newConfig.GeneralSettings[DashConfiguration.KeyNamespaceAccount], out namespaceAccount))
+                        await operationStatus.UpdateStatus(UpdateConfigStatus.States.CreatingAccounts, "Creating new storage accounts: [{0}]", String.Join(", ", operationStatus.AccountsToBeCreated));
+                        var newAccountTasks = await CreateStorageAccounts(serviceClient, newConfig, newAccounts);
+                        await Task.WhenAll(newAccountTasks);
+                        // If we just created a new account for the namespace, wire it up now
+                        if (CloudStorageAccount.TryParse(newConfig.AccountSettings[DashConfiguration.KeyNamespaceAccount], out namespaceAccount))
                         {
                             operationStatus.StatusHandler.UpdateCloudStorageAccount(namespaceAccount);
                         }
+                        // Switch AccountsToBeCreated to the request ids that the async task can verify are completed
+                        operationStatus.AccountsToBeCreated = newAccountTasks
+                            .Select(newAccoutTask => newAccoutTask.Result)
+                            .Where(requestId => !String.IsNullOrWhiteSpace(requestId))
+                            .ToList();
+                        await operationStatus.UpdateStatus(UpdateConfigStatus.States.CreatingAccounts, "Creation of new storage accounts initiated.");
                     }
-                    operationStatus.AccountsToBeCreated.Clear();
-                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.CreatingAccounts, "Creation of new storage accounts completed");
-                }
-                // Work out the list of accounts to import
-                var newConfigSettings = newConfig.AccountSettings
-                    .Select(setting => Tuple.Create(setting.Key, setting.Value))
-                    .Concat(newConfig.GeneralSettings
-                        .Select(setting => Tuple.Create(setting.Key, setting.Value)))
-                    .Concat(newConfig.ScaleAccounts.Accounts
-                        .Select((account, index) => Tuple.Create(String.Format("{0}{1}", DashConfiguration.KeyScaleoutAccountPrefix, index), GenerateConnectionString(account))))
-                    .ToDictionary(setting => setting.Item1, setting => setting.Item2, StringComparer.OrdinalIgnoreCase);
-                var serviceSettings = await serviceClient.GetDeploymentConfiguration();
-                var scaleoutAccounts = AzureServiceConfiguration.GetSettingsProjected(serviceSettings)
-                    .Where(AzureServiceConfiguration.SettingPredicateScaleoutStorage)
-                    .Select(account => ParseConnectionString(account.Item2))
-                    .Where(account => account != null)
-                    .ToDictionary(account => account.AccountName, StringComparer.OrdinalIgnoreCase);
-                var importAccounts = newConfig.ScaleAccounts.Accounts
-                    .Where(newAccount => !scaleoutAccounts.ContainsKey(newAccount.AccountName))
-                    .ToList();
-                if (importAccounts.Any())
-                {
-                    // We have accounts to import - post the message to the async queue & let it process the remainder
+                    // TODO: When we enable storage analytics (or at least a utilization report), we will need to turn on metrics for
+                    // every storage account here.
+                    string asyncQueueName = newConfig.GeneralSettings[DashConfiguration.KeyWorkerQueueName];
+                    // Work out the list of accounts to import
+                    var newConfigSettings = newConfig.AccountSettings
+                        .Select(setting => Tuple.Create(setting.Key, setting.Value))
+                        .Concat(newConfig.GeneralSettings
+                            .Select(setting => Tuple.Create(setting.Key, setting.Value)))
+                        .Concat(newConfig.ScaleAccounts.Accounts
+                            .Select((account, index) => Tuple.Create(String.Format("{0}{1}", DashConfiguration.KeyScaleoutAccountPrefix, index), GenerateConnectionString(account))))
+                        .ToDictionary(setting => setting.Item1, setting => setting.Item2, StringComparer.OrdinalIgnoreCase);
+                    var serviceSettings = await serviceClient.GetDeploymentConfiguration();
+                    var scaleoutAccounts = AzureServiceConfiguration.GetSettingsProjected(serviceSettings)
+                        .Where(AzureServiceConfiguration.SettingPredicateScaleoutStorage)
+                        .Select(account => ParseConnectionString(account.Item2))
+                        .Where(account => account != null)
+                        .ToDictionary(account => account.AccountName, StringComparer.OrdinalIgnoreCase);
+                    var importAccounts = newConfig.ScaleAccounts.Accounts
+                        .Where(newAccount => !scaleoutAccounts.ContainsKey(newAccount.AccountName))
+                        .ToList();
+                    // Prepare the new accounts, import accounts & service configuration information into a message for the async worker.
+                    // Despite kicking the async worker off directly here, we need the message durably enqueued so that any downstream
+                    // failures will be retried.
                     var rdfeAccessToken = await GetRdfeToken();
                     operationStatus.AccountsToBeImported = importAccounts
                         .Select(account => account.AccountName)
                         .ToList();
-                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.ImportingAccounts, "Waiting to begin importing of new storage accounts");
                     var message = new QueueMessage(MessageTypes.UpdateService, 
                         new Dictionary<string, string>
                         {
@@ -153,26 +164,32 @@ namespace DashServer.ManagementAPI.Controllers
                         },
                         DashTrace.CorrelationId);
                     var messageWrapper = new UpdateServicePayload(message);
+                    messageWrapper.CreateAccountRequestIds = operationStatus.AccountsToBeCreated;
                     messageWrapper.ImportAccounts = importAccounts
                         .Select(account => GenerateConnectionString(account));
                     messageWrapper.Settings = newConfigSettings;
-                    await new AzureMessageQueue().EnqueueAsync(message, 0);
+                    // Post message to the new namespace account (it may have changed) as that is where the async workers will read from after update
+                    await new AzureMessageQueue(namespaceAccount, asyncQueueName).EnqueueAsync(message, 0);
+                    // Manually fire up the async worker (so that we can supply it with the new namespace account)
+                    var upgradeTask = Task.Factory.StartNew(() =>
+                    {
+                        int processed = 0, errors = 0;
+                        MessageProcessor.ProcessMessageLoop(ref processed, ref errors, null, GenerateConnectionString(namespaceAccount), asyncQueueName);
+                    });
+                    newConfig.OperationId = operationId;
+                    newConfig.ScaleAccounts.MaxAccounts = DashConfiguration.MaxDataAccounts; 
+                    return Content(HttpStatusCode.Accepted, newConfig);
                 }
-                else
+                catch (Exception ex)
                 {
-                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.UpdatingService, "Updating service configuration");
-                    // No accounts to import - move directly to the service config update
-                    var response = await serviceClient.ChangeDeploymentConfiguration(AzureServiceConfiguration.ApplySettings(serviceSettings, newConfigSettings));
-                    operationStatus.CloudServiceUpdateOperationId = response.RequestId;
-                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.UpdatingService, "Cloud service configuration update in progress");
-                    await EnqueueServiceOperationUpdate(serviceClient, operationId);
+                    if (operationStatus != null)
+                    {
+                        var task = operationStatus.UpdateStatus(UpdateConfigStatus.States.Failed, ex.ToString());
+                    }
+                    throw;
                 }
-                newConfig.OperationId = operationId;
-                return Content(HttpStatusCode.Accepted, newConfig);
             });
         }
-
-        [HttpGet, ActionName("")]
 
         [HttpGet, ActionName("validate")]
         public async Task<IHttpActionResult> ValidateStorage(string storageAccountName, string storageAccountKey = null)
@@ -197,12 +214,17 @@ namespace DashServer.ManagementAPI.Controllers
             });
         }
 
-        static Tuple<ScaleAccount, string> ParseConnectionString(IDictionary<string, string> settings, string settingKey)
+        static StorageAccountCreationInfo ParseConnectionString(IDictionary<string, string> settings, string settingKey, bool blockingCall)
         {
             string connectionString;
             if (settings.TryGetValue(settingKey, out connectionString))
             {
-                return Tuple.Create(ParseConnectionString(connectionString), settingKey);
+                return new StorageAccountCreationInfo
+                {
+                    AccountInfo = ParseConnectionString(connectionString),
+                    ConfigKey = settingKey,
+                    IsBlockingOperation = blockingCall
+                };
             }
             return null;
         }
@@ -224,10 +246,80 @@ namespace DashServer.ManagementAPI.Controllers
 
         static string GenerateConnectionString(ScaleAccount account)
         {
+            return GenerateConnectionString(account.UseTls, account.AccountName, account.AccountKey);
+        }
+
+        static string GenerateConnectionString(CloudStorageAccount account)
+        {
+            return GenerateConnectionString(true, account.Credentials.AccountName, account.Credentials.ExportBase64EncodedKey());
+        }
+
+        static string GenerateConnectionString(bool useTls, string accountName, string accountKey)
+        {
             return String.Format("DefaultEndpointsProtocol={0};AccountName={1};AccountKey={2}",
-                account.UseTls ? "https" : "http",
-                account.AccountName,
-                account.AccountKey);
+                useTls ? "https" : "http",
+                accountName,
+                accountKey);
+        }
+
+        static async Task<IEnumerable<Task<string>>> CreateStorageAccounts(AzureServiceManagementClient serviceClient, Configuration newConfig, IEnumerable<StorageAccountCreationInfo> newAccounts)
+        {
+            string location = await serviceClient.GetServiceLocation();
+            return newAccounts
+                .Select(accountToCreate =>
+                {
+                    DashTrace.TraceInformation("Creating storage account: [{0}]", accountToCreate.AccountInfo.AccountName);
+                    // Determine if we're blocking or async
+                    Func<Task<string>> createTask = accountToCreate.IsBlockingOperation ?
+                        (Func<Task<string>>)(() => serviceClient.CreateStorageAccount(accountToCreate.AccountInfo.AccountName, location)) :
+                        (Func<Task<string>>)(() => serviceClient.BeginCreateStorageAccount(accountToCreate.AccountInfo.AccountName, location));
+                    return createTask()
+                        .ContinueWith(antecedent =>
+                        {
+                            switch (antecedent.Status)
+                            {
+                                case TaskStatus.RanToCompletion:
+                                    string accountKey = accountToCreate.IsBlockingOperation ? antecedent.Result : String.Empty;
+                                    if (!accountToCreate.IsBlockingOperation)
+                                    {
+                                        // Although this isn't a blocking operation, we do have to block until we can retrieve the storage key
+                                        try
+                                        {
+                                            accountKey = serviceClient.GetStorageAccountKey(accountToCreate.AccountInfo.AccountName, 2500, new CancellationTokenSource(TimeSpan.FromSeconds(30)).Token).Result;
+                                        }
+                                        catch (AggregateException ex)
+                                        {
+                                            throw new OperationCanceledException(
+                                                String.Format("Failed to obtain access keys for storage account [{0}]. Details: {1}", 
+                                                    accountToCreate.AccountInfo.AccountName, 
+                                                    ex.InnerException));
+                                        }
+                                    }
+                                    accountToCreate.AccountInfo.AccountKey = accountKey;
+                                    // Update the config
+                                    if (!String.IsNullOrWhiteSpace(accountToCreate.ConfigKey))
+                                    {
+                                        newConfig.AccountSettings[accountToCreate.ConfigKey] = GenerateConnectionString(accountToCreate.AccountInfo);
+                                    }
+                                    // For async operations return the request id
+                                    return accountToCreate.IsBlockingOperation ? String.Empty : antecedent.Result;
+
+                                case TaskStatus.Faulted:
+                                    throw new OperationCanceledException(
+                                        String.Format("Failed to create storage account [{0}]. Details: {1}",
+                                            accountToCreate.AccountInfo.AccountName, 
+                                            antecedent.Exception is AggregateException ? antecedent.Exception.InnerException : antecedent.Exception));
+
+                                case TaskStatus.Canceled:
+                                    throw new OperationCanceledException(String.Format("Creation of storage account [{0}] was cancelled.", accountToCreate.AccountInfo.AccountKey));
+
+                                default:
+                                    System.Diagnostics.Debug.Assert(false);
+                                    throw new TaskCanceledException(String.Format("Creation of storage account [{0}] failed in unhandled state [{1}].", accountToCreate.AccountInfo.AccountKey, antecedent.Status));
+                            }
+                        });
+                })
+                .ToList();
         }
     }
 }

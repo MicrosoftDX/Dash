@@ -3,9 +3,11 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Table;
+using Microsoft.Dash.Common.Diagnostics;
 
 namespace Microsoft.Dash.Common.OperationStatus
 {
@@ -17,6 +19,7 @@ namespace Microsoft.Dash.Common.OperationStatus
             NotStarted,
             CreatingAccounts,
             ImportingAccounts,
+            PreServiceUpdate,
             UpdatingService,
             Completed,
             Failed
@@ -106,6 +109,18 @@ namespace Microsoft.Dash.Common.OperationStatus
         public static async Task<ConfigUpdate> GetConfigUpdateStatus(string operationId, CloudStorageAccount namespaceAccount = null)
         {
             return await (new UpdateConfigStatus(namespaceAccount)).GetStatus(operationId);
+        }
+
+        public static async Task<ConfigUpdate> GetMostRecentStatus(CloudStorageAccount namespaceAccount = null)
+        {
+            return await (new UpdateConfigStatus(namespaceAccount)).QueryStatus(new TableQuery
+            {
+                FilterString = TableQuery.CombineFilters(
+                    TableQuery.GenerateFilterCondition(FieldState, "ne", States.Completed.ToString()),
+                    "and",
+                    TableQuery.GenerateFilterCondition(FieldState, "ne", States.Failed.ToString())),
+            },
+            (entity) => EntityAttribute((DynamicTableEntity)entity, FieldStartTime, DateTime.UtcNow));
         }
     }
 }

@@ -2,22 +2,37 @@
     <h2>Available DASH Updates</h2>
     <p class="error">{{error}}</p>
     <p>{{loadingMessage}}</p>
-    <table class="table">
-        <tr>
-            <th>&nbsp;</th>
-            <th>Version</th>
-            <th>Severity</th>
-            <th>Description</th>
-        </tr>
-        <tr data-ng-repeat="update in availableUpdates" ng-class="update.getSeverityClass()">
-            <td>
-                <button type="button" class="btn btn-link" ng-disabled="updateInProgress" data-ng-click="applyUpdate(update)">
-                    Apply Update
-                </button>
-            </td>
-            <td>{{update.versionString}}</td>
-            <td>{{update.severity}}</td>
-            <td><span ng-bind-html="getHtmlDescription(update)"></span></td>
-        </tr>
-    </table>
+    <div class="panel panel-default">
+        <div class="panel-heading">Available Updates</div>
+        <div class="panel-body">
+            <p>The following table lists all of the updates that may be applied to your DASH server.</p>
+            <p>Select the link associated with the desired version to being the update process.</p>
+            <p>The current DASH version is: <b>{{availableUpdates.currentVersion}}</b>.</p>
+        </div>
+        <div ng-if="availableUpdates.availableUpdates.length == 0" class="alert alert-success" role="alert">
+            No updates are currently available!
+        </div>
+        <table ng-if="availableUpdates.availableUpdates.length != 0" class="table table-striped">
+            <thead>
+                <tr>
+                    <th>&nbsp;</th>
+                    <th>Version</th>
+                    <th>Severity</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr data-ng-repeat="update in availableUpdates.availableUpdates" ng-class="update.getSeverityClass()">
+                    <td>
+                        <button type="button" class="btn btn-link" ng-disabled="updateInProgress" data-ng-click="applyUpdate(update)">
+                            Apply Update
+                        </button>
+                    </td>
+                    <td>{{update.versionString}}</td>
+                    <td>{{update.severity}}</td>
+                    <td><span ng-bind-html="getHtmlDescription(update)"></span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </div>

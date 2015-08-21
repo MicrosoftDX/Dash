@@ -13,10 +13,14 @@ namespace Microsoft.Dash.Common.Platform
         Task EnqueueAsync(QueueMessage message, int? initialInvisibilityDelay = null);
         // Get a message from the queue and set it as the currently active message
         QueueMessage Dequeue(int? invisibilityTimeout = null);
-        // Delete the currently active message
-        void DeleteCurrentMessage();
         // Update 
         // Delete the referenced queue
         void DeleteQueue();
+    }
+
+    public interface IMessageItem
+    {
+        void Delete();
+        void UpdateInvisibility(TimeSpan invisibilityTimeout);
     }
 }

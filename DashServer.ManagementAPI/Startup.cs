@@ -1,8 +1,8 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
-using Microsoft.Owin;
 using Owin;
+using Microsoft.Owin;
 
 [assembly: OwinStartup(typeof(DashServer.ManagementAPI.Startup))]
 

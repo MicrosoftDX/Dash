@@ -16,8 +16,8 @@
     </Sites>
     <Endpoints>
       <InputEndpoint name="HttpInternal" protocol="http" port="80" loadBalancer="Dash_ILB" />
-      <InputEndpoint name="HttpExternal" protocol="http" port="8080" />
-      <InputEndpoint name="ManagementAPI" protocol="http" port="8081" />
+      <InputEndpoint name="HttpExternal" protocol="http" port="8081" />
+      <InputEndpoint name="ManagementAPI" protocol="http" port="8080" />
     </Endpoints>
     <Imports>
       <Import moduleName="Diagnostics" />
@@ -53,6 +53,7 @@
       <Setting name="WorkerQueueDequeueLimit" />
       <Setting name="Tenant" />
       <Setting name="ClientId" />
+      <Setting name="AppKey" />
     </ConfigurationSettings>
     <Startup>
       <Task commandLine=".\startup\RunWorkerQueue.cmd" executionContext="elevated" taskType="simple">

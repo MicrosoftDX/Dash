@@ -15,7 +15,7 @@ module Dash.Management.Controller {
 
             $scope.loadingMessage = "Retrieving available versions for the Dash service...";
             $scope.error = "";
-            $scope.availableUpdates = [];
+            $scope.availableUpdates = new Model.AvailableUpdates();
 
             $rootScope.buttonBarButtons = [];
 
@@ -24,7 +24,7 @@ module Dash.Management.Controller {
 
         public getAvailableUpdates(clearLoadingMessage: boolean) {
             this.updateService.getAvailableUpdates()
-                .then((versions: Model.VersionUpdate[]) => {
+                .then((versions: Model.AvailableUpdates) => {
                     this.$scope.availableUpdates = versions;
                 })
                 .catch((err) => {
