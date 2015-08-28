@@ -35,7 +35,7 @@ namespace Microsoft.Dash.Async
                     }
                     // Right now, success/failure is indicated through a bool
                     // Do we want to surround this with a try/catch and use exceptions instead?
-                    if (ProcessMessage(payload, invisibilityTimeout))
+                    if (ProcessMessage(payload, invisibilityTimeout) || payload.AbandonOperation)
                     {
                         payload.Delete();
                         msgProcessed++;
@@ -79,7 +79,7 @@ namespace Microsoft.Dash.Async
                         break;
 
                     case MessageTypes.ServiceOperationUpdate:
-                        messageProcessed = DoServiceOperationUpdate(message);
+                        messageProcessed = DoServiceOperationUpdate(message, invisibilityTimeout);
                         break;
 
                     case MessageTypes.Unknown:
@@ -99,6 +99,11 @@ namespace Microsoft.Dash.Async
 
         static bool DoReplicateJob(QueueMessage message, int? invisibilityTimeout = null)
         {
+            if (message.AbandonOperation)
+            {
+                // We don't have any specific failure functionality for this operation
+                return true;
+            }
             return BlobReplicator.BeginBlobReplication(
                 message.Payload[ReplicatePayload.Source],
                 message.Payload[ReplicatePayload.Destination],
@@ -109,6 +114,11 @@ namespace Microsoft.Dash.Async
 
         static bool DoReplicateProgressJob(QueueMessage message, int? invisibilityTimeout = null)
         {
+            if (message.AbandonOperation)
+            {
+                // We don't have any specific failure functionality for this operation
+                return true;
+            }
             return BlobReplicator.ProgressBlobReplication(
                 message.Payload[ReplicateProgressPayload.Source],
                 message.Payload[ReplicateProgressPayload.Destination],
@@ -120,6 +130,11 @@ namespace Microsoft.Dash.Async
 
         static bool DoDeleteReplicaJob(QueueMessage message, int? invisibilityTimeout = null)
         {
+            if (message.AbandonOperation)
+            {
+                // We don't have any specific failure functionality for this operation
+                return true;
+            }
             return BlobReplicator.DeleteReplica(
                 message.Payload[DeleteReplicaPayload.Source],
                 message.Payload[DeleteReplicaPayload.Container],
@@ -130,10 +145,7 @@ namespace Microsoft.Dash.Async
         static bool DoUpdateServiceJob(QueueMessage message, int? invisibilityTimeout = null)
         {
             // Extend the timeout on this message (5 mins for account creation, 1 min for account import & 30 secs to upgrade service)
-            if (!invisibilityTimeout.HasValue || invisibilityTimeout.Value < 390)
-            {
-                message.UpdateInvisibility(390);
-            }
+            message.UpdateInvisibility(invisibilityTimeout ?? 390);
             var payload = new UpdateServicePayload(message);
             string operationId = ServiceUpdater.ImportAccountsAndUpdateService(
                 message.Payload[ServiceOperationPayload.SubscriptionId],
@@ -142,32 +154,38 @@ namespace Microsoft.Dash.Async
                 message.Payload[ServiceOperationPayload.RefreshToken],
                 payload.CreateAccountRequestIds,
                 payload.ImportAccounts,
-                payload.Settings).Result;
-            if (!String.IsNullOrWhiteSpace(operationId))
+                payload.Settings,
+                message.AbandonOperation).Result;
+            if (!String.IsNullOrWhiteSpace(operationId) && !message.AbandonOperation)
             {
                 // Enqueue a follow-up message to check the progress of this operation
-                EnqueueServiceOperationUpdate(message);
+                EnqueueServiceOperationUpdate(message, invisibilityTimeout);
                 return true;
             }
             return false;
         }
 
-        static bool DoServiceOperationUpdate(QueueMessage message)
+        static bool DoServiceOperationUpdate(QueueMessage message, int? invisibilityTimeout = null)
         {
             if (ServiceUpdater.UpdateOperationStatus(
                 message.Payload[ServiceOperationPayload.SubscriptionId],
                 message.Payload[ServiceOperationPayload.ServiceName],
                 message.Payload[ServiceOperationPayload.OperationId],
-                message.Payload[ServiceOperationPayload.RefreshToken]).Result)
+                message.Payload[ServiceOperationPayload.RefreshToken],
+                message.AbandonOperation).Result && !message.AbandonOperation)
             {
                 // Re-enqueue another message to continue to check on the operation
-                EnqueueServiceOperationUpdate(message);
+                EnqueueServiceOperationUpdate(message, invisibilityTimeout);
             }
             return true;
         }
 
-        static void EnqueueServiceOperationUpdate(QueueMessage message)
+        static void EnqueueServiceOperationUpdate(QueueMessage message, int? invisibilityTimeout = null)
         {
+            if (message.AbandonOperation)
+            {
+                return;
+            }
             // Ensure that this message isn't visible immediately as we'll sit in a tight loop
             new AzureMessageQueue(message).Enqueue(new QueueMessage(MessageTypes.ServiceOperationUpdate,
                 new Dictionary<string, string>
@@ -177,7 +195,7 @@ namespace Microsoft.Dash.Async
                     { UpdateServicePayload.ServiceName, message.Payload[ServiceOperationPayload.ServiceName] },
                     { UpdateServicePayload.RefreshToken, message.Payload[ServiceOperationPayload.RefreshToken] },
                 },
-                message.CorrelationId), 10);
+                message.CorrelationId), invisibilityTimeout ?? 10);
         }
     }
 }

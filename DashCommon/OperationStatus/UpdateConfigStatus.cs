@@ -61,8 +61,10 @@ namespace Microsoft.Dash.Common.OperationStatus
         const string FieldAccountsImportedFailed        = "AccountsImportedFailed";
         const string FieldCloudServiceUpdateOperationId = "CloudServiceUpdateOperationId";
 
-        public UpdateConfigStatus(CloudStorageAccount namespaceAccount = null) 
-            : base("UpdateStatus", 
+        public static string TableName                  = "UpdateStatus";
+
+        public UpdateConfigStatus(CloudStorageAccount namespaceAccount = null)
+            : base(TableName, 
             (operationId, statusHandler) => new ConfigUpdate
             {
                 StatusHandler = statusHandler,

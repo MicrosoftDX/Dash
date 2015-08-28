@@ -8,6 +8,8 @@ using System.Reflection;
 using System.Threading.Tasks;
 using System.Web.Http;
 using System.Xml.Linq;
+using DashServer.ManagementAPI.Models;
+using Microsoft.Dash.Async;
 using Microsoft.Dash.Common.ServiceManagement;
 using Microsoft.Dash.Common.Update;
 using Microsoft.Dash.Common.Utils;
@@ -26,14 +28,14 @@ namespace DashServer.ManagementAPI.Controllers
             var availableUpdates = await GetAvailableUpdates();
             if (availableUpdates.Any())
             {
-                return Ok(new
+                return Ok(new AvailableUpgrade
                 {
                     AvailableUpdate = true,
                     HighestSeverity = availableUpdates.Max(manifest => manifest.Severity).ToString(),
-                    UpdateVersion = availableUpdates.Max(manifest => manifest.Version).ToString(),
+                    UpdateVersion = availableUpdates.Max(manifest => manifest.Version).SemanticVersionFormat(2),
                 });
             }
-            return Ok(new
+            return Ok(new AvailableUpgrade
             {
                 AvailableUpdate = false,
             });
@@ -42,16 +44,11 @@ namespace DashServer.ManagementAPI.Controllers
         [HttpGet, ActionName("Updates")]
         public async Task<IHttpActionResult> Updates()
         {
-            return Ok(new
+            return Ok(new UpgradePackages
             {
                 CurrentVersion = GetCurrentVersion().SemanticVersionFormat(2),
                 AvailableUpdates = await GetAvailableUpdates(),
             });
-        }
-
-        public class UpdateVersion
-        {
-            public string version { get; set; }
         }
 
         [Authorize]
@@ -77,11 +74,11 @@ namespace DashServer.ManagementAPI.Controllers
                 {
                     return NotFound();
                 }
+                var operationId = DashTrace.CorrelationId.ToString();
                 try
                 {
-                    var operationId = DashTrace.CorrelationId.ToString();
                     var operationStatus = await UpdateConfigStatus.GetConfigUpdateStatus(operationId);
-                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.UpdatingService, "Begin software upgrade to version [{0}]. Operation Id: [{1}]", version.version, operationId);
+                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.PreServiceUpdate, "Begin software upgrade to version [{0}]. Operation Id: [{1}]", version.version, operationId);
                     // Do a couple of things up-front to ensure that we can upgrade & then kick the upgrade off & don't wait for it to complete.
                     // Make sure reverse-DNS is configured
                     var updateResponse = await serviceClient.UpdateService(new HostedServiceUpdateParameters
@@ -92,7 +89,7 @@ namespace DashServer.ManagementAPI.Controllers
                     var currentConfig = await serviceClient.GetDeploymentConfiguration();
                     var currentSettings = AzureServiceConfiguration.GetSettingsProjected(currentConfig);
                     var newConfigDoc = XDocument.Load(
-                        await updateClient.DownloadPackageFileAsync(UpdateClient.Components.DashServer, updateManifest, package, serviceConfig));
+                        await updateClient.DownloadPackageFileAsync(UpdateClient.Components.DashServer, updateManifest, package, serviceConfig.Name));
                     var newSettings = AzureServiceConfiguration.GetSettings(newConfigDoc);
                     // Keep the same number of instances
                     var ns = AzureServiceConfiguration.Namespace;
@@ -122,7 +119,15 @@ namespace DashServer.ManagementAPI.Controllers
                         }
                     }
                     // Send the update to the service
-                    var packageUri = await updateClient.GetPackageFileSasUriAsync(UpdateClient.Components.DashServer, updateManifest, package, servicePackage);
+                    Uri packageUri;
+                    if (!String.IsNullOrWhiteSpace(servicePackage.SasUri))
+                    {
+                        packageUri = new Uri(servicePackage.SasUri);
+                    }
+                    else
+                    {
+                        packageUri = await updateClient.GetPackageFileSasUriAsync(UpdateClient.Components.DashServer, updateManifest, package, servicePackage.Name);
+                    }
                     await operationStatus.UpdateStatus(UpdateConfigStatus.States.PreServiceUpdate, "Service upgrade using package [{0}].", packageUri.ToString());
                     var upgradeResponse = await serviceClient.UpgradeDeployment(new DeploymentUpgradeParameters
                     {
@@ -134,17 +139,25 @@ namespace DashServer.ManagementAPI.Controllers
                     operationStatus.CloudServiceUpdateOperationId = upgradeResponse.RequestId;
                     await operationStatus.UpdateStatus(UpdateConfigStatus.States.UpdatingService, "Service upgrade in progress.");
                     await EnqueueServiceOperationUpdate(serviceClient, operationId);
+                    // Manually fire up the async worker (so that we can supply it with the new namespace account)
+                    var upgradeTask = Task.Factory.StartNew(() =>
+                    {
+                        int processed = 0, errors = 0;
+                        MessageProcessor.ProcessMessageLoop(ref processed, ref errors, GetMessageDelay(), null);
+                    });
 
-                    return Content(upgradeResponse.StatusCode, new { OperationId = upgradeResponse.RequestId });
+                    return Content(upgradeResponse.StatusCode, new OperationResult 
+                    { 
+                        OperationId = operationId, 
+                    });
                 }
                 catch (CloudException ex)
                 {
-                    return Content(HttpStatusCode.BadRequest, new
+                    return Content(ex.Response.StatusCode, new OperationResult
                     {
+                        OperationId = operationId,
                         ErrorCode = ex.ErrorCode,
                         ErrorMessage = ex.ErrorMessage,
-                        RequestId = ex.RequestId,
-                        RoutingRequestId = ex.RoutingRequestId,
                     });
                 }
                 catch (Exception ex)
@@ -163,10 +176,16 @@ namespace DashServer.ManagementAPI.Controllers
                 .ToList();
         }
 
-        Version GetCurrentVersion()
+        public virtual Version GetCurrentVersion()
         {
+            // Can be mocked out for tests
             return Assembly.GetAssembly(this.GetType()).GetName().Version;
         }
 
+        public virtual int? GetMessageDelay()
+        {
+            // Can be mocked out during testing
+            return null;
+        }
     }
 }

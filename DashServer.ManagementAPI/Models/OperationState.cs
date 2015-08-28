@@ -4,6 +4,13 @@ using System;
 
 namespace DashServer.ManagementAPI.Models
 {
+    public class OperationResult
+    {
+        public string OperationId { get; set; }
+        public string ErrorCode { get; set; }
+        public string ErrorMessage { get; set; }
+    }
+
     public class OperationState
     {
         public string Id { get; set; }

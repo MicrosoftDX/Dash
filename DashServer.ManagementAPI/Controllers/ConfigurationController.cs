@@ -15,6 +15,7 @@ using Microsoft.Dash.Common.Platform;
 using Microsoft.Dash.Common.Platform.Payloads;
 using Microsoft.Dash.Common.ServiceManagement;
 using Microsoft.Dash.Common.Utils;
+using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.WindowsAzure.Storage;
 
 namespace DashServer.ManagementAPI.Controllers
@@ -94,7 +95,7 @@ namespace DashServer.ManagementAPI.Controllers
                             {
                                 AccountInfo = account,
                             }))
-                        .Where(account => account != null && String.IsNullOrWhiteSpace(account.AccountInfo.AccountKey))
+                        .Where(account => account != null && account.AccountInfo != null && String.IsNullOrWhiteSpace(account.AccountInfo.AccountKey))
                         .ToList();
                     // Start our operation log - use the namespace account specified in the configuration
                     var namespaceAccount = DashConfiguration.NamespaceAccount;
@@ -150,7 +151,7 @@ namespace DashServer.ManagementAPI.Controllers
                     // Prepare the new accounts, import accounts & service configuration information into a message for the async worker.
                     // Despite kicking the async worker off directly here, we need the message durably enqueued so that any downstream
                     // failures will be retried.
-                    var rdfeAccessToken = await GetRdfeToken();
+                    var rdfeAccessToken = await GetRdfeRefreshToken();
                     operationStatus.AccountsToBeImported = importAccounts
                         .Select(account => account.AccountName)
                         .ToList();
@@ -160,7 +161,7 @@ namespace DashServer.ManagementAPI.Controllers
                             { UpdateServicePayload.OperationId, operationId },
                             { UpdateServicePayload.SubscriptionId, serviceClient.SubscriptionId },
                             { UpdateServicePayload.ServiceName, serviceClient.ServiceName },
-                            { UpdateServicePayload.RefreshToken, rdfeAccessToken.RefreshToken },
+                            { UpdateServicePayload.RefreshToken, rdfeAccessToken },
                         },
                         DashTrace.CorrelationId);
                     var messageWrapper = new UpdateServicePayload(message);
@@ -174,7 +175,7 @@ namespace DashServer.ManagementAPI.Controllers
                     var upgradeTask = Task.Factory.StartNew(() =>
                     {
                         int processed = 0, errors = 0;
-                        MessageProcessor.ProcessMessageLoop(ref processed, ref errors, null, GenerateConnectionString(namespaceAccount), asyncQueueName);
+                        MessageProcessor.ProcessMessageLoop(ref processed, ref errors, GetMessageDelay(), GenerateConnectionString(namespaceAccount), asyncQueueName);
                     });
                     newConfig.OperationId = operationId;
                     newConfig.ScaleAccounts.MaxAccounts = DashConfiguration.MaxDataAccounts; 
@@ -212,6 +213,12 @@ namespace DashServer.ManagementAPI.Controllers
 
                 return Ok(result);
             });
+        }
+
+        public virtual int? GetMessageDelay()
+        {
+            // Can be mocked out during testing
+            return null;
         }
 
         static StorageAccountCreationInfo ParseConnectionString(IDictionary<string, string> settings, string settingKey, bool blockingCall)
@@ -285,7 +292,9 @@ namespace DashServer.ManagementAPI.Controllers
                                         // Although this isn't a blocking operation, we do have to block until we can retrieve the storage key
                                         try
                                         {
-                                            accountKey = serviceClient.GetStorageAccountKey(accountToCreate.AccountInfo.AccountName, 2500, new CancellationTokenSource(TimeSpan.FromSeconds(30)).Token).Result;
+                                            accountKey = serviceClient.GetStorageAccountKey(accountToCreate.AccountInfo.AccountName, 
+                                                2500,
+                                                new CancellationTokenSource(serviceClient.StorageAccountGetKeysTimeout()).Token).Result;
                                         }
                                         catch (AggregateException ex)
                                         {

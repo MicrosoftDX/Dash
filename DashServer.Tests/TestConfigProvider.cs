@@ -24,7 +24,7 @@ namespace Microsoft.Tests
             {
                 _namespaceAccount = CloudStorageAccount.Parse(connectionString);
             }
-            _dataAccounts = GetDataStorageAccountsFromConfig().ToArray();
+            _dataAccounts = GetDataStorageAccountsFromConfig().ToList();
             _dataAccountsByName = _dataAccounts
                 .ToDictionary(account => account.Credentials.AccountName, StringComparer.OrdinalIgnoreCase);
         }
@@ -65,6 +65,7 @@ namespace Microsoft.Tests
         public CloudStorageAccount NamespaceAccount
         {
             get { return _namespaceAccount; }
+            set { _namespaceAccount = value; }
         }
 
         public T GetSetting<T>(string settingName, T defaultValue)

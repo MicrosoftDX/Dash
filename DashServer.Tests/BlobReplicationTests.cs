@@ -1,22 +1,21 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
-using Microsoft.Dash.Server.Utils;
-using Microsoft.Dash.Server.Handlers;
 using System.Linq;
 using System.Net;
-using System.Web;
-using Microsoft.Dash.Common.Utils;
-using Microsoft.Dash.Common.Platform;
-using System.Threading.Tasks;
 using System.Net.Http;
+using System.Threading.Tasks;
+using System.Web;
 using System.Xml.Linq;
-using Microsoft.Dash.Common.Handlers;
 using Microsoft.Dash.Async;
-using Microsoft.Dash.Common.Processors;
+using Microsoft.Dash.Common.Handlers;
+using Microsoft.Dash.Common.Platform;
 using Microsoft.Dash.Common.Platform.Payloads;
+using Microsoft.Dash.Common.Processors;
+using Microsoft.Dash.Common.Utils;
+using Microsoft.Dash.Server.Utils;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Microsoft.Tests
 {
@@ -415,7 +414,7 @@ namespace Microsoft.Tests
                 Assert.AreEqual(replicateMessage.Payload[ReplicatePayload.Container], container);
                 Assert.AreEqual(replicateMessage.Payload[ReplicatePayload.BlobName], blobName);
                 replicaAccounts[replicateMessage.Payload[messageType == MessageTypes.BeginReplicate ? ReplicatePayload.Destination : ReplicatePayload.Source]] = true;
-                queue.DeleteCurrentMessage();
+                replicateMessage.Delete();
             }
             Assert.IsFalse(replicaAccounts.Any(account => !account.Value), 
                 "Data accounts detected with no replication enqueued: {0}", 
@@ -437,7 +436,7 @@ namespace Microsoft.Tests
                 {
                     break;
                 }
-                queue.DeleteCurrentMessage();
+                message.Delete();
                 messageSeen = true;
             }
             if (messageSeen)

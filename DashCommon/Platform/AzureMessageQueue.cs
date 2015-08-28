@@ -73,23 +73,22 @@ namespace Microsoft.Dash.Common.Platform
                 var message = Queue.GetMessage(new TimeSpan(0, 0, invisibilityTimeout.Value));
                 if (message != null)
                 {
+                    var payload = JsonConvert.DeserializeObject<QueueMessage>(message.AsString);
+                    payload.MessageItem = new AzureMessageItem
+                    {
+                        ContainingQueue = this,
+                        Message = message,
+                    };
                     if (message.DequeueCount >= _dequeLimit)
                     {
                         DashTrace.TraceWarning("Discarding message after exceeding deque limit of {0}. Message details: {1}",
                             message.DequeueCount,
                             message.AsString);
-                        this.Queue.DeleteMessage(message);
+                        // We actually let this message go around after flagging that the operation is to be abandoned. This allows
+                        // operation processors to properly fail their operation
+                        payload.AbandonOperation = true;
                     }
-                    else
-                    {
-                        var payload = JsonConvert.DeserializeObject<QueueMessage>(message.AsString);
-                        payload.MessageItem = new AzureMessageItem
-                        {
-                            ContainingQueue = this,
-                            Message = message,
-                        };
-                        return payload;
-                    }
+                    return payload;
                 }
                 else
                 {

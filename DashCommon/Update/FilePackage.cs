@@ -12,15 +12,45 @@ namespace Microsoft.Dash.Common.Update
         public string PackageName { get; set; }
         public string Description { get; set; }
         public IList<string> Files { get; set; }
+        public IList<FileInformation> FileInformations { get; set; }
 
-        public string FindFileByExtension(string fileExtension)
+        public FileInformation FindFileByExtension(string fileExtension)
         {
             if (fileExtension[0] != '.')
             {
                 fileExtension = "." + fileExtension;
             }
-            return this.Files
-                .FirstOrDefault(file => String.Compare(fileExtension, Path.GetExtension(file), true) == 0);
+            if (this.FileInformations == null)
+            {
+                var fileName = this.Files
+                    .FirstOrDefault(file => String.Equals(fileExtension, Path.GetExtension(file), StringComparison.OrdinalIgnoreCase));
+                if (!String.IsNullOrWhiteSpace(fileName))
+                {
+                    return new FileInformation
+                    {
+                        Name = fileName,
+                    };
+                }
+                return null;
+            }
+            return this.FileInformations
+                .FirstOrDefault(fileInfo => String.Equals(fileExtension, Path.GetExtension(fileInfo.Name), StringComparison.OrdinalIgnoreCase));
         }
+
+        public FileInformation GetFileInformation(string fileName)
+        {
+            if (this.FileInformations == null)
+            {
+                return null;
+            }
+            return this.FileInformations
+                .FirstOrDefault(fileInfo => String.Equals(fileInfo.Name, fileName, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    public class FileInformation
+    {
+        public string Name { get; set; }
+        public string SasUri { get; set; }
     }
 }

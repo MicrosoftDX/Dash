@@ -13,98 +13,137 @@ using Microsoft.WindowsAzure.Subscriptions;
 
 namespace Microsoft.Dash.Common.ServiceManagement
 {
-    public class AzureService
+    public class AzureService 
     {
-        static string _lazyInitBearerToken = String.Empty;
-        static Lazy<Task<ServiceInformation>> _serviceInformation = new Lazy<Task<ServiceInformation>>(() => GetAzureServiceInformation(_lazyInitBearerToken));
+        static IAzureServiceFactory _serviceFactory = new AzureServiceFactory();
 
-        public static async Task<AzureServiceManagementClient> GetServiceManagementClient(string bearerToken)
+        // Test Hook
+        public static IAzureServiceFactory ServiceFactory
         {
-            var serviceInfo = await GetServiceInformation(bearerToken);
-            return new AzureServiceManagementClient(serviceInfo.SubscriptionId, serviceInfo.ServiceName, bearerToken);
+            set { _serviceFactory = value; }
         }
 
-        public static async Task<ServiceInformation> GetServiceInformation(string bearerToken)
+        public static async Task<AzureServiceManagementClient> GetServiceManagementClient(Func<Task<string>> bearerTokenFactory)
         {
-            try
-            {
-                if (AzureUtils.IsRunningInAzureWebRole())
-                {
-                    _lazyInitBearerToken = bearerToken;
-                    return await _serviceInformation.Value;
-                }
-                else
-                {
-                    // Dev flow - use configured values
-                    return new ServiceInformation
-                    {
-                        SubscriptionId = DashConfiguration.ConfigurationSource.GetSetting("SubscriptionId", String.Empty),
-                        ServiceName = DashConfiguration.ConfigurationSource.GetSetting("ServiceName", String.Empty),
-                    };
-                }
-            }
-            catch (Exception ex)
-            {
-                DashTrace.TraceWarning("Failed to obtain service information. Details: {0}", ex);
-            }
-            return null;
+            return await _serviceFactory.GetServiceManagementClient(null, null, bearerTokenFactory);
+        }
+
+        public static async Task<AzureServiceManagementClient> GetServiceManagementClient(string subscriptionId, string serviceName, Func<Task<string>> bearerTokenFactory)
+        {
+            return await _serviceFactory.GetServiceManagementClient(subscriptionId, serviceName, bearerTokenFactory);
         }
 
         public static UpdateClient.PackageFlavors GetServiceFlavor()
         {
-            if (AzureUtils.IsRunningInAzureWebRole())
-            {
-                return GetAzureServiceFlavor();
-            }
-            return UpdateClient.PackageFlavors.Http;
+            return _serviceFactory.GetServiceFlavor();
         }
 
-        private static async Task<ServiceInformation> GetAzureServiceInformation(string bearerToken)
+        private class AzureServiceFactory : IAzureServiceFactory
         {
-            string deploymentId = RoleEnvironment.DeploymentId;
-            using (var subscriptionClient = new SubscriptionClient(new TokenCloudCredentials(bearerToken)))
+            static string _lazyInitBearerToken = String.Empty;
+            static Lazy<Task<ServiceInformation>> _serviceInformation = new Lazy<Task<ServiceInformation>>(() => GetAzureServiceInformation(_lazyInitBearerToken));
+
+            public async Task<AzureServiceManagementClient> GetServiceManagementClient(string subscriptionId, string serviceName, Func<Task<string>> bearerTokenFactory)
             {
-                foreach (var subscription in (await subscriptionClient.Subscriptions.ListAsync())
-                                                    .Where(sub => sub.SubscriptionStatus == Microsoft.WindowsAzure.Subscriptions.Models.SubscriptionStatus.Active))
+                _lazyInitBearerToken = await bearerTokenFactory();
+                if (String.IsNullOrWhiteSpace(_lazyInitBearerToken))
                 {
-                    using (var cloudServiceClient = new ComputeManagementClient(new TokenCloudCredentials(subscription.SubscriptionId, bearerToken)))
+                    return null;
+                }
+                if (String.IsNullOrWhiteSpace(subscriptionId) || String.IsNullOrWhiteSpace(serviceName))
+                {
+                    var serviceInfo = await GetServiceInformation();
+                    subscriptionId = serviceInfo.SubscriptionId;
+                    serviceName = serviceInfo.ServiceName;
+                }
+                return new AzureServiceManagementClient(subscriptionId, serviceName, _lazyInitBearerToken);
+            }
+
+            public async Task<ServiceInformation> GetServiceInformation(Func<Task<string>> bearerTokenFactory = null)
+            {
+                try
+                {
+                    if (AzureUtils.IsRunningInAzureWebRole())
                     {
-                        foreach (var cloudService in (await cloudServiceClient.HostedServices.ListAsync()))
+                        if (bearerTokenFactory != null)
                         {
-                            var deployment = await cloudServiceClient.Deployments.GetBySlotAsync(cloudService.ServiceName, Microsoft.WindowsAzure.Management.Compute.Models.DeploymentSlot.Production);
-                            if (deployment.PrivateId == deploymentId)
+                            _lazyInitBearerToken = await bearerTokenFactory();
+                        }
+                        return await _serviceInformation.Value;
+                    }
+                    else
+                    {
+                        // Dev flow - use configured values
+                        return new ServiceInformation
+                        {
+                            SubscriptionId = DashConfiguration.ConfigurationSource.GetSetting("SubscriptionId", String.Empty),
+                            ServiceName = DashConfiguration.ConfigurationSource.GetSetting("ServiceName", String.Empty),
+                        };
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DashTrace.TraceWarning("Failed to obtain service information. Details: {0}", ex);
+                }
+                return null;
+            }
+
+            public UpdateClient.PackageFlavors GetServiceFlavor()
+            {
+                if (AzureUtils.IsRunningInAzureWebRole())
+                {
+                    return GetAzureServiceFlavor();
+                }
+                return UpdateClient.PackageFlavors.Http;
+            }
+
+            private static async Task<ServiceInformation> GetAzureServiceInformation(string bearerToken)
+            {
+                string deploymentId = RoleEnvironment.DeploymentId;
+                using (var subscriptionClient = new SubscriptionClient(new TokenCloudCredentials(bearerToken)))
+                {
+                    foreach (var subscription in (await subscriptionClient.Subscriptions.ListAsync())
+                                                        .Where(sub => sub.SubscriptionStatus == Microsoft.WindowsAzure.Subscriptions.Models.SubscriptionStatus.Active))
+                    {
+                        using (var cloudServiceClient = new ComputeManagementClient(new TokenCloudCredentials(subscription.SubscriptionId, bearerToken)))
+                        {
+                            foreach (var cloudService in (await cloudServiceClient.HostedServices.ListAsync()))
                             {
-                                return new ServiceInformation
+                                var deployment = await cloudServiceClient.Deployments.GetBySlotAsync(cloudService.ServiceName, Microsoft.WindowsAzure.Management.Compute.Models.DeploymentSlot.Production);
+                                if (deployment.PrivateId == deploymentId)
                                 {
-                                    SubscriptionId = subscription.SubscriptionId,
-                                    ServiceName = cloudService.ServiceName,
-                                };
+                                    return new ServiceInformation
+                                    {
+                                        SubscriptionId = subscription.SubscriptionId,
+                                        ServiceName = cloudService.ServiceName,
+                                    };
+                                }
                             }
                         }
                     }
                 }
+                DashTrace.TraceWarning("Unable to identify running service. Possible unauthorized user.");
+                return null;
             }
-            DashTrace.TraceWarning("Unable to identify running service. Possible unauthorized user.");
-            return null;
-        }
 
-        private static UpdateClient.PackageFlavors GetAzureServiceFlavor()
-        {
-            bool isHttps = RoleEnvironment.CurrentRoleInstance.InstanceEndpoints.Any((endpoint) => String.Equals(endpoint.Value.Protocol, "https", StringComparison.OrdinalIgnoreCase));
-            bool isVnet = RoleEnvironment.CurrentRoleInstance.VirtualIPGroups.Any();
-            if (isHttps && isVnet)
+            private static UpdateClient.PackageFlavors GetAzureServiceFlavor()
             {
-                return UpdateClient.PackageFlavors.HttpsWithIlb;
+                bool isHttps = RoleEnvironment.CurrentRoleInstance.InstanceEndpoints.Any((endpoint) => String.Equals(endpoint.Value.Protocol, "https", StringComparison.OrdinalIgnoreCase));
+                bool isVnet = RoleEnvironment.CurrentRoleInstance.VirtualIPGroups.Any();
+                if (isHttps && isVnet)
+                {
+                    return UpdateClient.PackageFlavors.HttpsWithIlb;
+                }
+                else if (isVnet)
+                {
+                    return UpdateClient.PackageFlavors.HttpWithIlb;
+                }
+                else if (isHttps)
+                {
+                    return UpdateClient.PackageFlavors.Https;
+                }
+                return UpdateClient.PackageFlavors.Http;
             }
-            else if (isVnet)
-            {
-                return UpdateClient.PackageFlavors.HttpWithIlb;
-            }
-            else if (isHttps)
-            {
-                return UpdateClient.PackageFlavors.Https;
-            }
-            return UpdateClient.PackageFlavors.Http;
         }
     }
 }

@@ -56,9 +56,7 @@ namespace DashServer.ManagementAPI.Controllers
 
                 case UpdateConfigStatus.States.UpdatingService:
                     System.Diagnostics.Debug.Assert(!String.IsNullOrWhiteSpace(operationStatus.CloudServiceUpdateOperationId));
-                    var accessResult = await GetRdfeToken();
-                    System.Diagnostics.Debug.Assert(accessResult != null && !String.IsNullOrWhiteSpace(accessResult.AccessToken));
-                    using (var serviceClient = await AzureService.GetServiceManagementClient(accessResult.AccessToken))
+                    using (var serviceClient = await AzureService.GetServiceManagementClient(async () => await GetRdfeAccessToken()))
                     {
                         await ServiceUpdater.UpdateOperationStatus(serviceClient, operationStatus);
                         if (operationStatus.State != UpdateConfigStatus.States.UpdatingService)

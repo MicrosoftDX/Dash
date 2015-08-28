@@ -19,10 +19,14 @@ namespace DashServer.ManagementAPI.Controllers
     {
         protected async Task<IHttpActionResult> DoActionAsync(string operation, Func<AzureServiceManagementClient, Task<IHttpActionResult>> action)
         {
-            return await DoActionAsync(operation, async () =>
+            return await OperationRunner.DoActionAsync(operation, async () =>
             {
-                using (var serviceClient = await AzureService.GetServiceManagementClient((await GetRdfeToken()).AccessToken))
+                using (var serviceClient = await AzureService.GetServiceManagementClient(async () => await GetRdfeAccessToken()))
                 {
+                    if (serviceClient == null)
+                    {
+                        return StatusCode(HttpStatusCode.Forbidden);
+                    }
                     return await action(serviceClient);
                 }
             });
@@ -30,20 +34,35 @@ namespace DashServer.ManagementAPI.Controllers
 
         protected async Task<IHttpActionResult> DoActionAsync(string operation, Func<Task<IHttpActionResult>> action)
         {
-            var accessToken = await GetRdfeToken();
-            if (accessToken == null)
-            {
-                return StatusCode(HttpStatusCode.Forbidden);
-            }
             return await OperationRunner.DoActionAsync(operation, async () =>
             {
                 return await action();
             });
         }
 
-        protected async Task<AuthenticationResult> GetRdfeToken()
+        private async Task<AuthenticationResult> GetRdfeTokenInternal()
         {
             return await DelegationToken.GetRdfeToken(this.Request.Headers.Authorization.ToString());
+        }
+
+        private async Task<string> GetRdfeTokenPart(Func<AuthenticationResult, string> partSelector)
+        {
+            var result = await GetRdfeTokenInternal();
+            if (result != null)
+            {
+                return partSelector(result);
+            }
+            return String.Empty;
+        }
+
+        protected virtual async Task<string> GetRdfeAccessToken()
+        {
+            return await GetRdfeTokenPart(result => result.AccessToken);
+        }
+
+        protected virtual async Task<string> GetRdfeRefreshToken()
+        {
+            return await GetRdfeTokenPart(result => result.AccessToken);
         }
 
         protected async Task EnqueueServiceOperationUpdate(AzureServiceManagementClient serviceClient, string operationId, string refreshToken = null, CloudStorageAccount namespaceAccount = null, string asyncQueueName = null)
@@ -55,8 +74,7 @@ namespace DashServer.ManagementAPI.Controllers
         {
             if (String.IsNullOrWhiteSpace(refreshToken))
             {
-                var authToken = await GetRdfeToken();
-                refreshToken = authToken.RefreshToken;
+                refreshToken = await GetRdfeRefreshToken();
             }
             await new AzureMessageQueue(namespaceAccount, asyncQueueName).EnqueueAsync(new QueueMessage(MessageTypes.ServiceOperationUpdate,
                 new Dictionary<string, string>

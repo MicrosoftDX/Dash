@@ -162,6 +162,7 @@
     <Compile Include="Processors\ServiceUpdater.cs" />
     <Compile Include="ServiceManagement\AzureService.cs" />
     <Compile Include="ServiceManagement\AzureServiceConfiguration.cs" />
+    <Compile Include="ServiceManagement\AzureServiceFactory.cs" />
     <Compile Include="ServiceManagement\AzureServiceManagementClient.cs" />
     <Compile Include="ServiceManagement\ServiceInformation.cs" />
     <Compile Include="Update\ApiUriBuilder.cs" />

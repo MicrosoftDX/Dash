@@ -29,6 +29,8 @@ namespace Microsoft.Dash.Common.Platform
 
         [JsonIgnore]
         internal IMessageItem MessageItem { get; set; }
+        [JsonIgnore]
+        public bool AbandonOperation { get; set; }
 
         public MessageTypes MessageType { get; set; }
         public Guid? CorrelationId { get; set; }

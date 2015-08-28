@@ -31,17 +31,23 @@ namespace Microsoft.Dash.Common.ServiceManagement
             InitializeClients();
         }
 
+        public AzureServiceManagementClient()
+        {
+            // For test mocking - do not use directly
+            // Note also that some of the methods on this class are modified as 'virtual'. This is only to assist
+            // the mocking process and do not imply any class structure.
+        }
+
         public void Dispose()
         {
-            if (_computeClient.IsValueCreated)
+            if (_computeClient != null && _computeClient.IsValueCreated)
             {
                 _computeClient.Value.Dispose();
             }
-            if (_storageClient.IsValueCreated)
+            if (_storageClient != null &&_storageClient.IsValueCreated)
             {
                 _storageClient.Value.Dispose();
             }
-            InitializeClients();
         }
 
         void InitializeClients()
@@ -55,7 +61,7 @@ namespace Microsoft.Dash.Common.ServiceManagement
         public string SubscriptionId { get; set; }
         private string RdfeBearerToken { get; set; }
 
-        public async Task<OperationResponse> UpdateService(HostedServiceUpdateParameters updateParameters)
+        public virtual async Task<OperationResponse> UpdateService(HostedServiceUpdateParameters updateParameters)
         {
             return await _computeClient.Value.HostedServices.UpdateAsync(this.ServiceName, updateParameters);
         }
@@ -65,7 +71,7 @@ namespace Microsoft.Dash.Common.ServiceManagement
             return await _computeClient.Value.Deployments.CreateAsync(this.ServiceName, slot, createParameters);
         }
 
-        public async Task<OperationResponse> UpgradeDeployment(DeploymentUpgradeParameters upgradeParameters, DeploymentSlot slot = DeploymentSlot.Production)
+        public virtual async Task<OperationResponse> UpgradeDeployment(DeploymentUpgradeParameters upgradeParameters, DeploymentSlot slot = DeploymentSlot.Production)
         {
             return await _computeClient.Value.Deployments.BeginUpgradingBySlotAsync(this.ServiceName, slot, upgradeParameters);
         }
@@ -75,7 +81,7 @@ namespace Microsoft.Dash.Common.ServiceManagement
             return await _computeClient.Value.Deployments.BeginChangingConfigurationBySlotAsync(this.ServiceName, slot, changeConfigParameters);
         }
 
-        public async Task<OperationResponse> ChangeDeploymentConfiguration(XDocument serviceConfiguration, DeploymentSlot slot = DeploymentSlot.Production)
+        public virtual async Task<OperationResponse> ChangeDeploymentConfiguration(XDocument serviceConfiguration, DeploymentSlot slot = DeploymentSlot.Production)
         {
             return await ChangeDeploymentConfiguration(new DeploymentChangeConfigurationParameters
             {
@@ -84,7 +90,7 @@ namespace Microsoft.Dash.Common.ServiceManagement
             }, slot);
         }
 
-        public async Task<string> GetServiceLocation()
+        public virtual async Task<string> GetServiceLocation()
         {
             var response = await _computeClient.Value.HostedServices.GetAsync(this.ServiceName);
             return  response.Properties.Location;
@@ -95,7 +101,7 @@ namespace Microsoft.Dash.Common.ServiceManagement
             return await _computeClient.Value.Deployments.GetBySlotAsync(this.ServiceName, slot);
         }
 
-        public async Task<OperationStatusResponse> GetOperationStatus(string requestId)
+        public virtual async Task<OperationStatusResponse> GetOperationStatus(string requestId)
         {
             // Both compute & storage request ids are valid here (they both map to the same REST API)
             return await _computeClient.Value.GetOperationStatusAsync(requestId);
@@ -118,13 +124,25 @@ namespace Microsoft.Dash.Common.ServiceManagement
             }
         }
 
-        public async Task<XDocument> GetDeploymentConfiguration(DeploymentSlot slot = DeploymentSlot.Production)
+        public virtual TimeSpan StorageAccountCreationTimeout()
+        {
+            // Can be mocked out during testing
+            return TimeSpan.FromMinutes(5);
+        }
+
+        public virtual TimeSpan StorageAccountGetKeysTimeout()
+        {
+            // Can be mocked out during testing
+            return TimeSpan.FromSeconds(30);
+        }
+
+        public virtual async Task<XDocument> GetDeploymentConfiguration(DeploymentSlot slot = DeploymentSlot.Production)
         {
             var deployment = await _computeClient.Value.Deployments.GetBySlotAsync(this.ServiceName, slot);
             return XDocument.Parse(deployment.Configuration);
         }
 
-        public async Task<string> BeginCreateStorageAccount(string accountName, string location)
+        public virtual async Task<string> BeginCreateStorageAccount(string accountName, string location)
         {
             var response = await _storageClient.Value.StorageAccounts.BeginCreatingAsync(new StorageAccountCreateParameters
             {
@@ -135,7 +153,7 @@ namespace Microsoft.Dash.Common.ServiceManagement
             return response.RequestId;
         }
 
-        public async Task<string> CreateStorageAccount(string accountName, string location)
+        public virtual async Task<string> CreateStorageAccount(string accountName, string location)
         {
             try
             {
@@ -155,7 +173,7 @@ namespace Microsoft.Dash.Common.ServiceManagement
             }
         }
 
-        public async Task<string> GetStorageAccountKey(string accountName)
+        public virtual async Task<string> GetStorageAccountKey(string accountName)
         {
             var keysResponse = await _storageClient.Value.StorageAccounts.GetKeysAsync(accountName);
             return keysResponse.PrimaryKey;
@@ -198,7 +216,7 @@ namespace Microsoft.Dash.Common.ServiceManagement
             public bool StorageKeyValid { get; set; }
         }
 
-        public async Task<StorageValidation> ValidateStorageAccount(string storageAccountName, string storageAccountKey)
+        public virtual async Task<StorageValidation> ValidateStorageAccount(string storageAccountName, string storageAccountKey)
         {
             var retval = new StorageValidation();
             try

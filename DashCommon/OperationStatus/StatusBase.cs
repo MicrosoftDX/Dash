@@ -137,6 +137,15 @@ namespace Microsoft.Dash.Common.OperationStatus
         protected const string CollectionDelimiter      = "|";
         protected static char CollectionDelimiterChar   = CollectionDelimiter[0];
 
+        enum TypeClasses
+        {
+            Unknown,
+            Enum,
+            List,
+            Enumerable,
+            String,
+        }
+
         protected static U EntityAttribute<U>(DynamicTableEntity entity, string attributeName, U defaultValue)
         {
             string attributeValue = null;
@@ -148,17 +157,16 @@ namespace Microsoft.Dash.Common.OperationStatus
             {
                 try
                 {
-                    if (typeof(U).IsEnum)
-                    {
-                        return (U)Enum.Parse(typeof(U), attributeValue, true);
-                    }
-                    else if (typeof(U) is IList)
-                    {
-                        return (U)(object)attributeValue.Split(CollectionDelimiterChar).ToList();
-                    }
-                    else if (typeof(U) is IEnumerable)
-                    {
-                        return (U)(object)attributeValue.Split(CollectionDelimiterChar);
+                    switch (GetTypeClass<U>())
+                    { 
+                        case TypeClasses.Enum:
+                            return (U)Enum.Parse(typeof(U), attributeValue, true);
+
+                        case TypeClasses.List:
+                            return (U)(object)attributeValue.Split(CollectionDelimiterChar).ToList();
+
+                        case TypeClasses.Enumerable:
+                            return (U)(object)attributeValue.Split(CollectionDelimiterChar);
                     }
                     return (U)Convert.ChangeType(attributeValue, typeof(U));
                 }
@@ -172,19 +180,43 @@ namespace Microsoft.Dash.Common.OperationStatus
         protected static EntityProperty EntityPropertyValue<U>(U value)
         {
             string stringValue;
-            if (typeof(IEnumerable<string>).IsAssignableFrom(typeof(U)))
+            switch (GetTypeClass<U>())
+            { 
+                case TypeClasses.Enumerable:
+                case TypeClasses.List:
+                    stringValue = String.Join(CollectionDelimiter, (IEnumerable<string>)value);
+                    break;
+
+                case TypeClasses.String:
+                    stringValue = value as string;
+                    break;
+
+                default:
+                    stringValue = value.ToString();
+                    break;
+            }
+            return EntityProperty.GeneratePropertyForString(stringValue);
+        }
+
+        private static TypeClasses GetTypeClass<U>()
+        {
+            if (typeof(U).IsEnum)
             {
-                stringValue = String.Join(CollectionDelimiter, (IEnumerable<string>)value);
+                return TypeClasses.Enum;
+            }
+            else if (typeof(IList<string>).IsAssignableFrom(typeof(U)))
+            {
+                return TypeClasses.List;
+            }
+            else if (typeof(IEnumerable<string>).IsAssignableFrom(typeof(U)))
+            {
+                return TypeClasses.Enumerable;
             }
             else if (typeof(U) == typeof(string))
             {
-                stringValue = value as string;
+                return TypeClasses.String;
             }
-            else
-            {
-                stringValue = value.ToString();
-            }
-            return EntityProperty.GeneratePropertyForString(stringValue);
+            return TypeClasses.Unknown;
         }
     }
 

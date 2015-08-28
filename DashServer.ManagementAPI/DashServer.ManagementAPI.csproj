@@ -210,6 +210,7 @@
     </Compile>
     <Compile Include="Models\Configuration.cs" />
     <Compile Include="Models\OperationState.cs" />
+    <Compile Include="Models\Upgrade.cs" />
     <Compile Include="Startup.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -222,7 +223,9 @@
     <Content Include="favicon.ico" />
     <Content Include="Global.asax" />
     <Content Include="index.html" />
-    <Content Include="Web.config" />
+    <Content Include="Web.config">
+      <SubType>Designer</SubType>
+    </Content>
     <Content Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </Content>

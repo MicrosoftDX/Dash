@@ -29,7 +29,7 @@ namespace Microsoft.Tests
                     { "ScaleoutStorage1", "DefaultEndpointsProtocol=https;AccountName=dashtestdata2;AccountKey=OOXSVWWpImRf79sbiEtpIwFsggv7VAhdjtKdt7o0gOLr2krzVXwZ+cb/gJeMqZRlXHTniRN6vnKKjs1glijihA==" },
                     { "ScaleoutNumberOfAccounts", "2"},
                 });
-            _queue = new AzureMessageQueue(Guid.NewGuid().ToString());
+            _queue = new AzureMessageQueue(null, Guid.NewGuid().ToString());
         }
 
         [TestMethod]
@@ -46,7 +46,7 @@ namespace Microsoft.Tests
             var servPayload = fromServer.Payload;
             Assert.AreEqual(servPayload[ReplicatePayload.Source], payload[ReplicatePayload.Source]);
             Assert.AreEqual(servPayload[ReplicatePayload.Destination], payload[ReplicatePayload.Destination]);
-            _queue.DeleteCurrentMessage();
+            fromServer.Delete();
         }
 
         [TestCleanup]

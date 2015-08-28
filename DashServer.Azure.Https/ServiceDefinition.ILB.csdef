@@ -17,7 +17,7 @@
     </Sites>
     <Endpoints>
       <InputEndpoint name="HttpInternal" protocol="http" port="80" loadBalancer="Dash_ILB" />
-      <InputEndpoint name="HttpExternal" protocol="https" port="8081" />
+      <InputEndpoint name="HttpExternal" protocol="https" port="8081" certificate="TlsCertificate" />
       <InputEndpoint name="HttpsExternal" protocol="https" port="443" certificate="TlsCertificate" />
       <InputEndpoint name="ManagementAPI" protocol="https" port="8080" certificate="TlsCertificate" />
     </Endpoints>

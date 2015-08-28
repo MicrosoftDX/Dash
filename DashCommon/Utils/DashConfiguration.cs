@@ -113,8 +113,12 @@ namespace Microsoft.Dash.Common.Utils
         {
             foreach (var newAccount in newDataAccounts)
             {
-                ConfigurationSource.DataAccounts.Add(newAccount);
-                ConfigurationSource.DataAccountsByName[newAccount.Credentials.AccountName] = newAccount;
+                string accountName = newAccount.Credentials.AccountName;
+                if (!ConfigurationSource.DataAccountsByName.ContainsKey(accountName))
+                {
+                    ConfigurationSource.DataAccounts.Add(newAccount);
+                    ConfigurationSource.DataAccountsByName[accountName] = newAccount;
+                }
             }
         }
 
