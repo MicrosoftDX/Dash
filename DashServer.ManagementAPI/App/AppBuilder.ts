@@ -22,12 +22,14 @@ module Dash.Management {
                     $routeProvider
                         .when("/Home",
                         {
+                            title: "Home",
                             controller: Controller.HomeController,
                             templateUrl: "/app/views/home.html",
                             caseInsensitiveMatch: true,
                         })
                         .when("/Configuration",
                         {
+                            title: "Configuration",
                             controller: Controller.ConfigurationController,
                             templateUrl: "/App/Views/Configuration.html",
                             requireADLogin: true,
@@ -35,6 +37,7 @@ module Dash.Management {
                         })
                         .when("/Update",
                         {
+                            title: "Software Upgrades",
                             controller: Controller.UpdateController,
                             templateUrl: "/App/Views/Update.html",
                             requireADLogin: true,
@@ -56,7 +59,7 @@ module Dash.Management {
                                 {
                                     tenant: results.Tenant,
                                     clientId: results.ClientId,
-                                    cacheLocation: 'localStorage', // enable this for IE, as sessionStorage does not work for localhost.
+                                    cacheLocation: window.location.hostname === "localhost" ? "localStorage" : "", // enable this for IE, as sessionStorage does not work for localhost.
                                 },
                                 $httpProvider);
                         }

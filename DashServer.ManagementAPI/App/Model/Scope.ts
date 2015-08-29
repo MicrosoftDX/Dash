@@ -6,7 +6,9 @@ module Dash.Management.Model {
     "use strict";
 
     export interface IDashManagementScope extends ng.IScope {
+        title: string
         error: string
+        error_class: string
         loadingMessage: string
         configuration: Model.Configuration
         login: Function

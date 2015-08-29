@@ -9,7 +9,7 @@ module Dash.Management.Controller {
         static $inject = ['$scope', '$rootScope', 'adalAuthenticationService', '$location', 'updateService'];
 
         constructor(private $scope: Model.IDashManagementScope,
-            $rootScope: Model.IDashManagementScope,
+            private $rootScope: Model.IDashManagementScope,
             private adalAuthenticationService,
             private $location: ng.ILocationService,
             private updateService: Service.UpdateService) {
@@ -18,6 +18,7 @@ module Dash.Management.Controller {
             $rootScope.logout = () => this.logout();
             $rootScope.isControllerActive = (loc) => this.isActive(loc);
             $rootScope.buttonBarButtons = [];
+            $rootScope.$on('$routeChangeSuccess', (event, current, previous) => this.setTitleForRoute(current));
 
             $scope.areUpdatesAvailable = false;
             $scope.updateBannerClass = "";
@@ -47,6 +48,10 @@ module Dash.Management.Controller {
                     this.$scope.areUpdatesAvailable = this.updateService.updatesAreAvailable;
                     this.$scope.updateBannerClass = this.updateService.severityBannerClass;
                 });
+        }
+
+        public setTitleForRoute(current) {
+            this.$rootScope.title = "DASH Management - " + current.$$route.title;
         }
     }
 } 

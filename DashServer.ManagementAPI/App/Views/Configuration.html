@@ -1,8 +1,12 @@
 ﻿<div>
     <h2>Dash Configuration</h2>
-    <p class="error">{{error}}</p>
-    <p>{{loadingMessage}}</p>
-
+    <div class="alert alert-dismissible" ng-class="error_class" ng-hide="!error" role="alert">
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        {{error}}
+    </div>
+    <div ng-hide="!loadingMessage">
+        <p><i class="glyphicon glyphicon-refresh glyphicon-spin"></i> {{loadingMessage}}</p>
+    </div>
     <tabset class="tab-container" ng-hide="configuration.loadingMessage">
         <tab heading="Account Settings" active="true">
             <div class="panel panel-default">

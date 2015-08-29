@@ -1,23 +1,26 @@
 ﻿<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-    <title>Dash Management</title>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
-    <style>
+    <title ng-bind="title">Dash Management</title>
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+    <style type="text/css">
         .tab-content {
             border-left: 1px solid #ddd;
             border-right: 1px solid #ddd;
             border-bottom: 1px solid #ddd;
             padding: 10px;
         }
+
         .nav-tabs {
             margin-bottom: 0;
         }
+
         .input-group-addon {
-            min-width:75px;
-            text-align:left;
-        }    
+            min-width: 75px;
+            text-align: left;
+        }
+
         .has-feedback .form-control-feedback {
             position: absolute;
             top: 0px;
@@ -25,21 +28,70 @@
             display: block;
             text-align: right;
         }
+
         div[role=main] {
-          overflow:auto;
-          padding-bottom:100px; /* this needs to be bigger than footer height*/
+            overflow: auto;
+            padding-bottom: 100px; /* this needs to be bigger than footer height*/
+        }
+
+        .glyphicon-spin {
+            -webkit-animation: spin 2s infinite linear;
+            -moz-animation: spin 2s infinite linear;
+            -o-animation: spin 2s infinite linear;
+            animation: spin 2s infinite linear;
+        }
+
+        @-moz-keyframes spin {
+            0% {
+                -moz-transform: rotate(0deg);
+            }
+
+            100% {
+                -moz-transform: rotate(359deg);
+            }
+        }
+
+        @-webkit-keyframes spin {
+            0% {
+                -webkit-transform: rotate(0deg);
+            }
+
+            100% {
+                -webkit-transform: rotate(359deg);
+            }
+        }
+
+        @-o-keyframes spin {
+            0% {
+                -o-transform: rotate(0deg);
+            }
+
+            100% {
+                -o-transform: rotate(359deg);
+            }
+        }
+
+        @keyframes spin {
+            0% {
+                -webkit-transform: rotate(0deg);
+                transform: rotate(0deg);
+            }
+
+            100% {
+                -webkit-transform: rotate(359deg);
+                transform: rotate(359deg);
+            }
         }
     </style>
-</head>
-<body ng-app="dashApp" role="document">
 
+</head>
+<body role="document">
     <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
         <div class="container">
             <div class="navbar-header">
                 <button type="button" class="navbar-toggle collapsed"
                         data-toggle="collapse"
                         data-target=".navbar-collapse">
-
                     <span class="icon-bar"></span>
                     <span class="icon-bar"></span>
                     <span class="icon-bar"></span>
@@ -52,7 +104,7 @@
                     <li ng-class="{ active: isControllerActive('/Configuration') }"><a href="#/Configuration">Configuration</a></li>
                     <li ng-class="{ active: isControllerActive('/Update') }"><a href="#/Update">Update Software</a></li>
                 </ul>
-                <ul class="nav navbar-nav navbar-right">
+                <ul class="nav navbar-nav navbar-right" ng-cloak>
                     <li><a class="btn btn-link" ng-hide="userInfo.isAuthenticated" ng-click="login()">Login</a></li>
                     <li ng-show="userInfo.isAuthenticated" class="dropdown">
                         <a role="button" class="dropdown-toggle" data-toggle="dropdown">{{userInfo.userName}} <b class="caret"></b></a>
@@ -64,7 +116,6 @@
             </div>
         </div>
     </div>
-
     <br />
     <div class="container" role="main">
         <div class="panel panel-info">
@@ -78,11 +129,10 @@
         <div ng-view class="panel-body">
         </div>
     </div>
-
     <div class="navbar navbar-inverse navbar-fixed-bottom" role="navigation">
         <div class="container">
             <div class="navbar-collapse collapse">
-                <ul class="nav navbar-nav navbar-right">
+                <ul class="nav navbar-nav navbar-right" ng-cloak>
                     <li ng-repeat="button in buttonBarButtons" ng-class="{ active: button.enabled }">
                         <a class="btn btn-link" ng-disabled="!button.enabled" ng-click="button.doClick()">{{button.displayText}}</a>
                     </li>
@@ -91,12 +141,12 @@
         </div>
     </div>
 
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.js"></script>
-    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.3/angular.js"></script>
-    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.3/angular-route.js"></script>
-    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.3/angular-resource.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.3/angular.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.3/angular-route.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.3/angular-resource.min.js"></script>
     <script src="//angular-ui.github.io/bootstrap/ui-bootstrap-tpls-0.13.2.js"></script>
-    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
     <script src="App/Scripts/adal.js"></script>
     <script src="App/Scripts/adal-angular.js"></script>
     <script src="App/Scripts/jquery.base64.js"></script>

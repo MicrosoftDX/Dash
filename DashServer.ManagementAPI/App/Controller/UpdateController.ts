@@ -28,7 +28,7 @@ module Dash.Management.Controller {
                     this.$scope.availableUpdates = versions;
                 })
                 .catch((err) => {
-                    this.$scope.error = err;
+                    this.setError(true, err);
                 })
                 .finally(() => {
                     if (clearLoadingMessage) {
@@ -46,8 +46,7 @@ module Dash.Management.Controller {
                         this.$scope.loadingMessage = "The DASH service is being updated to version: " + version.versionString + ". The request id: " + results.RequestId;
                     })
                     .error((err: any) => {
-                        this.$scope.error = err;
-                        this.$scope.loadingMessage = "";
+                        this.setError(true, err);
                     })
                     .finally(() => {
                         this.$scope.updateInProgress = false;
@@ -58,6 +57,12 @@ module Dash.Management.Controller {
 
         public getHtmlDescription(update: Model.VersionUpdate) {
             return this.$sce.trustAsHtml(update.description);
+        }
+
+        private setError(error: boolean, message: string) {
+            this.$scope.error_class = error ? "alert-danger" : "alert-info";
+            this.$scope.error = message;
+            this.$scope.loadingMessage = "";
         }
     }
 }

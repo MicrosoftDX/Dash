@@ -53,6 +53,7 @@ module Dash.Management.Controller {
         private populate(resource: Service.IConfigurationResourceClass): void {
             this.setUpdateState(true);
             this.$scope.loadingMessage = "Retrieving configuration from the Dash service...";
+            this.$scope.error = "";
             this.$scope.configuration = resource.get(
                 (results) => {
                     var updateInProgress: boolean = this.$scope.configuration.operationId != null;
@@ -65,8 +66,7 @@ module Dash.Management.Controller {
                     }
                 },
                 (err) => {
-                    this.$scope.error = err.data;
-                    this.$scope.loadingMessage = "";
+                    this.setError(true, err.data);
                 });
         }
 
@@ -79,14 +79,13 @@ module Dash.Management.Controller {
                     this.updateOperationStatus(results.operationId);
                 },
                 (err) => {
-                    this.$scope.error = err.data;
-                    this.$scope.loadingMessage = "";
+                    this.setError(true, err.data);
                     this.setUpdateState(false);
                 });
         }
 
         private updateOperationStatus(operationId: string) {
-            var namespaceAccount = this.$scope.configuration.settings.specialSettings.namespaceStorage.getValue();9
+            var namespaceAccount = this.$scope.configuration.settings.specialSettings.namespaceStorage.getValue();
             this.operationStatusService.getOperationStatus(operationId, namespaceAccount,
                 (status: Model.OperationStatus) => {
                     this.$scope.loadingMessage = "Updating service: " + status.Status + ": " + status.Message;
@@ -94,14 +93,21 @@ module Dash.Management.Controller {
                         this.$timeout(() => this.updateOperationStatus(operationId), 10000);
                     }
                     else {
+                        var failure = status.Status == "Failed";
+                        this.setError(failure, failure ? status.Message : "Configuration update completed successfully");
                         this.setUpdateState(false);
                     }
                 },
                 (err) => {
-                    this.$scope.error = err.data;
-                    this.$scope.loadingMessage = "";
+                    this.setError(true, err.data);
                     this.setUpdateState(false);
                 });
+        }
+
+        private setError(error: boolean, message: string) {
+            this.$scope.error_class = error ? "alert-danger" : "alert-info";
+            this.$scope.error = message;
+            this.$scope.loadingMessage = "";
         }
 
         private setUpdateState(updateInProgress: boolean) {

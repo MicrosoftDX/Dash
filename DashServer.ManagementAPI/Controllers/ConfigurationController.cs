@@ -35,7 +35,7 @@ namespace DashServer.ManagementAPI.Controllers
                 var serviceConfigTask = serviceClient.GetDeploymentConfiguration();
                 await Task.WhenAll(operationStatusTask, serviceConfigTask);
                 string operationId = null;
-                if (operationStatusTask.Result.State != UpdateConfigStatus.States.Unknown)
+                if (operationStatusTask.Result.State != UpdateConfigStatus.States.Unknown && operationStatusTask.Result.StartTime > DateTime.UtcNow.AddHours(-1))
                 {
                     operationId = operationStatusTask.Result.OperationId;
                 }

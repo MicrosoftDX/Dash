@@ -62,7 +62,7 @@ namespace DashServer.ManagementAPI.Controllers
 
         protected virtual async Task<string> GetRdfeRefreshToken()
         {
-            return await GetRdfeTokenPart(result => result.AccessToken);
+            return await GetRdfeTokenPart(result => result.RefreshToken);
         }
 
         protected async Task EnqueueServiceOperationUpdate(AzureServiceManagementClient serviceClient, string operationId, string refreshToken = null, CloudStorageAccount namespaceAccount = null, string asyncQueueName = null)
