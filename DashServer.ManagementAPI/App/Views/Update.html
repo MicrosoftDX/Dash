@@ -14,7 +14,7 @@
             <p>Select the link associated with the desired version to being the update process.</p>
             <p>The current DASH version is: <b>{{availableUpdates.currentVersion}}</b>.</p>
         </div>
-        <div ng-if="availableUpdates.availableUpdates.length == 0" class="alert alert-success" role="alert">
+        <div ng-if="availableUpdates.availableUpdates.length == 0" class="alert alert-info" role="alert">
             No updates are currently available!
         </div>
         <table ng-if="availableUpdates.availableUpdates.length != 0" class="table table-striped">
