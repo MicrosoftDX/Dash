@@ -19,7 +19,6 @@ Also writes the required package.manifest to upload to the Update Service's stor
     <MakeDir Directories="$(PackageRoot)" />
     <Message Text="Writing Azure packages to: $(PackageRoot))" />
     <!-- Emit the package manifest file -->
-    <Message Text="Writing Gateway packages to: $(PackageRoot))" />
     <WriteLinesToFile File="$(PackageRoot)package.manifest" Overwrite="true"
                       Lines="
 {
