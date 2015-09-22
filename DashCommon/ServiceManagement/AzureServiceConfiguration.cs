@@ -92,7 +92,8 @@ namespace Microsoft.Dash.Common.ServiceManagement
         public static bool SettingPredicateRdp(Tuple<string, string> elem)
         {
             return elem.Item1.StartsWith("Microsoft.WindowsAzure.Plugins.RemoteForwarder", StringComparison.OrdinalIgnoreCase) ||
-                   elem.Item1.StartsWith("Microsoft.WindowsAzure.Plugins.RemoteAccess", StringComparison.OrdinalIgnoreCase);
+                   elem.Item1.StartsWith("Microsoft.WindowsAzure.Plugins.RemoteAccess", StringComparison.OrdinalIgnoreCase) ||
+                   elem.Item1.StartsWith("Microsoft.WindowsAzure.Plugins.RemoteDebugger", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

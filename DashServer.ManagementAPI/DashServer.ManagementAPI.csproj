@@ -253,10 +253,12 @@
     <TypeScriptCompile Include="App\Controller\StorageValidation.ts" />
     <TypeScriptCompile Include="App\Controller\UpdateController.ts" />
     <TypeScriptCompile Include="App\Model\AppState.ts" />
+    <TypeScriptCompile Include="App\Model\AuthConfiguration.ts" />
     <TypeScriptCompile Include="App\Model\Configuration.ts" />
     <TypeScriptCompile Include="App\Model\OperationStatus.ts" />
     <TypeScriptCompile Include="App\Model\Scope.ts" />
     <TypeScriptCompile Include="App\Model\Update.ts" />
+    <TypeScriptCompile Include="App\Service\AuthConfigurationService.ts" />
     <TypeScriptCompile Include="App\Service\ConfigurationService.ts" />
     <TypeScriptCompile Include="App\Service\OperationStatusService.ts" />
     <TypeScriptCompile Include="App\Service\UpdateService.ts" />
