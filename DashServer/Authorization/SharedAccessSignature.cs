@@ -78,7 +78,13 @@ namespace Microsoft.Dash.Server.Authorization
             if (!String.IsNullOrWhiteSpace(storedPolicyId))
             {
                 // Validate that we're not duplicating values for both stored access policy & url
-                var storedPolicy = await GetStoredPolicyForContainer(requestUriParts.Container, storedPolicyId);
+                // Allow stored policy to the specified from a different container for test purposes - this isn't a security violation as it must come from the same account.
+                var aclContainer = headers.Value("StoredPolicyContainer", String.Empty);
+                if (String.IsNullOrEmpty(aclContainer))
+                {
+                    aclContainer = requestUriParts.Container;
+                }
+                var storedPolicy = await GetStoredPolicyForContainer(aclContainer, storedPolicyId);
                 if (storedPolicy == null)
                 {
                     return false;

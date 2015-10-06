@@ -1,38 +1,33 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
-using Microsoft.Dash.Server.Utils;
-using Microsoft.Dash.Server.Handlers;
 using System.Linq;
 using System.Net;
-using System.Web;
-using Microsoft.Dash.Common.Utils;
-using Microsoft.Dash.Common.Platform;
-using System.Threading.Tasks;
 using System.Net.Http;
+using System.Threading.Tasks;
+using System.Web;
 using System.Xml.Linq;
-using Microsoft.Dash.Common.Handlers;
 using Microsoft.Dash.Async;
-using Microsoft.Dash.Common.Processors;
+using Microsoft.Dash.Common.Handlers;
+using Microsoft.Dash.Common.Platform;
 using Microsoft.Dash.Common.Platform.Payloads;
+using Microsoft.Dash.Common.Processors;
+using Microsoft.Dash.Common.Utils;
+using Microsoft.Dash.Server.Utils;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Microsoft.Tests
 {
     [TestClass]
     public class BlobReplicationTests : PipelineTestBase
     {
-        const string ReplicateMetadataName  = "dash_replicate_blob";
-        const string ContainerName          = "test";
-        // We do both pipeline & controller invocations here, so we use both the base methods from PipelineTestBase
-        // and the WebApiTestRunner instance
-        WebApiTestRunner _runner;
+        static DashTestContext _ctx;
 
-        [TestInitialize]
-        public void Init()
+        [ClassInitialize]
+        public static void Init(TestContext ctx)
         {
-            _runner = new WebApiTestRunner(new Dictionary<string, string>
+            _ctx = InitializeConfigAndCreateTestBlobs(new Dictionary<string, string>
                 {
                     { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=https;AccountName=dashtestnamespace;AccountKey=N+BMOAp/bswfqp4dxoQYLLwmYnERysm1Xxv3qSf5H9RVhQ0q+f/QKNHhXX4Z/P67mZ+5QwT6RZv9qKV834pOqQ==" },
                     { "ScaleoutStorage0", "DefaultEndpointsProtocol=https;AccountName=dashtestdata1;AccountKey=IatOQyIdf8x3HcCZuhtGGLv/nS0v/SwXu2vBS6E9/5/+GYllhdmFFX6YqMXmR7U6UyFYQt4pdZnlLCM+bPcJ4A==" },
@@ -42,14 +37,17 @@ namespace Microsoft.Tests
                     { "ReplicationMetadataName", ReplicateMetadataName },
                     { "ReplicationPathPattern", "^.*/test22(/.*|$)" },
                     { "LogNormalOperations", "true" }
+                },
+                new[] {
+                    TestBlob.DefineBlob("fixed-test.txt"),
                 });
         }
 
-        [TestCleanup]
-        public void Cleanup()
+        [ClassCleanup]
+        public static void Cleanup()
         {
-            var queue = new AzureMessageQueue();
-            queue.DeleteQueue();
+            CleanupTestBlobs(_ctx);
+            (new AzureMessageQueue()).DeleteQueue();
         }
 
         [TestMethod]
@@ -59,8 +57,7 @@ namespace Microsoft.Tests
             lock (this)
             {
                 string blobName = Guid.NewGuid().ToString();
-                string blobUri = "http://localhost/blob/" + ContainerName + "/" + blobName;
-                var result = BlobRequest("PUT", blobUri, new[] {
+                var result = BlobRequest("PUT", _ctx.GetBlobUri(blobName), new[] {
                     Tuple.Create("x-ms-blob-type", "BlockBlob"),
                     Tuple.Create("x-ms-meta-" + ReplicateMetadataName, "true"),
                     Tuple.Create("User-Agent", "WA-Storage/2.0.6.1"),
@@ -68,8 +65,7 @@ namespace Microsoft.Tests
                 });
                 Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
                 string dataAccountName = new Uri(result.Location).Host.Split('.')[0];
-                AssertReplicationMessageIsEnqueued(MessageTypes.BeginReplicate, ContainerName, blobName, dataAccountName);
-                // Cleanup - because we didn't actually create the data blob, the DELETE will fail
+                AssertReplicationMessageIsEnqueued(MessageTypes.BeginReplicate, _ctx.ContainerName, blobName, dataAccountName);
             }
         }
 
@@ -80,24 +76,20 @@ namespace Microsoft.Tests
             lock (this)
             {
                 string blobName = Guid.NewGuid().ToString();
-                string blobUri = "http://localhost/blob/" + ContainerName + "/" + blobName;
+                string blobUri = _ctx.GetBlobUri(blobName); ;
                 var content = new StringContent("hello world", System.Text.Encoding.UTF8, "text/plain");
                 content.Headers.Add("x-ms-version", "2013-08-15");
                 content.Headers.Add("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT");
                 content.Headers.Add("x-ms-blob-type", "BlockBlob");
                 content.Headers.Add("x-ms-meta-" + ReplicateMetadataName, "true");
-                var response = _runner.ExecuteRequest(blobUri,
+                var response = _ctx.Runner.ExecuteRequest(blobUri,
                     "PUT",
                     content,
                     HttpStatusCode.Created);
                 // Fetch the blob so that we can determine it's primary data account
                 var result = BlobRequest("HEAD", blobUri);
                 string dataAccountName = new Uri(result.Location).Host.Split('.')[0];
-                AssertReplicationMessageIsEnqueued(MessageTypes.BeginReplicate, ContainerName, blobName, dataAccountName);
-                // Cleanup 
-                _runner.ExecuteRequest(blobUri,
-                    "DELETE",
-                    expectedStatusCode: HttpStatusCode.Accepted);
+                AssertReplicationMessageIsEnqueued(MessageTypes.BeginReplicate, _ctx.ContainerName, blobName, dataAccountName);
                 // Because the blob is not replicated yet, the delete should not enque any delete replica messages
                 AssertQueueIsDrained();
             }
@@ -110,16 +102,14 @@ namespace Microsoft.Tests
             lock (this)
             {
                 string blobName = "test22/" + Guid.NewGuid().ToString();
-                string blobUri = "http://localhost/blob/" + ContainerName + "/" + blobName;
-                var result = BlobRequest("PUT", blobUri, new[] {
+                var result = BlobRequest("PUT", _ctx.GetBlobUri(blobName), new[] {
                     Tuple.Create("x-ms-blob-type", "BlockBlob"),
                     Tuple.Create("User-Agent", "WA-Storage/2.0.6.1"),
                     Tuple.Create("Expect", "100-Continue")
                 });
                 Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
                 string dataAccountName = new Uri(result.Location).Host.Split('.')[0];
-                AssertReplicationMessageIsEnqueued(MessageTypes.BeginReplicate, ContainerName, blobName, dataAccountName);
-                // Cleanup - because we didn't actually create the data blob, the DELETE will fail
+                AssertReplicationMessageIsEnqueued(MessageTypes.BeginReplicate, _ctx.ContainerName, blobName, dataAccountName);
             }
         }
 
@@ -130,24 +120,19 @@ namespace Microsoft.Tests
             lock (this)
             {
                 string blobName = "test22/" + Guid.NewGuid().ToString();
-                string blobUri = "http://localhost/blob/" + ContainerName + "/" + blobName;
+                string blobUri = _ctx.GetBlobUri(blobName);
                 var content = new StringContent("hello world", System.Text.Encoding.UTF8, "text/plain");
                 content.Headers.Add("x-ms-version", "2013-08-15");
                 content.Headers.Add("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT");
                 content.Headers.Add("x-ms-blob-type", "BlockBlob");
-                var response = _runner.ExecuteRequest(blobUri,
+                var response = _ctx.Runner.ExecuteRequest(blobUri,
                     "PUT",
                     content,
                     HttpStatusCode.Created);
                 // Fetch the blob so that we can determine it's primary data account
                 var result = BlobRequest("HEAD", blobUri);
                 string dataAccountName = new Uri(result.Location).Host.Split('.')[0];
-                AssertReplicationMessageIsEnqueued(MessageTypes.BeginReplicate, ContainerName, blobName, dataAccountName);
-                // Cleanup 
-                _runner.ExecuteRequest(blobUri,
-                    "DELETE",
-                    expectedStatusCode: HttpStatusCode.Accepted);
-                // Because the blob is not replicated yet, the delete should not enque any delete replica messages
+                AssertReplicationMessageIsEnqueued(MessageTypes.BeginReplicate, _ctx.ContainerName, blobName, dataAccountName);
                 AssertQueueIsDrained();
             }
         }
@@ -159,31 +144,31 @@ namespace Microsoft.Tests
             lock (this)
             {
                 string blobName = "test22/" + Guid.NewGuid().ToString();
-                string blobUri = "http://localhost/blob/" + ContainerName + "/" + blobName;
+                string blobUri = _ctx.GetBlobUri(blobName);
                 string blockBlobUri = blobUri + "?comp=block&blockid=";
                 string blockId = GetBlockId();
-                
+
                 var content = new StringContent("hello world", System.Text.Encoding.UTF8, "text/plain");
                 content.Headers.Add("x-ms-version", "2013-08-15");
                 content.Headers.Add("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT");
                 content.Headers.Add("x-ms-blob-type", "BlockBlob");
-                var response = _runner.ExecuteRequest(blobUri,
+                var response = _ctx.Runner.ExecuteRequest(blobUri,
                     "PUT",
                     content,
                     HttpStatusCode.Created);
                 // Fetch the blob so that we can determine it's primary data account
                 var result = BlobRequest("HEAD", blobUri);
                 string dataAccountName = new Uri(result.Location).Host.Split('.')[0];
-                AssertReplicationMessageIsEnqueued(MessageTypes.BeginReplicate, ContainerName, blobName, dataAccountName);
+                AssertReplicationMessageIsEnqueued(MessageTypes.BeginReplicate, _ctx.ContainerName, blobName, dataAccountName);
                 // Put a block - shouldn't trigger a replication
                 content = new StringContent("This is the next block", System.Text.Encoding.UTF8, "text/plain");
-                response = _runner.ExecuteRequest(blockBlobUri + HttpUtility.UrlEncode(blockId),
+                response = _ctx.Runner.ExecuteRequest(blockBlobUri + HttpUtility.UrlEncode(blockId),
                     "PUT",
                     content,
                     HttpStatusCode.Created);
                 AssertQueueIsDrained();
                 // Commit the blocks - should trigger replication
-                response = _runner.ExecuteRequest(blobUri + "?comp=blocklist",
+                response = _ctx.Runner.ExecuteRequest(blobUri + "?comp=blocklist",
                     "PUT",
                     new XDocument(
                         new XElement("BlockList",
@@ -191,32 +176,26 @@ namespace Microsoft.Tests
                         )
                     ),
                     HttpStatusCode.Created);
-                AssertReplicationMessageIsEnqueued(MessageTypes.BeginReplicate, ContainerName, blobName, dataAccountName);
+                AssertReplicationMessageIsEnqueued(MessageTypes.BeginReplicate, _ctx.ContainerName, blobName, dataAccountName);
                 // Set metadata - should trigger replication
                 content = new StringContent(String.Empty);
                 content.Headers.Add("x-ms-version", "2013-08-15");
                 content.Headers.Add("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT");
                 content.Headers.Add("x-ms-meta-m1", "v1");
                 content.Headers.Add("x-ms-meta-m2", "v2");
-                _runner.ExecuteRequest(blobUri + "?comp=metadata",
+                _ctx.Runner.ExecuteRequest(blobUri + "?comp=metadata",
                     "PUT",
                     content,
                     HttpStatusCode.OK);
-                AssertReplicationMessageIsEnqueued(MessageTypes.BeginReplicate, ContainerName, blobName, dataAccountName);
+                AssertReplicationMessageIsEnqueued(MessageTypes.BeginReplicate, _ctx.ContainerName, blobName, dataAccountName);
                 // Set Blob Properties - should trigger replication
                 content = new StringContent(String.Empty);
                 content.Headers.Add("x-ms-blob-content-encoding", "application/csv");
-                response = _runner.ExecuteRequest(blobUri + "?comp=properties",
+                response = _ctx.Runner.ExecuteRequest(blobUri + "?comp=properties",
                     "PUT",
                     content,
                     HttpStatusCode.OK);
-                AssertReplicationMessageIsEnqueued(MessageTypes.BeginReplicate, ContainerName, blobName, dataAccountName);
-
-                // Cleanup 
-                _runner.ExecuteRequest(blobUri,
-                    "DELETE",
-                    expectedStatusCode: HttpStatusCode.Accepted);
-                // Because the blob is not replicated yet, the delete should not enque any delete replica messages
+                AssertReplicationMessageIsEnqueued(MessageTypes.BeginReplicate, _ctx.ContainerName, blobName, dataAccountName);
                 AssertQueueIsDrained();
             }
         }
@@ -228,19 +207,19 @@ namespace Microsoft.Tests
             lock (this)
             {
                 string blobName = Guid.NewGuid().ToString();
-                string blobUri = "http://localhost/blob/" + ContainerName + "/" + blobName;
+                string blobUri = _ctx.GetBlobUri(blobName);
                 var content = new StringContent("hello world", System.Text.Encoding.UTF8, "text/plain");
                 content.Headers.Add("x-ms-version", "2013-08-15");
                 content.Headers.Add("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT");
                 content.Headers.Add("x-ms-blob-type", "BlockBlob");
-                var response = _runner.ExecuteRequest(blobUri,
+                var response = _ctx.Runner.ExecuteRequest(blobUri,
                     "PUT",
                     content,
                     HttpStatusCode.Created);
                 AssertQueueIsDrained();
                 // Directly manipulate the namespace blob so it appears that the blob is replicated
                 var namespaceClient = DashConfiguration.NamespaceAccount.CreateCloudBlobClient();
-                var containerReference = namespaceClient.GetContainerReference(ContainerName);
+                var containerReference = namespaceClient.GetContainerReference(_ctx.ContainerName);
                 var nsBlob = NamespaceBlob.FetchForBlobAsync(containerReference.GetBlockBlobReference(blobName)).Result;
                 foreach (var dataAccount in DashConfiguration.DataAccounts
                                                                 .Where(account => !String.Equals(account.Credentials.AccountName, nsBlob.PrimaryAccountName, StringComparison.OrdinalIgnoreCase)))
@@ -249,10 +228,10 @@ namespace Microsoft.Tests
                 }
                 nsBlob.SaveAsync().Wait();
                 // Now we delete - we should get a delete replica message for every data account except the primary
-                _runner.ExecuteRequest(blobUri,
+                _ctx.Runner.ExecuteRequest(blobUri,
                     "DELETE",
                     expectedStatusCode: HttpStatusCode.Accepted);
-                AssertReplicationMessageIsEnqueued(MessageTypes.DeleteReplica, ContainerName, blobName, nsBlob.PrimaryAccountName);
+                AssertReplicationMessageIsEnqueued(MessageTypes.DeleteReplica, _ctx.ContainerName, blobName, nsBlob.PrimaryAccountName);
             }
         }
 
@@ -260,24 +239,19 @@ namespace Microsoft.Tests
         public void ReplicateCopyBlobControllerTest()
         {
             string blobName = "test22/" + Guid.NewGuid().ToString();
-            string blobUri = "http://localhost/blob/" + ContainerName + "/" + blobName;
-            var response = _runner.ExecuteRequestWithHeaders(blobUri,
+            string blobUri = _ctx.GetBlobUri(blobName);
+            var response = _ctx.Runner.ExecuteRequestWithHeaders(blobUri,
                 "PUT",
                 null,
                 new[] {
                     Tuple.Create("x-ms-version", "2013-08-15"),
-                    Tuple.Create("x-ms-copy-source", "http://localhost/test/fixed-test.txt"),
+                    Tuple.Create("x-ms-copy-source", _ctx.GetBlobUri("fixed-test.txt", false)),
                 },
                 HttpStatusCode.Accepted);
             // Fetch the blob so that we can determine it's primary data account
             var result = BlobRequest("HEAD", blobUri);
             string dataAccountName = new Uri(result.Location).Host.Split('.')[0];
-            AssertReplicationMessageIsEnqueued(MessageTypes.BeginReplicate, ContainerName, blobName, dataAccountName);
-            // Cleanup 
-            _runner.ExecuteRequest(blobUri,
-                "DELETE",
-                expectedStatusCode: HttpStatusCode.Accepted);
-            // Because the blob is not replicated yet, the delete should not enque any delete replica messages
+            AssertReplicationMessageIsEnqueued(MessageTypes.BeginReplicate, _ctx.ContainerName, blobName, dataAccountName);
             AssertQueueIsDrained();
         }
 
@@ -295,14 +269,14 @@ namespace Microsoft.Tests
                 string baseBlobName = uniqueFolderName + "/workernode2.jokleinhbase.d6.internal.cloudapp.net,60020,1436223739284/";
                 string blobName = baseBlobName + blobSegment;
                 string encodedBlobName = baseBlobName + encodedBlobSegment;
-                string baseBlobUri = "http://localhost/blob/" + ContainerName + "/" + baseBlobName;
+                string baseBlobUri = _ctx.GetBlobUri(baseBlobName);
                 string blobUri = baseBlobUri + blobSegment;
                 string encodedBlobUri = baseBlobUri + encodedBlobSegment;
                 var content = new StringContent("hello world", System.Text.Encoding.UTF8, "text/plain");
                 content.Headers.Add("x-ms-version", "2013-08-15");
                 content.Headers.Add("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT");
                 content.Headers.Add("x-ms-blob-type", "BlockBlob");
-                var response = _runner.ExecuteRequest(encodedBlobUri,
+                var response = _ctx.Runner.ExecuteRequest(encodedBlobUri,
                     "PUT",
                     content,
                     HttpStatusCode.Created);
@@ -310,11 +284,11 @@ namespace Microsoft.Tests
                 var result = BlobRequest("HEAD", blobUri);
                 string dataAccountName = new Uri(result.Location).Host.Split('.')[0];
                 // Verify that the blob is replicated by the async worker
-                AssertReplicationWorker(ContainerName, blobName, dataAccountName, false);
+                AssertReplicationWorker(_ctx.ContainerName, blobName, dataAccountName, false);
 
                 // Verify that concurrent operations send us to the primary - read the ETag & modified dates first
-                var listdoc = _runner.ExecuteRequestResponse(
-                    "http://localhost/container/" + ContainerName + "?restype=container&comp=list&prefix=" + encodedBlobName + "&include=metadata",
+                var listdoc = _ctx.Runner.ExecuteRequestResponse(
+                    _ctx.GetContainerUri() + "&comp=list&prefix=" + encodedBlobName + "&include=metadata",
                     "GET");
                 var enumerationResults = listdoc.Root;
                 var blobs = enumerationResults.Element("Blobs");
@@ -331,26 +305,26 @@ namespace Microsoft.Tests
                     Tuple.Create("x-ms-if-sequence-number-eq", "100"),
                 });
                 // Cleanup - do an orphaned replica test on the way out
-                _runner.ExecuteRequest(encodedBlobUri,
+                _ctx.Runner.ExecuteRequest(encodedBlobUri,
                     "DELETE",
                     expectedStatusCode: HttpStatusCode.Accepted);
                 // The namespace has been marked for deletion & the primary blob has been deleted, but the replicas are now
                 // orphaned waiting to be async deleted - verify that a blob listing at this time doesn't return the blob
-                listdoc = _runner.ExecuteRequestResponse(
-                    "http://localhost/container/" + ContainerName + "?restype=container&comp=list&prefix=" + encodedBlobName + "&include=metadata",
+                listdoc = _ctx.Runner.ExecuteRequestResponse(
+                    _ctx.GetContainerUri() + "&comp=list&prefix=" + encodedBlobName + "&include=metadata",
                     "GET");
                 enumerationResults = listdoc.Root;
                 Assert.AreEqual(0, enumerationResults.Element("Blobs").Elements().Count());
                 // A special corner case for this same scenario is that we do a hierarchical listing a folder down (the container) & we 
                 // shouldn't see the containing folder as it doesn't contain any non-deleted primary blobs
-                listdoc = _runner.ExecuteRequestResponse(
-                    "http://localhost/container/" + ContainerName + "?restype=container&comp=list&delimiter=/&prefix=" + uniqueFolderName + "&include=metadata",
+                listdoc = _ctx.Runner.ExecuteRequestResponse(
+                    _ctx.GetContainerUri() + "&comp=list&delimiter=/&prefix=" + uniqueFolderName + "&include=metadata",
                     "GET");
                 enumerationResults = listdoc.Root;
                 Assert.AreEqual(0, enumerationResults.Element("Blobs").Elements().Count());
 
                 // Verify the delete replica behavior
-                AssertReplicationWorker(ContainerName, blobName, dataAccountName, true);
+                AssertReplicationWorker(_ctx.ContainerName, blobName, dataAccountName, true);
             }
         }
 
@@ -363,12 +337,12 @@ namespace Microsoft.Tests
                 // The initial write doesn't replicate - we trigger that manually & then
                 // directly invoke the replication progress methods to verify the progress behavior
                 string blobName = "test/" + Guid.NewGuid().ToString();
-                string blobUri = "http://localhost/blob/" + ContainerName + "/" + blobName;
+                string blobUri = _ctx.GetBlobUri(blobName);
                 var content = new StringContent(new String('b', 1024 * 1024 * 20), System.Text.Encoding.UTF8, "text/plain");
                 content.Headers.Add("x-ms-version", "2013-08-15");
                 content.Headers.Add("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT");
                 content.Headers.Add("x-ms-blob-type", "BlockBlob");
-                var response = _runner.ExecuteRequest(blobUri,
+                var response = _ctx.Runner.ExecuteRequest(blobUri,
                     "PUT",
                     content,
                     HttpStatusCode.Created);
@@ -379,14 +353,9 @@ namespace Microsoft.Tests
                                                 .Where(account => !String.Equals(account.Credentials.AccountName, dataAccountName, StringComparison.OrdinalIgnoreCase)))
                 {
                     // Specify 0 wait time will cause a progress message to be enqueued
-                    Assert.IsTrue(BlobReplicator.BeginBlobReplication(dataAccountName, dataAccount.Credentials.AccountName, ContainerName, blobName, 0));
+                    Assert.IsTrue(BlobReplicator.BeginBlobReplication(dataAccountName, dataAccount.Credentials.AccountName, _ctx.ContainerName, blobName, 0));
                 }
-                AssertReplicationWorker(ContainerName, blobName, dataAccountName, false);
-                // Cleanup 
-                _runner.ExecuteRequest(blobUri,
-                    "DELETE",
-                    expectedStatusCode: HttpStatusCode.Accepted);
-                AssertReplicationWorker(ContainerName, blobName, dataAccountName, true);
+                AssertReplicationWorker(_ctx.ContainerName, blobName, dataAccountName, false);
             }
         }
 
@@ -417,8 +386,8 @@ namespace Microsoft.Tests
                 replicaAccounts[replicateMessage.Payload[messageType == MessageTypes.BeginReplicate ? ReplicatePayload.Destination : ReplicatePayload.Source]] = true;
                 queue.DeleteCurrentMessage();
             }
-            Assert.IsFalse(replicaAccounts.Any(account => !account.Value), 
-                "Data accounts detected with no replication enqueued: {0}", 
+            Assert.IsFalse(replicaAccounts.Any(account => !account.Value),
+                "Data accounts detected with no replication enqueued: {0}",
                 String.Join(", ", replicaAccounts
                     .Where(account => !account.Value)
                     .Select(account => account.Key)));

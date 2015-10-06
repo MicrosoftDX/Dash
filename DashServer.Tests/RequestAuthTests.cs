@@ -3,6 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Xml.Linq;
 using Microsoft.Dash.Common.Utils;
 using Microsoft.Dash.Server.Handlers;
 using Microsoft.Dash.Server.Utils;
@@ -11,20 +13,46 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Microsoft.Tests
 {
     [TestClass]
-    public class RequestAuthTests
+    public class RequestAuthTests : DashTestBase
     {
-        [TestInitialize]
-        public void Init()
+        const string StoredPolicyTest       = "testpolicy";
+        const string StoredPolicyNoDates    = "testpolicy-nodates";
+
+        static DashTestContext _ctx;
+
+        [ClassInitialize]
+        public static void Init(TestContext ctx)
         {
-            WebApiTestRunner.InitializeConfig(new Dictionary<string, string>()
+            // We need to create the container & associated policies
+            _ctx = InitializeConfigAndCreateTestBlobs(new Dictionary<string, string>()
                 {
                     { "AccountName", "dashstorage1" },
                     { "AccountKey", "8jqRVtXUWiEthgIhR+dFwrB8gh3lFuquvJQ1v4eabObIj7okI1cZIuzY8zZHmEdpcC0f+XlUkbFwAhjTfyrLIg==" },
                     { "SecondaryAccountKey", "Klari9ZbVdFQ35aULCfqqehCsd136amhusMHWynTpz2Pg+GyQMJw3GH177hvEQbaZ2oeRYk3jw0mIaV3ehNIRg==" },
                     { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=https;AccountName=dashtestnamespace;AccountKey=N+BMOAp/bswfqp4dxoQYLLwmYnERysm1Xxv3qSf5H9RVhQ0q+f/QKNHhXX4Z/P67mZ+5QwT6RZv9qKV834pOqQ==" },
                     { "ScaleoutStorage0", "DefaultEndpointsProtocol=https;AccountName=dashtestdata1;AccountKey=IatOQyIdf8x3HcCZuhtGGLv/nS0v/SwXu2vBS6E9/5/+GYllhdmFFX6YqMXmR7U6UyFYQt4pdZnlLCM+bPcJ4A==" },
-                    { "ScaleoutNumberOfAccounts", "1"},
-                });
+                },
+                new TestBlob[] { });
+            // Create required stored access policies
+            var body = new XDocument(
+                new XElement("SignedIdentifiers",
+                    new XElement("SignedIdentifier",
+                        new XElement("Id", StoredPolicyTest),
+                        new XElement("AccessPolicy",
+                            new XElement("Start", DateTimeOffset.UtcNow.ToString()),
+                            new XElement("Expiry", DateTimeOffset.UtcNow.AddMinutes(30).ToString()),
+                            new XElement("Permission", "r"))),
+                    new XElement("SignedIdentifier",
+                        new XElement("Id", StoredPolicyNoDates),
+                        new XElement("AccessPolicy",
+                            new XElement("Permission", "r")))));
+            _ctx.Runner.ExecuteRequest(_ctx.GetContainerUri() + "&comp=acl", "PUT", body, HttpStatusCode.OK);
+        }
+
+        [ClassCleanup]
+        public static void Cleanup()
+        {
+            CleanupTestBlobs(_ctx);
         }
 
         [TestMethod]
@@ -52,8 +80,8 @@ namespace Microsoft.Tests
                 "SharedKey dashstorage1:CVlJHA7FdyqJ75pPkufGavOsXEtzcr5RAWd3R5fEolA="));
             // For encoded uris, some clients generate the signature on the unencoded path (in violation of the documented spec), but 
             // storage supports it, so we have to as well.
-            Assert.IsTrue(IsRequestAuthorized("PUT", 
-                "http://localhost/container/test%20encoded", 
+            Assert.IsTrue(IsRequestAuthorized("PUT",
+                "http://localhost/container/test%20encoded",
                 headers,
                 "SharedKey dashstorage1:w6D7S11x58ueIvRKEWZGe1MRVvMkQFO+18wPlfm6f+A="));
             // Alternate encoding - some punctuation characters are encoded as well
@@ -133,12 +161,16 @@ namespace Microsoft.Tests
             Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/container/test?restype=container&comp=list&prefix=te&include=snapshots,uncommittedblobs,metadata,copy&sv=2014-02-14&sr=c&sig=KFHvXPWBWxYFWv6lEapqJO%2BZ6WTGrVBdEHVCK7t6SQ0%3D&st=2015-05-22T21%3A28%3A32Z&se=2015-05-22T22%3A28%3A32Z&sp=rl"));
             // Older version
             Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2012-02-12&sr=b&sig=i%2FONHWNOfiwr0QBUaAnZ8ppyPKqsGtC%2BHbkBKcgRMFQ%3D&st=2015-05-22T21%3A32%3A13Z&se=2015-05-22T22%3A32%3A13Z&sp=rwd"));
+            // Re-enable stored policy auth tests when we don't rely to pre-existing policies
             // Stored policy
-            Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&si=testpolicy&sig=6VCAjUcL2F%2FVJfBneHvVT4RXv2JcS9jooXaIEKw2fNM%3D"));
+            Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&si=" + StoredPolicyTest + "&sig=6VCAjUcL2F%2FVJfBneHvVT4RXv2JcS9jooXaIEKw2fNM%3D",
+                new[] { Tuple.Create("StoredPolicyContainer", _ctx.ContainerName) }));
             // Stored policy - attempt to override set expiry time
-            Assert.IsFalse(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&si=testpolicy&sig=wGmBX5GS2dGrbxRVfOPuT0WkhUtKMffarW1mIF7ZmmA%3D&st=2015-05-22T22%3A48%3A46Z&se=2015-05-22T23%3A48%3A46Z&sp=r"));
+            Assert.IsFalse(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&si=" + StoredPolicyTest + "&sig=wGmBX5GS2dGrbxRVfOPuT0WkhUtKMffarW1mIF7ZmmA%3D&st=2015-05-22T22%3A48%3A46Z&se=2015-05-22T23%3A48%3A46Z&sp=r",
+                new[] { Tuple.Create("StoredPolicyContainer", _ctx.ContainerName) }));
             // Stored policy - attempt to override unset expiry time
-            Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&si=testpolicy-nodates&sig=Fvdh21mrNY%2FBGaeVuVAFt0rdnabO6qAYWVWsiG3kTwQ%3D&st=2015-05-22T22%3A53%3A24Z&se=2015-05-22T23%3A53%3A24Z"));
+            Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&si=" + StoredPolicyNoDates + "&sig=Fvdh21mrNY%2FBGaeVuVAFt0rdnabO6qAYWVWsiG3kTwQ%3D&st=2015-05-22T22%3A53%3A24Z&se=2015-05-22T23%3A53%3A24Z",
+                new[] { Tuple.Create("StoredPolicyContainer", _ctx.ContainerName) }));
             // Stored policy - invalid stored policy id
             Assert.IsFalse(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&si=testpolicy-invalid&sig=meGd900%2BhZrSgu3xqsMR9Np%2Fpl6TSnH%2Bsi6wDxBcRgo%3D"));
             // Invalid SAS structure - missing expiry
@@ -204,7 +236,7 @@ namespace Microsoft.Tests
             EvaluateAnonymousContainerAccess(ContainerAccess.None, "DELETE", "", "restype=container");
             EvaluateAnonymousContainerAccess(ContainerAccess.Container, "GET", "", "restype=container&comp=list");
             EvaluateAnonymousContainerAccess(ContainerAccess.None, "PUT", "test.txt", "");
-            EvaluateAnonymousContainerAccess(ContainerAccess.Container | ContainerAccess.Blob, "GET",  "test.txt", "");
+            EvaluateAnonymousContainerAccess(ContainerAccess.Container | ContainerAccess.Blob, "GET", "test.txt", "");
             EvaluateAnonymousContainerAccess(ContainerAccess.Container | ContainerAccess.Blob, "HEAD", "test.txt", "");
             EvaluateAnonymousContainerAccess(ContainerAccess.None, "PUT", "test.txt", "comp=properties");
             EvaluateAnonymousContainerAccess(ContainerAccess.Container | ContainerAccess.Blob, "GET", "test.txt", "comp=metadata");

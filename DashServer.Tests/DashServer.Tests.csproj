@@ -89,6 +89,7 @@
     <Compile Include="AccountControllerTests.cs" />
     <Compile Include="AccountManagementTests.cs" />
     <Compile Include="BlobReplicationTests.cs" />
+    <Compile Include="DashTestBase.cs" />
     <Compile Include="MockHttpWrapper.cs" />
     <Compile Include="PipelineTestBase.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

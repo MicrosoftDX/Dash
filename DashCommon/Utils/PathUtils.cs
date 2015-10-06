@@ -49,21 +49,53 @@ namespace Microsoft.Dash.Common.Utils
 
         public static string PathEncode(string path)
         {
-            // Pulling apart the path, encoding each segment & re-assembling it is a potentially expensive operation.
-            // It's worth doing the pre-check, even if it involves scanning the string twice
-            if (String.IsNullOrWhiteSpace(path))
+            if (_IsUrlSafeChar == null || String.IsNullOrWhiteSpace(path))
             {
                 return path;
             }
-            if (_IsUrlSafeChar != null &&
-                !path.Any(ch => ch != StandardPathDelimiterChar && !(bool)_IsUrlSafeChar.Invoke(null, new object[] { ch })))
+            // Don't use the standard encoding helpers here as they universally encode a space with '+' which seems
+            // to screw with storage (it ends up creating blobs with + in the name).
+            bool encoding = false;
+            char[] encodedRetval = null;
+            int encodedLength = 0;
+            for (int index = 0; index < path.Length; index++)
+            {
+                char ch = path[index];
+                if (ch != StandardPathDelimiterChar && !(bool)_IsUrlSafeChar.Invoke(null, new object[] { ch }))
+                {
+                    if (!encoding)
+                    {
+                        encodedRetval = new char[index + (path.Length - index) * 3];
+                        if (index > 0)
+                        {
+                            path.CopyTo(0, encodedRetval, 0, index);
+                        }
+                        encoding = true;
+                        encodedLength = index;
+                    }
+                    encodedRetval[encodedLength++] = '%';
+                    encodedRetval[encodedLength++] = IntToHex((ch >> 4) & 15);
+                    encodedRetval[encodedLength++] = IntToHex(ch & 15);
+                }
+                else if (encoding)
+                {
+                    encodedRetval[encodedLength++] = ch;
+                }
+            }
+            if (!encoding)
             {
                 return path;
             }
-            var segments = GetPathSegments(path)
-                .Select(segment => WebUtility.UrlEncode(segment))
-                .ToArray();
-            return String.Join(StandardPathDelimiter, segments);
+            return new string(encodedRetval, 0, encodedLength);
+        }
+
+        static char IntToHex(int n)
+        {
+            if (n <= 9)
+            {
+                return (char)(n + 0x30);
+            }
+            return (char)((n - 10) + 0x41);
         }
     }
 }
