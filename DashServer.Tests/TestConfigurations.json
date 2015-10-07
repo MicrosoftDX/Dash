@@ -1,0 +1,42 @@
+﻿{
+    "datax1": {
+        "Description": "Single data account",
+        "NamespaceConnectionString": "DefaultEndpointsProtocol=https;AccountName=;AccountKey=",
+        "DataConnectionStrings": [
+            "DefaultEndpointsProtocol=https;AccountName=;AccountKey=",
+        ]
+    },
+    "datax2": {
+        "Description": "Two data accounts",
+        "NamespaceConnectionString": "DefaultEndpointsProtocol=https;AccountName=;AccountKey=",
+        "DataConnectionStrings": [
+            "DefaultEndpointsProtocol=https;AccountName=;AccountKey=",
+            "DefaultEndpointsProtocol=https;AccountName=;AccountKey="
+        ]
+    },
+    "datax3": {
+        "Description": "Three data accounts",
+        "NamespaceConnectionString": "DefaultEndpointsProtocol=https;AccountName=;AccountKey=",
+        "DataConnectionStrings": [
+            "DefaultEndpointsProtocol=https;AccountName=;AccountKey=",
+            "DefaultEndpointsProtocol=https;AccountName=;AccountKey=",
+            "DefaultEndpointsProtocol=https;AccountName=;AccountKey="
+        ]
+    },
+    "dataimportx2": {
+        "Description": "One normal data account and another account to import into the namespace",
+        "NamespaceConnectionString": "DefaultEndpointsProtocol=https;AccountName=;AccountKey=",
+        "DataConnectionStrings": [
+            "DefaultEndpointsProtocol=https;AccountName=;AccountKey=",
+            "DefaultEndpointsProtocol=https;AccountName=;AccountKey=",
+        ]
+    },
+    "constantx2": {
+        "Description": "Two data accounts with invariant contents (may be deprecated in future)",
+        "NamespaceConnectionString": "DefaultEndpointsProtocol=https;AccountName=;AccountKey=",
+        "DataConnectionStrings": [
+            "DefaultEndpointsProtocol=https;AccountName=;AccountKey=",
+            "DefaultEndpointsProtocol=https;AccountName=;AccountKey="
+        ]
+    }
+}

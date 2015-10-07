@@ -27,12 +27,8 @@ namespace Microsoft.Tests
         [ClassInitialize]
         public static void Init(TestContext ctx)
         {
-            _ctx = InitializeConfigAndCreateTestBlobs(new Dictionary<string, string>
+            _ctx = InitializeConfigAndCreateTestBlobs(ctx, "datax3", new Dictionary<string, string>
                 {
-                    { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=https;AccountName=dashtestnamespace;AccountKey=N+BMOAp/bswfqp4dxoQYLLwmYnERysm1Xxv3qSf5H9RVhQ0q+f/QKNHhXX4Z/P67mZ+5QwT6RZv9qKV834pOqQ==" },
-                    { "ScaleoutStorage0", "DefaultEndpointsProtocol=https;AccountName=dashtestdata1;AccountKey=IatOQyIdf8x3HcCZuhtGGLv/nS0v/SwXu2vBS6E9/5/+GYllhdmFFX6YqMXmR7U6UyFYQt4pdZnlLCM+bPcJ4A==" },
-                    { "ScaleoutStorage1", "DefaultEndpointsProtocol=https;AccountName=dashtestdata2;AccountKey=OOXSVWWpImRf79sbiEtpIwFsggv7VAhdjtKdt7o0gOLr2krzVXwZ+cb/gJeMqZRlXHTniRN6vnKKjs1glijihA==" },
-                    { "ScaleoutStorage2", "DefaultEndpointsProtocol=https;AccountName=dashtestdata3;AccountKey=wXrVhqMZF/E5sJCstDUNMNG6AoVakaJHC5XkkNnAYeT/b0h9JGh7WxTEpblqGZx9pjXviHRBKBSVODhX4hGT7A==" },
                     { "WorkerQueueName", Guid.NewGuid().ToString() },
                     { "ReplicationMetadataName", ReplicateMetadataName },
                     { "ReplicationPathPattern", "^.*/test22(/.*|$)" },

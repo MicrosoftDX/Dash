@@ -18,11 +18,7 @@ namespace Microsoft.Tests
         [ClassInitialize]
         public static void Init(TestContext ctx)
         {
-            _ctx = InitializeConfig(new Dictionary<string, string>()
-                {
-                    { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=https;AccountName=dashtestnamespace;AccountKey=N+BMOAp/bswfqp4dxoQYLLwmYnERysm1Xxv3qSf5H9RVhQ0q+f/QKNHhXX4Z/P67mZ+5QwT6RZv9qKV834pOqQ==" },
-                    { "ScaleoutStorage0", "DefaultEndpointsProtocol=https;AccountName=dashtestdata1;AccountKey=IatOQyIdf8x3HcCZuhtGGLv/nS0v/SwXu2vBS6E9/5/+GYllhdmFFX6YqMXmR7U6UyFYQt4pdZnlLCM+bPcJ4A==" },
-                });
+            _ctx = InitializeConfig(ctx, "datax1", new Dictionary<string, string>());
         }
 
         [ClassCleanup]

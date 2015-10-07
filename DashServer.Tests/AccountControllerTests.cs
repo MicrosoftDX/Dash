@@ -15,19 +15,13 @@ namespace Microsoft.Tests
         static string _containerPrefix;
         static DashTestContext _ctx;
         static DashTestContext _ctx2;
-        static IDictionary<string, string> _config = new Dictionary<string, string>
-        {
-            { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=https;AccountName=dashtestnamespace;AccountKey=N+BMOAp/bswfqp4dxoQYLLwmYnERysm1Xxv3qSf5H9RVhQ0q+f/QKNHhXX4Z/P67mZ+5QwT6RZv9qKV834pOqQ==" },
-            { "ScaleoutStorage0", "DefaultEndpointsProtocol=https;AccountName=dashtestconstant1;AccountKey=Q32sd0MkbWpMfBb0A3Zjg8LhSI0VJblT+CyAbXkczI2rWNYIrsoaQjc7ba1z5w+KOpJtxl/h3vA20WsbENM6hQ==" },
-            { "ScaleoutStorage1", "DefaultEndpointsProtocol=https;AccountName=dashtestconstant2;AccountKey=DHkdb1s/P0K0bDGJ5CaAGjN9HTv7UL1mZ9nriYn0bOkeX0V9qVaDqVp3RjPoJ6CnKarzhGGd4+H84D+ureNisA==" },
-        };
 
         [ClassInitialize]
         public static void Init(TestContext ctx)
         {
             _containerPrefix = Guid.NewGuid().ToString().Substring(0, 8);
-            _ctx = InitializeConfigAndCreateTestBlobs(_config, new TestBlob[] { }, _containerPrefix);           // We just need the container
-            _ctx2 = InitializeConfigAndCreateTestBlobs(_config, new TestBlob[] { }, _containerPrefix);          // We just need the container
+            _ctx = InitializeConfigAndCreateTestBlobs(ctx, "datax2", new Dictionary<string, string>(), new TestBlob[] { }, _containerPrefix);           // We just need the container
+            _ctx2 = InitializeConfigAndCreateTestBlobs(ctx, "datax2", new Dictionary<string, string>(), new TestBlob[] { }, _containerPrefix);          // We just need the container
         }
 
         [ClassCleanup]

@@ -19,11 +19,8 @@ namespace Microsoft.Tests
         [ClassInitialize]
         static public void Init(TestContext ctx)
         {
-            _ctx = InitializeConfigAndCreateTestBlobs(new Dictionary<string, string>()
+            _ctx = InitializeConfigAndCreateTestBlobs(ctx, "constantx2", new Dictionary<string, string>
                 {
-                    { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=https;AccountName=dashtestnamespace;AccountKey=N+BMOAp/bswfqp4dxoQYLLwmYnERysm1Xxv3qSf5H9RVhQ0q+f/QKNHhXX4Z/P67mZ+5QwT6RZv9qKV834pOqQ==" },
-                    { "ScaleoutStorage0", "DefaultEndpointsProtocol=https;AccountName=dashtestconstant1;AccountKey=Q32sd0MkbWpMfBb0A3Zjg8LhSI0VJblT+CyAbXkczI2rWNYIrsoaQjc7ba1z5w+KOpJtxl/h3vA20WsbENM6hQ==" },
-                    { "ScaleoutStorage1", "DefaultEndpointsProtocol=https;AccountName=dashtestconstant2;AccountKey=DHkdb1s/P0K0bDGJ5CaAGjN9HTv7UL1mZ9nriYn0bOkeX0V9qVaDqVp3RjPoJ6CnKarzhGGd4+H84D+ureNisA==" },
                     { "WorkerQueueName", Guid.NewGuid().ToString() },
                     { "ReplicationMetadataName", ReplicateMetadataName },
                     { "LogNormalOperations", "true" }

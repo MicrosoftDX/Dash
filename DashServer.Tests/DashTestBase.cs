@@ -2,18 +2,24 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Dash.Async;
 using Microsoft.Dash.Common.Utils;
 using Microsoft.WindowsAzure.Storage.Blob;
+using Microsoft.Tests.Configuration;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Microsoft.Tests
 {
     public class DashTestBase
     {
-        protected const string ReplicateMetadataName = "dash_replicate_blob";
+        protected const string ReplicateMetadataName        = "dash_replicate_blob";
+        protected const string TestSettingsConfigFileName   = "TestConfigurationFile";
+
+        protected static TestConfigurations _testConfig = null;
 
         protected class TestBlob
         {
@@ -57,18 +63,69 @@ namespace Microsoft.Tests
             }
         }
 
-        protected static DashTestContext InitializeConfigAndCreateTestBlobs(IDictionary<string, string> config, IEnumerable<TestBlob> testBlobs, string containerPrefix = "")
+        protected static DashTestContext InitializeConfigAndCreateTestBlobs(TestContext testCtx, 
+            string configurationName, 
+            IDictionary<string, string> config, 
+            IEnumerable<TestBlob> testBlobs, 
+            string containerPrefix = "")
         {
-            var ctx = InitializeConfig(config, containerPrefix);
+            var ctx = InitializeConfig(testCtx, configurationName, config, containerPrefix);
             CreateTestBlobs(ctx, testBlobs);
             return ctx;
         }
 
-        protected static DashTestContext InitializeConfig(IDictionary<string, string> config, string containerPrefix = "")
+        protected static DashTestContext InitializeConfig(TestContext testCtx, string configurationName, IDictionary<string, string> config, string containerPrefix = "")
         {
+            // Ensure that our parameterized config is loaded
+            if (_testConfig == null)
+            {
+                lock (typeof(DashTestBase))
+                {
+                    if (_testConfig == null)
+                    {
+                        string configFileLocation = String.Empty;
+                        if (testCtx.Properties.Contains(TestSettingsConfigFileName))
+                        {
+                            configFileLocation = testCtx.Properties[TestSettingsConfigFileName].ToString();
+                        }
+                        Uri configUri;
+                        if (Uri.TryCreate(configFileLocation, UriKind.Absolute, out configUri))
+                        {
+                            _testConfig = TestConfigurations.ReadHttp(configFileLocation);
+                        }
+                        else
+                        {
+                            _testConfig = TestConfigurations.ReadFile(configFileLocation);
+                        }
+                    }
+                }
+            }
+            // Augment the supplied config with config read from the secrets file
+            int nextDataAccountIndex = 0;
+            while (true)
+            {
+                if (!config.ContainsKey("ScaleoutStorage" + nextDataAccountIndex.ToString()))
+                {
+                    break;
+                }
+                nextDataAccountIndex++;
+            }
+            if (!_testConfig.Configurations.ContainsKey(configurationName))
+            {
+                Assert.Fail("Specified configuration [{0}] does not exist in the configuration file", configurationName);
+            }
+            var secretsConfig = _testConfig.Configurations[configurationName];
+            var augmentedConfig = config
+                .Concat(secretsConfig.DataConnectionStrings
+                    .Select((connectString, index) => new KeyValuePair<string, string>("ScaleoutStorage" + (nextDataAccountIndex + index).ToString(), connectString)))
+                .ToDictionary(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase);
+            if (!String.IsNullOrWhiteSpace(secretsConfig.NamespaceConnectionString))
+            {
+                augmentedConfig["StorageConnectionStringMaster"] = secretsConfig.NamespaceConnectionString;
+            }
             return new DashTestContext
             {
-                Runner = new WebApiTestRunner(config),
+                Runner = new WebApiTestRunner(augmentedConfig),
                 ContainerName = containerPrefix + Guid.NewGuid().ToString("N"),
             };
         }
