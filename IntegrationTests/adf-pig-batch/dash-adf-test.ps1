@@ -1,7 +1,16 @@
-﻿$resourceGroupName = "dash-adf-test"
+﻿param(
+	[Parameter(Mandatory=$true)][string] $subscriptionName,
+	[Parameter(Mandatory=$false)][string] $location = "westus",
+    [Parameter(Mandatory=$false)][string] $resourceGroupName = "dash-adf-test",
+    [Parameter(Mandatory=$false)][string] $batch_name = "dashadfbatchtest",
+    [Parameter(Mandatory=$false)][string] $pipeline_name = "dash-adf-test-xform-parts",
+    [Parameter(Mandatory=$true)][string] $storage_account_name,
+    [Parameter(Mandatory=$true)][string] $storage_account_key,
+    [Parameter(Mandatory=$true)][string] $dash_uri,
+    [Parameter(Mandatory=$true)][string] $dash_account_name,
+    [Parameter(Mandatory=$true)][string] $dash_account_key
+)
 $data_factory_name = $resourceGroupName
-$batch_name = "dashadfbatchtest"
-$pipeline_name = "dash-adf-test-xform-parts"
 $scriptDir = Split-Path -Path $MyInvocation.MyCommand.Definition -Parent
 
 function Get-TaskOutput {
@@ -27,12 +36,12 @@ function Get-TaskOutput {
     }
 }
 
-Select-AzureSubscription -SubscriptionName "Data At Scale Hub -- jamesbak"
+Select-AzureSubscription -SubscriptionName $subscriptionName
 Switch-AzureMode -Name AzureResourceManager
-New-AzureResourceGroup -Name $resourceGroupName -Location "westus"
+New-AzureResourceGroup -Name $resourceGroupName -Location $location
 
 # Create & run the data factory
-$factory = New-AzureDataFactory -Name $data_factory_name -Location "westus" -ResourceGroupName $resourceGroupName
+$factory = New-AzureDataFactory -Name $data_factory_name -Location $location -ResourceGroupName $resourceGroupName
 # Data & compute stores
 New-AzureDataFactoryLinkedService -DataFactory $factory -Name DashTestEast -File $scriptDir\adf-snippets\DashTestEastLinkedService.json
 New-AzureDataFactoryLinkedService -DataFactory $factory -Name ClusterDataStore -File $scriptDir\adf-snippets\ClusterDataStoreLinkedService.json
@@ -57,14 +66,14 @@ do {
 while ($endStates -notcontains $slice.Status)
 
 # Create the Batch service
-New-AzureBatchAccount –AccountName $batch_name –Location "westus" –ResourceGroupName $resourceGroupName
+New-AzureBatchAccount –AccountName $batch_name –Location $location –ResourceGroupName $resourceGroupName
 # Allow replication to take place
 Write-Output "Emulating delay between ETL & Calc Engine"
 Start-Sleep -Seconds (60 * 10)
 
 $batchCtx = Get-AzureBatchAccountKeys -AccountName $batch_name
 # List the install blobs
-$storageCtx = New-AzureStorageContext -ConnectionString "DefaultEndpointsProtocol=https;AccountName=dashadftest;AccountKey=w5mNcPZQ2sooPH2cMFMErFkfWGDAwjuqKjzWolKIc0WRw1Erk3biDSlEoR6HlHi8VunpqkUcheSR1ff5x1hAtg=="
+$storageCtx = New-AzureStorageContext -StorageAccountName $storage_account_name -StorageAccountKey $storage_account_key 
 $container = Get-AzureStorageContainer -Context $storageCtx -Name "dash-adf-test"
 $installBlobs = Get-AzureStorageBlob -Context $storageCtx -Container $container.Name -Prefix "batch-startup"
 $startTask = new-object Microsoft.Azure.Commands.Batch.Models.PSStartTask
@@ -99,11 +108,10 @@ while ($vm.State -ne "Idle")
 
 $today = (Get-Date).ToUniversalTime().AddDays(-1)
 $blobPath = [System.String]::Format("output-blobs/{0:yyyy}/{0:MM}/{0:dd}/", $today)
-$storageCtx = New-AzureStorageContext -ConnectionString "AccountName=dashtesteast;AccountKey=wCNvIdXcltACBiDUMyO0BflZpKmjseplqOlzE62tx87qnkwpUMBV/GQhrscW9lmdZVT0x8DilYqUoHMNBlVIGg==;BlobEndpoint=http://dashtesteast.cloudapp.net;TableEndpoint=http://dashtesteast.cloudapp.net;QueueEndpoint=http://dashtesteast.cloudapp.net;"
+$storageCtx = New-AzureStorageContext -StorageAccountName $dash_account_name -StorageAccountKey $dash_account_key -Endpoint $dash_uri
 $copyBlobs = Get-AzureStorageBlob -Context $storageCtx -Container "dash-adf-test" -Prefix $blobPath
 $blobUrls = $copyBlobs | foreach { "('" + (New-AzureStorageBlobSASToken -ICloudBlob $_.ICloudBlob -Context $storageCtx -Permission r -FullUri) + "', '" + [System.IO.Path]::GetFileName($_.Name.Replace('/', '\')) + "')" }
 $cmd = 'cmd /c powershell -command %WATASK_TVM_SHARED_DIR%\batch-startup\copyblobs.ps1 -Destination .\CopiedData -Urls "(' + [System.String]::Join(",", $blobUrls) + ')"' 
-#$cmd = "cmd /c %WATASK_TVM_SHARED_DIR%\batch-startup\azcopy /source:$blobPath /Dest:.\CopiedData /SourceKey:wCNvIdXcltACBiDUMyO0BflZpKmjseplqOlzE62tx87qnkwpUMBV/GQhrscW9lmdZVT0x8DilYqUoHMNBlVIGg== /SourceType:Blob /S /V:.\azcopy.log"
 for ($i = 0; $i -lt 500; $i++) {
     $taskName = "Task$i"
     New-AzureBatchTask -Name $taskName -BatchContext $batchCtx -Job $batchJob -CommandLine $cmd
