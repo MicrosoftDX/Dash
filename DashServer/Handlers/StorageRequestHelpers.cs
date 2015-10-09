@@ -24,7 +24,7 @@ namespace Microsoft.Dash.Server.Handlers
             {
                 response.Headers.Add("x-ms-request-id", clientId);
             }
-            response.Headers.Add("x-ms-version", requestHeaders.Value("x-ms-version", StorageServiceVersions.Version_2014_02_14.ToVersionString()));
+            response.Headers.Add("x-ms-version", requestHeaders.RequestVersion.ToVersionString());
             response.Headers.Date = DateTimeOffset.UtcNow;
         }
 

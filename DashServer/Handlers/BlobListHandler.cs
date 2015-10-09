@@ -112,7 +112,7 @@ namespace Microsoft.Dash.Server.Handlers
                 .Select(blobPair => blobPair.DataBlob);
             return new BlobListResults
             {
-                RequestVersion = request.Headers.Value("x-ms-version", StorageServiceVersions.Version_2009_09_19),
+                RequestVersion = request.Headers.RequestVersion,
                 ServiceEndpoint = request.Url.GetComponents(UriComponents.SchemeAndServer, UriFormat.Unescaped),
                 ContainerName = container,
                 MaxResults = maxResults,

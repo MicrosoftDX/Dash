@@ -102,6 +102,41 @@ namespace Microsoft.Tests
                 "http://localhost/container/test?restype=container&comp=list&prefix=te&include=snapshots,uncommittedblobs,metadata,copy",
                 headers,
                 "SharedKey dashstorage1:ymKvQUdxMH2OJWQygKOa950BULRSw6Dpue2zpE6TAAA="));
+            // Non-zero content length
+            Assert.IsTrue(IsRequestAuthorized("PUT",
+                "http://localhost/container/test/testblob",
+                new[] {
+                    Tuple.Create("x-ms-version", "2014-02-14"),
+                    Tuple.Create("x-ms-date", "Fri, 31 Oct 2014 22:50:34 GMT"),
+                    Tuple.Create("Content-Length", "1024"),
+                },
+                "SharedKey dashstorage1:2LVVY8xiJ1iJzypLMXFTV2dsq6iglj1EAV9BNCi8+B4="));
+            // 2015-02-21 version with 0 content length
+            Assert.IsTrue(IsRequestAuthorized("PUT",
+                "http://localhost/container/test/testblob",
+                new[] {
+                    Tuple.Create("x-ms-version", "2015-02-21"),
+                    Tuple.Create("x-ms-date", "Fri, 31 Oct 2014 22:50:34 GMT"),
+                    Tuple.Create("Content-Length", "0"),
+                },
+                "SharedKey dashstorage1:LN/1NeMcCUcRssRcfKyInYVL1EpqS8SL9xoLlJJsKPs="));
+            // Blank content-length with new version
+            Assert.IsTrue(IsRequestAuthorized("PUT",
+                "http://localhost/container/test/testblob",
+                new[] {
+                    Tuple.Create("x-ms-version", "2015-02-21"),
+                    Tuple.Create("x-ms-date", "Fri, 31 Oct 2014 22:50:34 GMT"),
+                },
+                "SharedKey dashstorage1:LN/1NeMcCUcRssRcfKyInYVL1EpqS8SL9xoLlJJsKPs="));
+            // Valid content-length with new version
+            Assert.IsTrue(IsRequestAuthorized("PUT",
+                "http://localhost/container/test/testblob",
+                new[] {
+                    Tuple.Create("x-ms-version", "2015-02-21"),
+                    Tuple.Create("x-ms-date", "Fri, 31 Oct 2014 22:50:34 GMT"),
+                    Tuple.Create("Content-Length", "1024"),
+                },
+                "SharedKey dashstorage1:d0i2sKACec56W4SrUEg77CL8b/p7chQZVRzRk7finnI="));
         }
 
         [TestMethod]
@@ -175,6 +210,27 @@ namespace Microsoft.Tests
             Assert.IsFalse(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&sig=Y%2B3LyPR8lozh2Epolb7t4tZBUAGfb9tk6iE6zwA8Udc%3D&st=2015-05-22T23%3A04%3A45Z&sp=r"));
             // Invalid SAS structure - missing permissions
             Assert.IsFalse(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2014-02-14&sr=b&sig=Z3aYFycY54oa73E4efuLUuOdFjPVmdgDrXkPWG0QzRY%3D&st=2015-05-22T23%3A07%3A46Z&se=2015-05-23T00%3A07%3A46Z"));
+            // 2015-04-05 signature, including Protocol & sip
+            Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2015-04-05&sr=c&si=&sig=1urZ3PGr2r8p6aX8%2FDkUY2d%2FGnjj%2Bwx2DCmNRQEx%2BM0%3D&spr=https%2Chttp&sip=127.0.0.1&se=2015-10-09T19%3A22%3A15Z&sp=rl"));
+        }
+
+        [TestMethod]
+        public void SASAccountRequestTest()
+        {
+            // Account SAS - List Containers
+            Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/account?comp=list&sv=2015-04-05&sig=j9BTOeDqF3g4145hOOnE%2F81akzKFR%2FGBJFtQldyUY%2FY%3D&se=2015-10-09T18%3A55%3A03Z&srt=s&ss=b&sp=rl"));
+            // Account SAS - secondary key
+            Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/account?comp=list&sv=2015-04-05&sig=q5kaCAGu7j2BX%2BUbLEFyOmugtL179iftRm5jOgg2Wro%3D&se=2015-10-09T19%3A08%3A54Z&srt=s&ss=b&sp=rl"));
+            // Valid account SAS - but not blob service
+            Assert.IsFalse(IsRequestAuthorized("GET", "http://localhost/account?comp=list&sv=2015-04-05&sig=3UYb0OjEwFiMNAV4633Rj8Vqs0nOyjgO2bvxiOla82k%3D&se=2015-10-09T19%3A10%3A33Z&srt=s&ss=fq&sp=rl"));
+            // Valid account SAS - but invalid resource type
+            Assert.IsFalse(IsRequestAuthorized("GET", "http://localhost/account?comp=list&sv=2015-04-05&sig=Yf%2Fk2bHW7aWMVQvAbiPsdmvZlSWV1G6Wxp44PKs4cSQ%3D&se=2015-10-09T19%3A13%3A15Z&srt=o&ss=b&sp=rl"));
+            // Multiple resource types for account SAS
+            Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/account?comp=list&sv=2015-04-05&sig=jZ11TnKQmortK5n8B817OzXp%2BTpSAA6qcoCwTgW4LTk%3D&se=2015-10-09T19%3A14%3A44Z&srt=sco&ss=b&sp=rl"));
+            // Account SAS applied to blob operation
+            Assert.IsTrue(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2015-04-05&sig=jZ11TnKQmortK5n8B817OzXp%2BTpSAA6qcoCwTgW4LTk%3D&se=2015-10-09T19%3A14%3A44Z&srt=sco&ss=b&sp=rl"));
+            // Account SAS applied to blob operation with invalid resource type
+            Assert.IsFalse(IsRequestAuthorized("GET", "http://localhost/blob/test/test.txt?sv=2015-04-05&sig=j9BTOeDqF3g4145hOOnE%2F81akzKFR%2FGBJFtQldyUY%2FY%3D&se=2015-10-09T18%3A55%3A03Z&srt=s&ss=b&sp=rl"));
         }
 
         [TestMethod]
@@ -256,6 +312,15 @@ namespace Microsoft.Tests
 
         static bool IsRequestAuthorized(string method, string uri, IEnumerable<Tuple<string, string>> headers = null)
         {
+            var clientHeaders = new[] { Tuple.Create("REMOTE_ADDR", "127.0.0.1") };
+            if (headers == null)
+            {
+                headers = clientHeaders;
+            }
+            else
+            {
+                headers = headers.Concat(clientHeaders);
+            }
             return IsRequestAuthorized(new MockHttpRequestWrapper(method, uri, headers));
         }
 

@@ -18,14 +18,13 @@ namespace Microsoft.Dash.Common.Utils
         public static readonly byte[] PrimaryAccountKey     = DashConfiguration.AccountKey;
         public static readonly byte[] SecondaryAccountKey   = DashConfiguration.SecondaryAccountKey;
 
-        public static string GenerateSignature(Func<string> stringToSignFactory, bool usePrimaryKey = true)
+        public static string GenerateSignature(string stringToSign, bool usePrimaryKey = true)
         {
-            return GenerateSignature(stringToSignFactory, usePrimaryKey ? SharedKeySignature.PrimaryAccountKey : SharedKeySignature.SecondaryAccountKey);
+            return GenerateSignature(stringToSign, usePrimaryKey ? SharedKeySignature.PrimaryAccountKey : SharedKeySignature.SecondaryAccountKey);
         }
 
-        public static string GenerateSignature(Func<string> stringToSignFactory, byte[] accountKey)
+        public static string GenerateSignature(string stringToSign, byte[] accountKey)
         {
-            string stringToSign = stringToSignFactory();
             DashTrace.TraceInformation("Authentication signing string: {0}", stringToSign);
 
             var bytesToSign = Encoding.UTF8.GetBytes(stringToSign);

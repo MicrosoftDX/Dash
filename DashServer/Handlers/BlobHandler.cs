@@ -86,7 +86,7 @@ namespace Microsoft.Dash.Server.Handlers
                         string sourceBlobName = String.Empty;
                         string sourceQuery = String.Empty;
                         BlobType sourceBlobType = BlobType.BlockBlob;
-                        var requestVersion = requestWrapper.Headers.Value("x-ms-version", StorageServiceVersions.Version_2009_09_19);
+                        var requestVersion = requestWrapper.Headers.RequestVersion;
                         bool processRelativeSource = false;
                         if (!sourceUri.IsAbsoluteUri)
                         {

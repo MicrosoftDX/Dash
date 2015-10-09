@@ -84,7 +84,7 @@ namespace Microsoft.Dash.Server.Controllers
             var client = DashConfiguration.NamespaceAccount.CreateCloudBlobClient();
             return CreateResponse(new RequestServiceProperites
             {
-                RequestVersion = this.Request.GetHeaders().Value("x-ms-version", StorageServiceVersions.Version_2009_09_19),
+                RequestVersion = this.Request.GetHeaders().RequestVersion,
                 Properties = await client.GetServicePropertiesAsync(),
             });
         }
@@ -167,7 +167,7 @@ namespace Microsoft.Dash.Server.Controllers
             Enum.TryParse(includeFlags, true, out listDetails);
             var retval = new ContainerListResults
             {
-                RequestVersion = this.Request.GetHeaders().Value("x-ms-version", StorageServiceVersions.Version_2009_09_19),
+                RequestVersion = this.Request.GetHeaders().RequestVersion,
                 ServiceEndpoint = this.Request.RequestUri.GetComponents(UriComponents.SchemeAndServer, UriFormat.Unescaped),
                 Prefix = queryParams.Value<string>("prefix"),
                 Marker = queryParams.Value<string>("marker"),

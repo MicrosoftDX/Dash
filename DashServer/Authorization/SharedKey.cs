@@ -23,6 +23,7 @@ namespace Microsoft.Dash.Server.Authorization
         {
             // Quick request age check
             var authHeader = headers.Value<string>("Authorization");
+            DateTimeOffset requestVersion = headers.RequestVersion;
             string requestDateHeader = headers.Value<string>("x-ms-date");
             string dateHeader = String.Empty;
             if (String.IsNullOrWhiteSpace(requestDateHeader))
@@ -78,7 +79,8 @@ namespace Microsoft.Dash.Server.Authorization
                 pathsToCheck.AddRange(alternateEncodingPaths);
             }
             // For some verbs we can't tell if the Content-Length header was specified as 0 or that IIS/UrlRewrite/ASP.NET has constructed
-            // the header value for us. The difference is significant to the signature as content length is included for SharedKey
+            // the header value for us. The difference is significant to the signature as content length is included for SharedKey.
+            // The ambiguity has been resolved in version 2015-02-21
             bool fullKeyAlgorithm = parts[0] == SharedKeySignature.AlgorithmSharedKey;
             bool runBlankContentLengthComparison = false;
             string method = request.HttpMethod.ToUpper();
@@ -88,21 +90,28 @@ namespace Microsoft.Dash.Server.Authorization
                 int length;
                 if (!int.TryParse(contentLength, out length) || length <= 0)
                 {
-                    // Preserve a Content-Length: 0 header for PUT methods
-                    runBlankContentLengthComparison = !method.Equals(WebRequestMethods.Http.Put, StringComparison.OrdinalIgnoreCase);
+                    if (requestVersion >= StorageServiceVersions.Version_2015_02_21)
+                    {
+                        // This version made it explicit what to do with 0 content-length
+                        contentLength = String.Empty;
+                        runBlankContentLengthComparison = false;
+                    }
+                    else
+                    {
+                        // Preserve a Content-Length: 0 header for PUT methods
+                        runBlankContentLengthComparison = !method.Equals(WebRequestMethods.Http.Put, StringComparison.OrdinalIgnoreCase);
+                    }
                 }
             }
-            var validationChecks = pathsToCheck.SelectMany(uriPath => new[] {
-                    runBlankContentLengthComparison ? Tuple.Create(true, uriPath, String.Empty) : null,
-                    Tuple.Create(true, uriPath, contentLength),
-                    runBlankContentLengthComparison ? Tuple.Create(false, uriPath, String.Empty) : null,
-                    Tuple.Create(false, uriPath, contentLength),
+            var stringsToCheck = pathsToCheck.SelectMany(uriPath => new[] {
+                    runBlankContentLengthComparison ? Tuple.Create(uriPath, String.Empty) : null,
+                    Tuple.Create(uriPath, contentLength),
                 })
                 .Where(check => check != null)
-                .ToArray();
-            var evaluationResult = validationChecks
-                .FirstOrDefault(validatationCheck =>
-                    VerifyRequestAuthorization(signature, validatationCheck.Item1, !fullKeyAlgorithm, method, validatationCheck.Item2, headers, queryParams, dateHeader, validatationCheck.Item3));
+                .Select(pathWithContentLength => GetStringToSign(!fullKeyAlgorithm, method, pathWithContentLength.Item1, headers, queryParams, dateHeader, pathWithContentLength.Item2))
+                .SelectMany(stringToSign => new[] { Tuple.Create(true, stringToSign), Tuple.Create(false, stringToSign) });
+            var evaluationResult = stringsToCheck
+                .FirstOrDefault(validatationCheck => VerifyRequestAuthorization(signature, validatationCheck.Item1, validatationCheck.Item2));
             if (evaluationResult != null)
             {
                 // Remember the Auth Scheme & Key for when we have to sign the response
@@ -115,14 +124,21 @@ namespace Microsoft.Dash.Server.Authorization
             return false;
         }
 
-        private static bool VerifyRequestAuthorization(string signature, bool usePrimaryKey, bool liteAlgorithm, string method, string uriPath,
+        public static string GenerateSignature(bool usePrimaryKey, bool liteAlgorithm, string method, string uriPath,
             RequestHeaders headers, RequestQueryParameters queryParams, string requestDate, string contentLength)
+        {
+            return SharedKeySignature.GenerateSignature(
+                GetStringToSign(liteAlgorithm, method, uriPath, headers, queryParams, requestDate, contentLength),
+                usePrimaryKey);
+        }
+
+        private static bool VerifyRequestAuthorization(string signature, bool usePrimaryKey, string stringToSign)
         {
             if (!SharedKeySignature.HasKey(usePrimaryKey))
             {
                 return false;
             }
-            else if (signature == GenerateSignature(usePrimaryKey, liteAlgorithm, method, uriPath, headers, queryParams, requestDate, contentLength))
+            else if (signature == SharedKeySignature.GenerateSignature(stringToSign, usePrimaryKey))
             {
                 return true;
             }
@@ -187,42 +203,39 @@ namespace Microsoft.Dash.Server.Authorization
             return category == UnicodeCategory.OpenPunctuation || category == UnicodeCategory.ClosePunctuation;
         }
 
-        public static string GenerateSignature(bool usePrimaryKey, bool liteAlgorithm, string method, string uriPath,
+        static string GetStringToSign(bool liteAlgorithm, string method, string uriPath,
             RequestHeaders headers, RequestQueryParameters queryParams, string requestDate, string contentLength)
         {
             // Signature scheme is described at: http://msdn.microsoft.com/en-us/library/azure/dd179428.aspx
             // and the SDK implementation is at: https://github.com/Azure/azure-storage-net/tree/master/Lib/ClassLibraryCommon/Auth/Protocol
-            Func<string> stringToSignFactory = null;
-
             if (liteAlgorithm)
             {
-                stringToSignFactory = () => String.Format("{0}\n{1}\n{2}\n{3}\n{4}\n{5}",
-                                                            method,
-                                                            headers.Value("Content-MD5", String.Empty),
-                                                            headers.Value("Content-Type", String.Empty),
-                                                            requestDate,
-                                                            SharedKeySignature.GetCanonicalizedHeaders(headers),
-                                                            GetCanonicalizedResource(liteAlgorithm, uriPath, queryParams, SharedKeySignature.AccountName));
+                return String.Format("{0}\n{1}\n{2}\n{3}\n{4}\n{5}",
+                                    method,
+                                    headers.Value("Content-MD5", String.Empty),
+                                    headers.Value("Content-Type", String.Empty),
+                                    requestDate,
+                                    SharedKeySignature.GetCanonicalizedHeaders(headers),
+                                    GetCanonicalizedResource(liteAlgorithm, uriPath, queryParams, SharedKeySignature.AccountName));
             }
             else
             {
-                stringToSignFactory = () => String.Format("{0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}\n{8}\n{9}\n{10}\n{11}\n{12}\n{13}",
-                                                            method,
-                                                            headers.Value("Content-Encoding", String.Empty),
-                                                            headers.Value("Content-Language", String.Empty),
-                                                            contentLength,
-                                                            headers.Value("Content-MD5", String.Empty),
-                                                            headers.Value("Content-Type", String.Empty),
-                                                            requestDate,
-                                                            headers.Value("If-Modified-Since", String.Empty),
-                                                            headers.Value("If-Match", String.Empty),
-                                                            headers.Value("If-None-Match", String.Empty),
-                                                            headers.Value("If-Unmodified-Since", String.Empty),
-                                                            headers.Value("Range", String.Empty),
-                                                            SharedKeySignature.GetCanonicalizedHeaders(headers),
-                                                            GetCanonicalizedResource(liteAlgorithm, uriPath, queryParams, SharedKeySignature.AccountName));
+                return String.Format("{0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}\n{8}\n{9}\n{10}\n{11}\n{12}\n{13}",
+                                    method,
+                                    headers.Value("Content-Encoding", String.Empty),
+                                    headers.Value("Content-Language", String.Empty),
+                                    contentLength,
+                                    headers.Value("Content-MD5", String.Empty),
+                                    headers.Value("Content-Type", String.Empty),
+                                    requestDate,
+                                    headers.Value("If-Modified-Since", String.Empty),
+                                    headers.Value("If-Match", String.Empty),
+                                    headers.Value("If-None-Match", String.Empty),
+                                    headers.Value("If-Unmodified-Since", String.Empty),
+                                    headers.Value("Range", String.Empty),
+                                    SharedKeySignature.GetCanonicalizedHeaders(headers),
+                                    GetCanonicalizedResource(liteAlgorithm, uriPath, queryParams, SharedKeySignature.AccountName));
             }
-            return SharedKeySignature.GenerateSignature(stringToSignFactory, usePrimaryKey);
         }
 
         static string GetCanonicalizedResource(bool liteAlgorithm, string uriPath, RequestQueryParameters queryParams, string accountName)

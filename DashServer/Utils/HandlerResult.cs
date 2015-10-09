@@ -79,11 +79,11 @@ namespace Microsoft.Dash.Server.Utils
                         responseDate = this.Headers.Value<string>(ResponseDateHeader);
                     }
                     _signedLocation = SharedKeySignature.FormatSignatureHeader(this.Request.AuthenticationScheme,
-                        SharedKeySignature.GenerateSignature(() => String.Format("{0}\n{1}\n{2}\n{3}",
-                                                    this.Request.HttpMethod,
-                                                    responseDate,
-                                                    this.Location,
-                                                    SharedKeySignature.GetCanonicalizedHeaders(this.Headers)),
+                        SharedKeySignature.GenerateSignature(String.Format("{0}\n{1}\n{2}\n{3}",
+                                                                            this.Request.HttpMethod,
+                                                                            responseDate,
+                                                                            this.Location,
+                                                                            SharedKeySignature.GetCanonicalizedHeaders(this.Headers)),
                                                 this.Request.AuthenticationKey));
                 }
                 return _signedLocation;
