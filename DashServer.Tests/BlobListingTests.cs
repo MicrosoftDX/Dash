@@ -15,6 +15,7 @@ namespace Microsoft.Tests
     public class BlobListingTests : DashTestBase
     {
         static DashTestContext _ctx;
+        static IMessageQueue _queue;
 
         [ClassInitialize]
         static public void Init(TestContext ctx)
@@ -62,6 +63,7 @@ namespace Microsoft.Tests
                     // Replicas
                     TestBlob.DefineBlob("creplicatedblob.txt", isReplicated: true),
                 });
+            _queue = new AzureMessageQueue();
         }
 
         [ClassCleanup]
@@ -69,7 +71,7 @@ namespace Microsoft.Tests
         {
             CleanupTestBlobs(_ctx);
             // Delete the async queue
-            (new AzureMessageQueue()).DeleteQueue();
+            _queue.DeleteQueue();
         }
 
         [TestMethod]

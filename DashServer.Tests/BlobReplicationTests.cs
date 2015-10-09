@@ -23,6 +23,7 @@ namespace Microsoft.Tests
     public class BlobReplicationTests : PipelineTestBase
     {
         static DashTestContext _ctx;
+        static IMessageQueue _queue;
 
         [ClassInitialize]
         public static void Init(TestContext ctx)
@@ -37,13 +38,14 @@ namespace Microsoft.Tests
                 new[] {
                     TestBlob.DefineBlob("fixed-test.txt"),
                 });
+            _queue = new AzureMessageQueue();
         }
 
         [ClassCleanup]
         public static void Cleanup()
         {
             CleanupTestBlobs(_ctx);
-            (new AzureMessageQueue()).DeleteQueue();
+            _queue.DeleteQueue();
         }
 
         [TestMethod]
@@ -359,14 +361,13 @@ namespace Microsoft.Tests
         {
             // Wait for the messages to be fully enqueued
             Task.Delay(1000).Wait();
-            var queue = new AzureMessageQueue();
             var replicaAccounts = DashConfiguration.DataAccounts
                 .Select(account => account.Credentials.AccountName)
                 .Where(accountName => !String.Equals(accountName, primaryAccount, StringComparison.OrdinalIgnoreCase))
                 .ToDictionary(accountName => accountName, accountName => false, StringComparer.OrdinalIgnoreCase);
             while (true)
             {
-                var replicateMessage = queue.Dequeue();
+                var replicateMessage = _queue.Dequeue();
                 if (replicateMessage == null)
                 {
                     break;
@@ -380,7 +381,7 @@ namespace Microsoft.Tests
                 Assert.AreEqual(replicateMessage.Payload[ReplicatePayload.Container], container);
                 Assert.AreEqual(replicateMessage.Payload[ReplicatePayload.BlobName], blobName);
                 replicaAccounts[replicateMessage.Payload[messageType == MessageTypes.BeginReplicate ? ReplicatePayload.Destination : ReplicatePayload.Source]] = true;
-                queue.DeleteCurrentMessage();
+                _queue.DeleteCurrentMessage();
             }
             Assert.IsFalse(replicaAccounts.Any(account => !account.Value),
                 "Data accounts detected with no replication enqueued: {0}",
@@ -394,15 +395,14 @@ namespace Microsoft.Tests
             // Wait for the messages to be fully enqueued
             Task.Delay(1000).Wait();
             bool messageSeen = false;
-            var queue = new AzureMessageQueue();
             while (true)
             {
-                var message = queue.Dequeue();
+                var message = _queue.Dequeue();
                 if (message == null)
                 {
                     break;
                 }
-                queue.DeleteCurrentMessage();
+                _queue.DeleteCurrentMessage();
                 messageSeen = true;
             }
             if (messageSeen)
