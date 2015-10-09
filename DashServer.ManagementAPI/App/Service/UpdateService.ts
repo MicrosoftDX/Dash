@@ -3,19 +3,17 @@
 /// <reference path="../../scripts/_references.ts" />
 
 module Dash.Management.Service {
-    "use strict";
 
     export class UpdateService {
         static $inject = ['$http', '$q'];
-
-        apiHost: string = '/api/update/';
+        static apiHost = '/api/update/';
 
         constructor(private $http: ng.IHttpService, private $q: ng.IQService) { }
 
         public checkForUpdates(): ng.IPromise<any> {
 
             this.updatesHaveBeenChecked = true;
-            return this.$http.get(this.apiHost)
+            return this.$http.get(UpdateService.apiHost)
                 .success((results: any) => {
                     this.updatesAreAvailable = results.AvailableUpdate;
                     switch (results.HighestSeverity) {
@@ -41,7 +39,7 @@ module Dash.Management.Service {
         }
 
         public getAvailableUpdates(): ng.IPromise<Model.AvailableUpdates> {
-            return this.$http.get(this.apiHost + "Updates")
+            return this.$http.get(UpdateService.apiHost + "Updates")
                 .then((results: any) => {
                     var updates = new Model.AvailableUpdates();
                     updates.currentVersion = results.data.CurrentVersion;
@@ -53,7 +51,7 @@ module Dash.Management.Service {
         }
 
         public applyUpdate(version: string): ng.IHttpPromise<any> {
-            return this.$http.post(this.apiHost + "Update", { version: version });
+            return this.$http.post(UpdateService.apiHost + "Update", { version: version });
         }
 
         public updatesHaveBeenChecked: boolean = false;

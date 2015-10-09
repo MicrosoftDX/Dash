@@ -21,6 +21,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DashServer", "DashServer\Da
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DashServer.Tests", "DashServer.Tests\DashServer.Tests.csproj", "{98DFBF47-6F1E-4BB1-910B-88DFF5ABABED}"
+	ProjectSection(ProjectDependencies) = postProject
+		{FD772AA8-3BD6-4224-9518-2D40E81792BF} = {FD772AA8-3BD6-4224-9518-2D40E81792BF}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LoadTestDotNet", "LoadTestDotNet\LoadTestDotNet.csproj", "{4A63F369-57F6-4997-929D-1151B2567DE5}"
 EndProject

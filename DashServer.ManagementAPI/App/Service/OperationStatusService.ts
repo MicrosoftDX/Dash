@@ -3,7 +3,6 @@
 /// <reference path="../../scripts/_references.ts" />
 
 module Dash.Management.Service {
-    "use strict";
 
     export class OperationStatusService {
         static $inject = ['$resource'];

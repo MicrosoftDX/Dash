@@ -3,7 +3,6 @@
 /// <reference path="../../scripts/_references.ts" />
 
 module Dash.Management.Controller {
-    "use strict";
 
     export class StorageValidationDirective implements ng.IDirective {
         static directiveId = "StorageValidation";
@@ -44,7 +43,7 @@ module Dash.Management.Controller {
                 (newValue: string, oldValue: string, current) => this.processChange(StorageValidationChangeType.AccountKey, newValue, oldValue, current));
         }
 
-        private processChange(changeKey: StorageValidationChangeType, newValue: string, oldValue: string, current: any) {
+        private processChange(changeKey: StorageValidationChangeType, newValue: string, oldValue: string, current: any): void {
             // If this is the initial binding, we can skip
             var changeCtrl: ng.INgModelController;
             switch (changeKey) {
@@ -85,7 +84,7 @@ module Dash.Management.Controller {
             this.$scope.$watch(this.bindingExpression, watchFunction);
         }
 
-        public getBoundValue() {
+        public getBoundValue(): void {
             return this.$scope.$eval(this.bindingExpression);
         }
 

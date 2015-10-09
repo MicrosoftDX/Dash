@@ -3,7 +3,6 @@
 /// <reference path="../../scripts/_references.ts" />
 
 module Dash.Management.Service {
-    "use strict";
 
     export interface IAuthConfigServiceProvider extends ng.IServiceProvider {
 
@@ -19,7 +18,7 @@ module Dash.Management.Service {
 
         constructor() { }
 
-        public getConfig(success: (data: Model.IAuthConfig, textStatus: string) => any) {
+        public getConfig(success: (data: Model.IAuthConfig, textStatus: string) => any): void {
 
             // Use JQuery here so that we can make this a synchronous call
             $.ajax({

@@ -3,7 +3,6 @@
 /// <reference path="../../scripts/_references.ts" />
 
 module Dash.Management.Controller {
-    "use strict";
 
     export class HomeController {
         static $inject = ['$scope', '$rootScope', 'adalAuthenticationService', '$location', 'updateService'];
@@ -26,11 +25,11 @@ module Dash.Management.Controller {
             this.checkForUpdates();
         }
 
-        public login() {
+        public login(): void {
             this.adalAuthenticationService.login();
         }
 
-        public logout() {
+        public logout(): void {
             this.adalAuthenticationService.logOut();
         }
 
@@ -38,7 +37,7 @@ module Dash.Management.Controller {
             return viewLocation === this.$location.path();
         }
 
-        public checkForUpdates() {
+        public checkForUpdates(): void {
             if (this.updateService.updatesHaveBeenChecked) {
                 this.$scope.areUpdatesAvailable = this.updateService.updatesAreAvailable;
                 this.$scope.updateBannerClass = this.updateService.severityBannerClass;
@@ -50,7 +49,7 @@ module Dash.Management.Controller {
                 });
         }
 
-        public setTitleForRoute(current) {
+        public setTitleForRoute(current): void {
             this.$rootScope.title = "DASH Management - " + current.$$route.title;
         }
     }

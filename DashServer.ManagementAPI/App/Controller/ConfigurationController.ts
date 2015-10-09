@@ -3,7 +3,6 @@
 /// <reference path="../../scripts/_references.ts" />
 
 module Dash.Management.Controller {
-    "use strict";
 
     export class ConfigurationController {
         static $inject = ['$scope', '$rootScope', '$timeout', 'configurationService', 'operationStatusService'];
@@ -35,18 +34,18 @@ module Dash.Management.Controller {
             this.$scope.configuration.editingInProgress = editItem.editing;
         }
 
-        public addAccount() {
+        public addAccount() : void {
             var newAccount = Model.StorageConnectionItem.createScaleOutAccount("", true);
             this.$scope.configuration.settings.scaleOutStorage.accounts.push(newAccount);
             this.editSwitch(newAccount, false);
         }
 
-        public deleteAccount(deleteItem: Model.ConfigurationItem) {
+        public deleteAccount(deleteItem: Model.ConfigurationItem) : void {
             this.$scope.configuration.settings.scaleOutStorage.accounts.splice(
                 this.$scope.configuration.settings.scaleOutStorage.accounts.indexOf(<Model.StorageConnectionItem>deleteItem), 1);
         }
 
-        public generateStorageKey(editItem: Model.ConfigurationItem) {
+        public generateStorageKey(editItem: Model.ConfigurationItem): void {
             editItem.generateStorageKey();
         }
 
@@ -84,7 +83,7 @@ module Dash.Management.Controller {
                 });
         }
 
-        private updateOperationStatus(operationId: string) {
+        private updateOperationStatus(operationId: string): void {
             var namespaceAccount = this.$scope.configuration.settings.specialSettings.namespaceStorage.getValue();
             this.operationStatusService.getOperationStatus(operationId, namespaceAccount,
                 (status: Model.OperationStatus) => {
@@ -104,13 +103,13 @@ module Dash.Management.Controller {
                 });
         }
 
-        private setError(error: boolean, message: string) {
+        private setError(error: boolean, message: string): void {
             this.$scope.error_class = error ? "alert-danger" : "alert-info";
             this.$scope.error = message;
             this.$scope.loadingMessage = "";
         }
 
-        private setUpdateState(updateInProgress: boolean) {
+        private setUpdateState(updateInProgress: boolean): void {
             this.$scope.updateInProgress = updateInProgress;
         }
     }

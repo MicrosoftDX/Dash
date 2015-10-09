@@ -3,7 +3,6 @@
 /// <reference path="../../scripts/_references.ts" />
 
 module Dash.Management.Model {
-    "use strict";
 
     export class UpdateModel {
 

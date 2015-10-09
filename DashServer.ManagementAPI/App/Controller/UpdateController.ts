@@ -3,7 +3,6 @@
 /// <reference path="../../scripts/_references.ts" />
 
 module Dash.Management.Controller {
-    "use strict";
 
     export class UpdateController {
         static $inject = ['$scope', '$rootScope', 'updateService', '$sce'];
@@ -22,7 +21,7 @@ module Dash.Management.Controller {
             this.getAvailableUpdates(true);
         }
 
-        public getAvailableUpdates(clearLoadingMessage: boolean) {
+        public getAvailableUpdates(clearLoadingMessage: boolean): void {
             this.updateService.getAvailableUpdates()
                 .then((versions: Model.AvailableUpdates) => {
                     this.$scope.availableUpdates = versions;
@@ -37,7 +36,7 @@ module Dash.Management.Controller {
                 });
         }
 
-        public applyUpdate(version: Model.VersionUpdate) {
+        public applyUpdate(version: Model.VersionUpdate): void {
             if (confirm('You have selected to upgrade this DASH server to version: ' + version.versionString + '\n\nThis operation cannot be undone.\n\nAre you sure you want to continue?')) {
                 this.$scope.updateInProgress = true;
                 this.$scope.loadingMessage = "Updating DASH service to version: " + version.versionString;
@@ -55,11 +54,11 @@ module Dash.Management.Controller {
             }
         }
 
-        public getHtmlDescription(update: Model.VersionUpdate) {
+        public getHtmlDescription(update: Model.VersionUpdate): void {
             return this.$sce.trustAsHtml(update.description);
         }
 
-        private setError(error: boolean, message: string) {
+        private setError(error: boolean, message: string): void {
             this.$scope.error_class = error ? "alert-danger" : "alert-info";
             this.$scope.error = message;
             this.$scope.loadingMessage = "";

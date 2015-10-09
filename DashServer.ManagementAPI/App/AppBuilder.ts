@@ -3,7 +3,6 @@
 /// <reference path="../scripts/_references.ts" />
 
 module Dash.Management {
-    "use strict";
 
     export class AppBuilder {
 
@@ -70,7 +69,7 @@ module Dash.Management {
             this.app.service('authConfigService', Service.AuthConfigService);
         }
 
-        public start() {
+        public start(): void {
             $(document).ready(() => {
                 console.log("booting " + this.app.name);
                 angular.bootstrap(document, [this.app.name]);

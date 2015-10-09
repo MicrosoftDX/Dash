@@ -3,7 +3,6 @@
 /// <reference path="../../scripts/_references.ts" />
 
 module Dash.Management.Model {
-    "use strict";
 
     export class Configuration {
 
@@ -153,7 +152,7 @@ module Dash.Management.Model {
             return retval;
         }
 
-        public generateStorageKey() {
+        public generateStorageKey(): void {
             var charRange = "0123456789abcdef";
             var unencoded = "";
 
@@ -167,7 +166,7 @@ module Dash.Management.Model {
             return this.value;
         }
 
-        protected discardChanges() {
+        protected discardChanges(): void {
             this.value = this.updatedValue;
         }
     }
@@ -216,7 +215,7 @@ module Dash.Management.Model {
         public updatedAccountName: string;
         public updatedAccountKey: string;
         public originalAccountName: string;
-        protected discardChanges() {
+        protected discardChanges(): void {
             super.discardChanges();
             this.accountName = this.updatedAccountName;
             this.accountKey = this.updatedAccountKey;

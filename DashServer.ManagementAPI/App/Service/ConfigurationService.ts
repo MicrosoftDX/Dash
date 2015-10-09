@@ -3,7 +3,6 @@
 /// <reference path="../../scripts/_references.ts" />
 
 module Dash.Management.Service {
-    "use strict";
 
     export interface IConfigurationResourceClass extends ng.resource.IResourceClass<Model.Configuration> {
 
@@ -43,7 +42,7 @@ module Dash.Management.Service {
             });
         }
 
-        static getModelFromResponse(response) {
+        static getModelFromResponse(response): any {
             var responseObj = angular.fromJson(response);
             if (responseObj["AccountSettings"] !== undefined) {
                 return new Model.Configuration(new Model.ConfigurationSettings(responseObj), responseObj.OperationId);
