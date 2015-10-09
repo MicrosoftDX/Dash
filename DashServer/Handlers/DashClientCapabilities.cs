@@ -31,7 +31,7 @@ namespace Microsoft.Dash.Server.Handlers
                 // Modified client
                 retval = DashClientCapabilities.FullSupport;
             }
-            else if (agent.StartsWith("wa-storage/2.0.6") ||
+            else if (agent.StartsWith("wa-storage/2.0.6") || 
                 agent.StartsWith("services_batch_storage_client") ||
                 agent.Contains(".net") ||
                 agent.Contains("windowspowershell"))
