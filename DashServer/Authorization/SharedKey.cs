@@ -148,7 +148,7 @@ namespace Microsoft.Dash.Server.Authorization
         static IEnumerable<string> AlternateEncodeString(string source)
         {
             // Some clients (eg. Azure Management Studio) are very aggressive in encoding the resource path which becomes part of the string
-            // which they sign. We have to generate alternatly encoded strings (in both upper & lower case hex encoding).
+            // which they sign. We have to generate alternate encoded strings (in both upper & lower case hex encoding).
             for (int pos = 0; pos < source.Length; pos++)
             {
                 if (Uri.IsHexEncoding(source, pos))

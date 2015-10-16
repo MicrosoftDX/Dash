@@ -115,7 +115,7 @@ namespace Microsoft.Dash.Common.Utils
             // Again, the utility functions converting '+' -> ' ' is invalid for storage. Mitigate by pre-processing the string.
             // This is a little inefficient as we are processing the string twice, but it is the most thorough
             // implementation as it deals with the full unicode character set
-            return WebUtility.UrlDecode(path.Replace("+", "%2b"));
+            return WebUtility.UrlDecode(path.Replace("+", "%2B"));
         }
 
         static char IntToHex(int n)
