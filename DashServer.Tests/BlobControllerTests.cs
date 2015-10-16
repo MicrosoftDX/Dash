@@ -79,8 +79,8 @@ namespace Microsoft.Tests
         [TestMethod]
         public void EncodedBlobNameControllerTest()
         {
-            string blobUri = _ctx.GetBlobUri("workernode2.jokleinhbase.d6.internal.cloudapp.net,60020,1436223739284/workernode2.jokleinhbase.d6.internal.cloudapp.net%2C60020%2C1436223739284.1436223741878");
-            PutAndValidateBlob(blobUri);
+            PutAndValidateBlob(_ctx.GetBlobUri("workernode2.jokleinhbase.d6.internal.cloudapp.net,60020,1436223739284/workernode2.jokleinhbase.d6.internal.cloudapp.net%2C60020%2C1436223739284.1436223741878"));
+            PutAndValidateBlob(_ctx.GetBlobUri("reserved-characters-blob-[]@!$&()*+,;='"));
         }
 
         void PutAndValidateBlob(string blobUri)

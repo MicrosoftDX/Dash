@@ -33,7 +33,7 @@ namespace Microsoft.Dash.Server.Controllers
             {
                 case StorageOperationTypes.CopyBlob:
                     /// Copy Blob - https://msdn.microsoft.com/en-us/library/azure/dd894037.aspx
-                    return ProcessResultResponse(await BlobHandler.CopyBlobAsync(requestWrapper, container, blob, requestWrapper.Headers.Value<string>("x-ms-copy-source")));
+                    return ProcessResultResponse(await BlobHandler.CopyBlobAsync(requestWrapper, container, blob, requestWrapper.Headers.CopySource));
 
                 case StorageOperationTypes.PutBlob:
                     /// Put Blob - http://msdn.microsoft.com/en-us/library/azure/dd179451.aspx

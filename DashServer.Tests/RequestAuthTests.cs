@@ -87,6 +87,16 @@ namespace Microsoft.Tests
                 "http://localhost/container/test%20encoded(1)",
                 headers,
                 "SharedKey dashstorage1:RkJ/SQDzKdpAWVI1fJV+kK715YJ0gigRTnrQdQnx+TU="));
+            // Alternate encoding - the full suite of reserved characters
+            Assert.IsTrue(IsRequestAuthorized("PUT",
+                "http://localhost/dashencode/reserved-characters-blob-[]@!$&()*+,;='",
+                headers,
+                "SharedKey dashstorage1:kDCnETyjm08UsynfFVPrsXx6zbpR9iWI+H2eylg+UXg="));
+            // Standard encoding - the full suite of reserved characters
+            Assert.IsTrue(IsRequestAuthorized("PUT",
+                "http://localhost/dashencode/reserved-characters-blob-[]@!$&()*+,;='",
+                headers,
+                "SharedKey dashstorage1:6NTW7igimlQamDKOmDROti282ByL/8kGU4R8n6RVtmM="));
             Assert.IsTrue(IsRequestAuthorized("PUT",
                 "http://localhost/container/test%20encoded%281%29",
                 headers,

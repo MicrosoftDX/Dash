@@ -16,7 +16,7 @@ namespace Microsoft.Dash.Server.Utils
 
         public static HandlerResult Redirect(IHttpRequestWrapper requestWrapper, Uri location)
         {
-            return Redirect(requestWrapper, location.ToString());
+            return Redirect(requestWrapper, location.OriginalString);
         }
 
         public static HandlerResult Redirect(IHttpRequestWrapper requestWrapper, string location)

@@ -147,60 +147,58 @@ namespace Microsoft.Dash.Server.Authorization
 
         static IEnumerable<string> AlternateEncodeString(string source)
         {
+            // Some clients (eg. Azure Management Studio) are very aggressive in encoding the resource path which becomes part of the string
+            // which they sign. We have to generate alternatly encoded strings (in both upper & lower case hex encoding).
             for (int pos = 0; pos < source.Length; pos++)
             {
                 if (Uri.IsHexEncoding(source, pos))
                 {
+                    // Move the index over the hex-encoded character
                     Uri.HexUnescape(source, ref pos);
                     pos--;
                 }
                 else if (IsAlternateEncodingCharacter(source[pos]))
                 {
-                    return new[] {
-                        AlternateEncodeStringTranslate(source, pos, true),
-                        AlternateEncodeStringTranslate(source, pos, false),
-                    };
+                    return AlternateEncodeStringTranslate(source, pos);
                 }
 
             }
             return null;
         }
 
-        static string AlternateEncodeStringTranslate(string source, int pos, bool upperCase)
+        static string[] AlternateEncodeStringTranslate(string source, int pos)
         {
             // Allocate enough capacity here to handle worst-case of all remaining characters needing hex encoding
             // without StringBuilding needing to reallocate its buffer
-            var dest = new StringBuilder(source.Substring(0, pos), pos + (source.Length - pos) * 3);
+            string sourceSubstring = source.Substring(0, pos);
+            var upperCaseEncoded = new StringBuilder(sourceSubstring, pos + (source.Length - pos) * 3);
+            var lowerCaseEncoded = new StringBuilder(sourceSubstring, upperCaseEncoded.Capacity);
             for (; pos < source.Length; pos++)
             {
                 char ch = source[pos];
                 if (IsAlternateEncodingCharacter(ch))
                 {
-                    if (upperCase)
-                    {
-                        dest.Append(Uri.HexEscape(ch));
-                    }
-                    else
-                    {
-                        dest.Append(Uri.HexEscape(ch).ToLowerInvariant());
-                    }
+                    string encoded = Uri.HexEscape(ch);
+                    upperCaseEncoded.Append(encoded);
+                    lowerCaseEncoded.Append(encoded.ToLowerInvariant());
                 }
                 else
                 {
-                    dest.Append(ch);
+                    upperCaseEncoded.Append(ch);
+                    lowerCaseEncoded.Append(ch);
                 }
             }
-            return dest.ToString();
+            return new[] {
+                upperCaseEncoded.ToString(),
+                lowerCaseEncoded.ToString()
+            };
         }
 
+        // This is the set of sub-delims reserved characters defined in RFC3986 (minus the ' character for unknown reasons)
+        const string _alternateEncodingMarks = "[]@!$&()*+,;=";
         static bool IsAlternateEncodingCharacter(char ch)
         {
-            if (ch == ',')
-            {
-                return true;
-            }
-            var category = Char.GetUnicodeCategory(ch);
-            return category == UnicodeCategory.OpenPunctuation || category == UnicodeCategory.ClosePunctuation;
+            return _alternateEncodingMarks.IndexOf(ch) != -1;
         }
 
         static string GetStringToSign(bool liteAlgorithm, string method, string uriPath,

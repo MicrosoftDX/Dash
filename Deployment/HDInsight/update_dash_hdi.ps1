@@ -87,7 +87,7 @@ if ($UseDashILB)
     $hosts = get-item $env:windir\system32\drivers\etc\hosts
     $hostswriter = $hosts.AppendText()
     $hostswriter.WriteLine("")
-    $hostswriter.WriteLine("$DashIlb	$DashService.cloudapp.net")
+    $hostswriter.WriteLine("$DashIlbAddress	$DashService.cloudapp.net")
     $hostswriter.Close()
 }
 
@@ -96,12 +96,12 @@ Write-HDILog "Updating Azure Storage Client SDK"
 $new_jar_uri = "https://www.dash-update.net/client/v0.4/StorageSDK2.0/dash-azure-storage-2.2.0.jar"
 $install_dir = (Get-Item $hadoop_directory).Parent
 $old_jar_name = “azure-storage-2*.jar”
-$jars_to_patch = Get-ChildItem -Recurse -Path $install_dir -Filter $old_jar_name
+$jars_to_patch = Get-ChildItem -Recurse -Path $install_dir.FullName -Filter $old_jar_name
 foreach ($jar in $jars_to_patch)
 {
-    $output = Invoke-WebRequest -Uri $new_jar_uri -Method Get -OutFile $jar.DirectoryName + "\dash-azure-storage-2.2.0.jar" -verbose *>&1 | Out-String
+    $output = Invoke-WebRequest -Uri $new_jar_uri -Method Get -OutFile ($jar.DirectoryName + "\dash-azure-storage-2.2.0.jar") -verbose *>&1 | Out-String
     Write-HDILog $output
-    $output = remove-item $jar -verbose *>&1 | Out-String
+    $output = remove-item -Path $jar.FullName -verbose *>&1 | Out-String
     Write-HDILog $output
 }
 

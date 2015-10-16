@@ -57,5 +57,12 @@ namespace Microsoft.Dash.Server.Utils
         {
             get { return this.Value("x-ms-version", StorageServiceVersions.Version_2009_09_19); }
         }
+
+        public string CopySource
+        {
+            // We can't use any of the utility UrlDecode functions as they are too aggressive on reserved character
+            // decoding (eg. '+' -> ' ').
+            get { return PathUtils.PathDecode(this.Value<string>("x-ms-copy-source")); }
+        }
     }
 }

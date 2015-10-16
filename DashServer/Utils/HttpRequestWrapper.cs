@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Web;
 using Microsoft.Dash.Common.Utils;
@@ -31,9 +32,9 @@ namespace Microsoft.Dash.Server.Utils
         {
         }
 
-        public static IHttpRequestWrapper Create(HttpRequest request, bool uriDecode)
+        public static IHttpRequestWrapper Create(HttpRequest request)
         {
-            return new HttpRequestBaseWrapper(new HttpRequestWrapper(request), uriDecode);
+            return new HttpRequestBaseWrapper(new HttpRequestWrapper(request));
         }
 
         public static IHttpRequestWrapper Create(HttpRequestMessage request)
@@ -75,12 +76,18 @@ namespace Microsoft.Dash.Server.Utils
         
         protected virtual IEnumerable<string> GetPathSegments()
         {
-            return PathUtils.GetPathSegments(this.Url.AbsolutePath);
+            return PathUtils.GetPathSegments(this.Url, true);
         }
 
         protected virtual IEnumerable<string> GetOriginalPathSegments()
         {
-            return GetPathSegments();
+            // The Original path does not include the controller segment which is injected by UrlRewrite
+            string originalPath = this.Headers.Value<string>("X-Original-URL");
+            if (String.IsNullOrWhiteSpace(originalPath))
+            {
+                return this.GetPathSegments().Skip(1);
+            }
+            return PathUtils.GetPathSegments(originalPath);
         }
 
         public Uri Url

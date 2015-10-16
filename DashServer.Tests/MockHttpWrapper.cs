@@ -23,6 +23,7 @@ namespace Microsoft.Tests
             this.OriginalPathSegments = this.Url.Segments
                 .Select(segment => segment.Trim('/'))
                 .Where(segment => !String.IsNullOrWhiteSpace(segment))
+                .Skip(1)
                 .ToArray();
             this.PathSegments = this.Url.GetComponents(UriComponents.Path, UriFormat.SafeUnescaped)
                     .Trim('/')

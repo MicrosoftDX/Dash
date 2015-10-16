@@ -17,13 +17,15 @@ namespace Microsoft.Dash.Server.Utils
         {
             // URI format is:
             //  /mvc-controller[/container[/blobseg1/blobseg2/.../blobsegn]]
+            // Original format is:
+            // [/container[/blobseg1/blobseg2/.../blobsegn]]
             return new RequestUriParts
             {
                 Controller = uriSegments.FirstOrDefault(),
                 Container = uriSegments.Skip(1).FirstOrDefault(),
                 BlobName = PathUtils.CombinePathSegments(uriSegments.Skip(2)),
-                OriginalContainer = originalSegments.Skip(1).FirstOrDefault(),
-                OriginalBlobName = PathUtils.CombinePathSegments(originalSegments.Skip(2)),
+                OriginalContainer = originalSegments.FirstOrDefault(),
+                OriginalBlobName = PathUtils.CombinePathSegments(originalSegments.Skip(1)),
             };
         }
 
