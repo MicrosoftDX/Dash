@@ -6,6 +6,7 @@ using System.Collections.Specialized;
 using System.Linq;
 using System.Net.Http;
 using System.Web;
+using Microsoft.Dash.Common.Utils;
 
 namespace Microsoft.Dash.Server.Utils
 {
@@ -13,7 +14,8 @@ namespace Microsoft.Dash.Server.Utils
     {
         HttpRequestMessage _request;
 
-        public WebApiRequestWrapper(HttpRequestMessage request)
+        public WebApiRequestWrapper(HttpRequestMessage request) :
+            base(request.RequestUri)
         {
             _request = request;
         }
@@ -21,11 +23,6 @@ namespace Microsoft.Dash.Server.Utils
         protected override string GetHttpMethod()
         {
             return this._request.Method.Method;
-        }
-
-        protected override Uri GetRequestUri()
-        {
-            return this._request.RequestUri;
         }
 
         protected override RequestHeaders GetRequestHeaders()
@@ -36,6 +33,25 @@ namespace Microsoft.Dash.Server.Utils
         protected override RequestQueryParameters GetQueryParameters()
         {
             return RequestQueryParameters.Create(this._request);
+        }
+
+        protected override RequestUriParts GetUriParts()
+        {
+            var segments = PathUtils.GetPathSegments(this.Url.AbsolutePath);
+            IEnumerable<string> originalSegments;
+            var originalUri = this.Headers.OriginalUri;
+            if (!String.IsNullOrWhiteSpace(originalUri))
+            {
+                // The value from this header doesn't not include the controller name which is prepended by UrlRewrite
+                originalSegments = PathUtils.GetPathSegments(originalUri);
+            }
+            else
+            {
+                originalSegments = segments.Skip(1);
+            }
+            return RequestUriParts.Create(segments.FirstOrDefault(),
+                segments.Skip(1),
+                originalSegments);
         }
     }
 }

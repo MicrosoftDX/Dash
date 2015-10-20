@@ -28,8 +28,9 @@ namespace Microsoft.Dash.Server.Utils
     /// </summary>
     public abstract class DashHttpRequestWrapper : IHttpRequestWrapper
     {
-        protected DashHttpRequestWrapper()
+        protected DashHttpRequestWrapper(Uri requestUri)
         {
+            this.Url = requestUri;
         }
 
         public static IHttpRequestWrapper Create(HttpRequest request)
@@ -44,7 +45,7 @@ namespace Microsoft.Dash.Server.Utils
 
         public RequestUriParts UriParts
         {
-            get { return GetCachedObject<RequestUriParts>("Dash_RequestUriParts", () => RequestUriParts.Create(GetPathSegments(), GetOriginalPathSegments())); }
+            get { return GetCachedObject<RequestUriParts>("Dash_RequestUriParts", () => GetUriParts()); }
         }
 
         public RequestHeaders Headers
@@ -69,37 +70,18 @@ namespace Microsoft.Dash.Server.Utils
             set { SetCachedObject("Dash_AuthenticationKey", value); }
         }
 
-        protected abstract string GetHttpMethod();
-        protected abstract Uri GetRequestUri();
-        protected abstract RequestHeaders GetRequestHeaders();
-        protected abstract RequestQueryParameters GetQueryParameters();
-        
-        protected virtual IEnumerable<string> GetPathSegments()
-        {
-            return PathUtils.GetPathSegments(this.Url, true);
-        }
-
-        protected virtual IEnumerable<string> GetOriginalPathSegments()
-        {
-            // The Original path does not include the controller segment which is injected by UrlRewrite
-            string originalPath = this.Headers.Value<string>("X-Original-URL");
-            if (String.IsNullOrWhiteSpace(originalPath))
-            {
-                return this.GetPathSegments().Skip(1);
-            }
-            return PathUtils.GetPathSegments(originalPath);
-        }
-
-        public Uri Url
-        {
-            get { return GetRequestUri(); }
-        }
+        public Uri Url { get; protected set; }
 
         public string HttpMethod
         {
             get { return GetHttpMethod(); }
         }
 
+        protected abstract string GetHttpMethod();
+        protected abstract RequestHeaders GetRequestHeaders();
+        protected abstract RequestQueryParameters GetQueryParameters();
+        protected abstract RequestUriParts GetUriParts();
+        
         T GetCachedObject<T>(string key, Func<T> factory)
         {
             // We're reasonably thread safe here because we're affinitized to a single request, so we omit locking

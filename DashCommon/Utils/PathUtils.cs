@@ -27,9 +27,33 @@ namespace Microsoft.Dash.Common.Utils
             return String.Join(StandardPathDelimiter, segments);
         }
 
-        public static IEnumerable<string> GetPathSegments(Uri uri, bool decode)
+        public static IEnumerable<string> GetPathSegments(Uri uri)
         {
-            return GetPathSegments(uri.GetComponents(UriComponents.KeepDelimiter | UriComponents.Path, decode ? UriFormat.Unescaped : UriFormat.UriEscaped));
+            // Manually parse the uri - there's no methods on the Uri class which give us the path section of an absolute or relative uri based
+            // on the OriginalString (which is what we want the segments for as we don't want 'automagic' decoding).
+            string path = uri.OriginalString;
+            if (uri.IsAbsoluteUri)
+            {
+                // Given that the UriParser has stated that this is an absolute uri, we can carry forward some assumptions (ie. the path will start at the 3rd backslash)
+                int startPos = 0, seenSlashes = 3;
+                for (int index = 0; seenSlashes > 0 && index < path.Length; index++)
+                {
+                    if (path[index] == StandardPathDelimiterChar)
+                    {
+                        seenSlashes--;
+                        startPos = index;
+                    }
+                }
+                if (seenSlashes == 0)
+                {
+                    path = path.Substring(startPos);
+                }
+                else
+                {
+                    path = String.Empty;
+                }
+            }
+            return GetPathSegments(path);
         }
 
         public static IEnumerable<string> GetPathSegments(string path)
@@ -40,7 +64,7 @@ namespace Microsoft.Dash.Common.Utils
                 char ch = path[currentIdx];
                 if (ch == StandardPathDelimiterChar)
                 {
-                    if (currentIdx > startIdx + 1)
+                    if (currentIdx > startIdx)
                     {
                         yield return path.Substring(startIdx, currentIdx - startIdx);
                     }
@@ -51,7 +75,7 @@ namespace Microsoft.Dash.Common.Utils
                     break;
                 }
             }
-            if (currentIdx > startIdx + 1)
+            if (currentIdx > startIdx)
             {
                 yield return path.Substring(startIdx, currentIdx - startIdx);
             }

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Web;
 using Microsoft.Dash.Common.Utils;
 
@@ -11,7 +12,8 @@ namespace Microsoft.Dash.Server.Utils
     {
         HttpRequestBase _request;
 
-        public HttpRequestBaseWrapper(HttpRequestBase request)
+        public HttpRequestBaseWrapper(HttpRequestBase request) :
+            base(request.Url)
         {
             _request = request;
         }
@@ -19,11 +21,6 @@ namespace Microsoft.Dash.Server.Utils
         protected override string GetHttpMethod()
         {
             return this._request.HttpMethod;
-        }
-
-        protected override Uri GetRequestUri()
-        {
-            return this._request.Url;
         }
 
         protected override RequestHeaders GetRequestHeaders()
@@ -34,6 +31,19 @@ namespace Microsoft.Dash.Server.Utils
         protected override RequestQueryParameters GetQueryParameters()
         {
             return RequestQueryParameters.Create(this._request.QueryString);
+        }
+
+        protected override RequestUriParts GetUriParts()
+        {
+            // The Original path does not include the controller segment which is injected by UrlRewrite
+            string originalPath = this.Headers.OriginalUri;
+            if (String.IsNullOrWhiteSpace(originalPath))
+            {
+                originalPath = this._request.RawUrl;
+            }
+            return RequestUriParts.Create(PathUtils.GetPathSegments(this.Url.AbsolutePath).FirstOrDefault(),
+                PathUtils.GetPathSegments(this._request.RawUrl),
+                PathUtils.GetPathSegments(originalPath));
         }
     }
 }

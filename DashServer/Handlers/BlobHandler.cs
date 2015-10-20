@@ -104,10 +104,9 @@ namespace Microsoft.Dash.Server.Handlers
                             processRelativeSource = true;
                         }
                         if (processRelativeSource ||
-                            (String.Equals(sourceUri.Host, requestWrapper.Url.Host, StringComparison.OrdinalIgnoreCase) &&
-                            ((sourceUri.IsDefaultPort && requestWrapper.Url.IsDefaultPort) || (sourceUri.Port == requestWrapper.Url.Port))))
+                            Uri.Compare(sourceUri, requestWrapper.Url, UriComponents.StrongAuthority, UriFormat.Unescaped, StringComparison.OrdinalIgnoreCase) == 0)
                         {
-                            var segments = PathUtils.GetPathSegments(sourceUri, true);
+                            var segments = PathUtils.GetPathSegments(sourceUri);
                             if (processRelativeSource)
                             {
                                 // Blob in named container: /accountName/containerName/blobName

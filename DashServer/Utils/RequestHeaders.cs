@@ -64,5 +64,10 @@ namespace Microsoft.Dash.Server.Utils
             // decoding (eg. '+' -> ' ').
             get { return PathUtils.PathDecode(this.Value<string>("x-ms-copy-source")); }
         }
+
+        public string OriginalUri
+        {
+            get { return this.Value<string>("X-Original-URL", null); }
+        }
     }
 }

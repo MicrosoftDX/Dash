@@ -13,17 +13,15 @@ namespace Microsoft.Dash.Server.Utils
         public const string ControllerContainer = "container";
         public const string ControllerBlob      = "blob";
 
-        public static RequestUriParts Create(IEnumerable<string> uriSegments, IEnumerable<string> originalSegments)
+        public static RequestUriParts Create(string controller, IEnumerable<string> uriSegments, IEnumerable<string> originalSegments)
         {
             // URI format is:
-            //  /mvc-controller[/container[/blobseg1/blobseg2/.../blobsegn]]
-            // Original format is:
-            // [/container[/blobseg1/blobseg2/.../blobsegn]]
+            //  [/container[/blobseg1/blobseg2/.../blobsegn]]
             return new RequestUriParts
             {
-                Controller = uriSegments.FirstOrDefault(),
-                Container = uriSegments.Skip(1).FirstOrDefault(),
-                BlobName = PathUtils.CombinePathSegments(uriSegments.Skip(2)),
+                Controller = controller,
+                Container = uriSegments.FirstOrDefault(),
+                BlobName = PathUtils.CombinePathSegments(uriSegments.Skip(1)),
                 OriginalContainer = originalSegments.FirstOrDefault(),
                 OriginalBlobName = PathUtils.CombinePathSegments(originalSegments.Skip(1)),
             };
