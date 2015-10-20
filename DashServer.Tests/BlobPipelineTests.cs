@@ -100,10 +100,9 @@ namespace Microsoft.Tests
         }
 
         [TestMethod]
-        public void EncodedBlobNamePipelineTest()
+        public void SpecialBlobNamePipelineTest()
         {
-            string blobUri = _ctx.GetBlobUri(Guid.NewGuid().ToString()) + "/workernode2.jokleinhbase.d6.internal.cloudapp.net,60020,1436223739284/workernode2.jokleinhbase.d6.internal.cloudapp.net%2C60020%2C1436223739284.1436223741878";
-            var result = BlobRequest("PUT", blobUri, new[] {
+            var createHeaders = new[] {
                 Tuple.Create("x-ms-version", "2013-08-15"),
                 Tuple.Create("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT"),
                 Tuple.Create("x-ms-blob-content-disposition", "attachment, filename=\"fname.ext\""),
@@ -112,10 +111,23 @@ namespace Microsoft.Tests
                 Tuple.Create("x-ms-meta-m2", "v2"),
                 Tuple.Create("User-Agent", "WA-Storage/2.0.6.1"),
                 Tuple.Create("Expect", "100-Continue")
-            });
+            };
+            string blobUri = _ctx.GetBlobUri(Guid.NewGuid().ToString()) + "/workernode2.jokleinhbase.d6.internal.cloudapp.net,60020,1436223739284/workernode2.jokleinhbase.d6.internal.cloudapp.net%2C60020%2C1436223739284.1436223741878";
+            var result = BlobRequest("PUT", blobUri, createHeaders);
             Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
             var redirectLocation = new Uri(result.Location).GetLeftPart(UriPartial.Path);
             // Get it back & verify we get redirected to the same location
+            result = BlobRequest("GET", blobUri);
+            Assert.AreEqual(redirectLocation, new Uri(result.Location).GetLeftPart(UriPartial.Path));
+
+            // Blob name with single character names
+            string blobName = Guid.NewGuid().ToString() + "/1";
+            blobUri = _ctx.GetBlobUri(blobName);
+            result = BlobRequest("PUT", blobUri, createHeaders);
+            Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
+            string createdPath = new Uri(result.Location).AbsolutePath;
+            redirectLocation = new Uri(result.Location).GetLeftPart(UriPartial.Path);
+            Assert.AreEqual("/" + _ctx.ContainerName + "/" + blobName, createdPath);
             result = BlobRequest("GET", blobUri);
             Assert.AreEqual(redirectLocation, new Uri(result.Location).GetLeftPart(UriPartial.Path));
         }
