@@ -62,13 +62,19 @@ namespace Microsoft.Tests
             { "Microsoft.WindowsAzure.Plugins.RemoteForwarder.Enabled", "true" },
         };
         static Mock<UpdateController> _controllerMock;
+        static ManagementApiTestContext _ctx;
 
-        [TestInitialize]
-        public void Init()
+        [ClassInitialize]
+        public static void Init(TestContext ctx)
         {
             _controllerMock = new Mock<UpdateController>();
-            SetupTestClass(_controllerMock, _defaultServiceSettings);
+            _ctx = SetupTestClass(_controllerMock, _defaultServiceSettings, ctx);
+        }
 
+        [ClassCleanup]
+        public static void Cleanup()
+        {
+            Cleanup(_ctx);
         }
 
         [TestMethod]
@@ -269,7 +275,7 @@ namespace Microsoft.Tests
             public StandardUpgradeRunner()
             {
                 this.UpgradeController = _controllerMock.Object;
-                this.ServiceFactory = _serviceFactory;
+                this.ServiceFactory = _ctx.ServiceFactory;
                 this.ServiceSettings = _defaultServiceSettings;
 
                 _controllerMock.Setup(controller => controller.GetCurrentVersion())

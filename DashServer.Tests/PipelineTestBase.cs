@@ -1,22 +1,14 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
-using Microsoft.Dash.Server.Handlers;
-using Microsoft.Dash.Server.Utils;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.Dash.Server.Handlers;
+using Microsoft.Dash.Server.Utils;
 
 namespace Microsoft.Tests
 {
-    public class PipelineTestBase
+    public class PipelineTestBase : DashTestBase
     {
-        public void InitializeConfig(IDictionary<string, string> config)
-        {
-            WebApiTestRunner.InitializeConfig(config);
-        }
-
         public static HandlerResult BlobRequest(string method, string uri)
         {
             return BlobRequest(method, uri, new[] {
@@ -25,7 +17,7 @@ namespace Microsoft.Tests
             });
         }
 
-        public static HandlerResult BlobRequest(string method, string uri, IEnumerable<Tuple<string, string>> headers)
+        public static HandlerResult BlobRequest(string method, string uri, IEnumerable<Tuple<string, string>> headers = null)
         {
             WebApiTestRunner.SetupRequest(uri, method);
             return StorageOperationsHandler.HandlePrePipelineOperationAsync(

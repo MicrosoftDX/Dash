@@ -6,6 +6,7 @@ using System.Collections.Specialized;
 using System.Linq;
 using System.Net.Http;
 using System.Web;
+using Microsoft.Dash.Common.Utils;
 
 namespace Microsoft.Dash.Server.Utils
 {
@@ -50,6 +51,11 @@ namespace Microsoft.Dash.Server.Utils
         public string ClientRequestId
         {
             get { return this.Value<string>("x-ms-client-request-id", null); }
+        }
+
+        public DateTimeOffset RequestVersion
+        {
+            get { return this.Value("x-ms-version", StorageServiceVersions.Version_2009_09_19); }
         }
     }
 }

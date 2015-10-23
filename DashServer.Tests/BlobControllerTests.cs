@@ -6,41 +6,53 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Web;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Xml.Linq;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Microsoft.Tests
 {
     [TestClass]
-    public class BlobControllerTests
+    public class BlobControllerTests : DashTestBase
     {
-        WebApiTestRunner _runner;
+        static DashTestContext _ctx;
 
-        [TestInitialize]
-        public void Init()
+        [ClassInitialize]
+        public static void Init(TestContext ctx)
         {
-            _runner = new WebApiTestRunner(new Dictionary<string, string>()
+            _ctx = InitializeConfigAndCreateTestBlobs(ctx, "datax2", new Dictionary<string, string>
                 {
                     { "AccountName", "dashtest" },
-                    { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=https;AccountName=dashtestnamespace;AccountKey=N+BMOAp/bswfqp4dxoQYLLwmYnERysm1Xxv3qSf5H9RVhQ0q+f/QKNHhXX4Z/P67mZ+5QwT6RZv9qKV834pOqQ==" },
-                    { "ScaleoutStorage0", "DefaultEndpointsProtocol=https;AccountName=dashtestdata1;AccountKey=IatOQyIdf8x3HcCZuhtGGLv/nS0v/SwXu2vBS6E9/5/+GYllhdmFFX6YqMXmR7U6UyFYQt4pdZnlLCM+bPcJ4A==" },
-                    { "ScaleoutStorage1", "DefaultEndpointsProtocol=https;AccountName=dashtestdata2;AccountKey=OOXSVWWpImRf79sbiEtpIwFsggv7VAhdjtKdt7o0gOLr2krzVXwZ+cb/gJeMqZRlXHTniRN6vnKKjs1glijihA==" },
-                    { "ScaleoutNumberOfAccounts", "2"},
+                },
+                new[] {
+                    TestBlob.DefineBlob("fixed-test.txt"),
+                    TestBlob.DefineBlob("test.txt"),
+                    TestBlob.DefineBlob("test_in_different_data_account.txt"),
                 });
+        }
+
+        [ClassCleanup]
+        public static void Cleanup()
+        {
+            CleanupTestBlobs(_ctx);
         }
 
         [TestMethod]
         public void GetBlobControllerTest()
         {
-            var response = _runner.ExecuteRequest("http://localhost/blob/test/fixed-test.txt",
+            var response = _ctx.Runner.ExecuteRequest(_ctx.GetBlobUri("fixed-test.txt"),
                 "GET",
                 expectedStatusCode: HttpStatusCode.OK);
-            Assert.AreEqual(response.Content.Headers.ContentLength.Value, 423);
+            Assert.AreEqual(11, response.Content.Headers.ContentLength.Value);
         }
 
         [TestMethod]
         public void PutExistingBlobControllerTest()
         {
+            string blobUri = _ctx.GetBlobUri("test.txt");
+
+            var pipelineResponse = BlobPipelineTests.BlobRequest("GET", blobUri);
+            string redirectHost = new Uri(pipelineResponse.Location).Host;
+
             var content = new StringContent("hello world", System.Text.Encoding.UTF8, "text/plain");
             content.Headers.Add("x-ms-version", "2013-08-15");
             content.Headers.Add("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT");
@@ -49,24 +61,25 @@ namespace Microsoft.Tests
             content.Headers.Add("x-ms-meta-m1", "v1");
             content.Headers.Add("x-ms-meta-m2", "v2");
 
-            var response = _runner.ExecuteRequest("http://localhost/blob/test/test.txt",
+            var response = _ctx.Runner.ExecuteRequest(blobUri,
                 "PUT",
                 content,
                 HttpStatusCode.Created);
-            // Validate that the blob is still in the expected account
-            new BlobPipelineTests().GetBlobPipelineTest();
+            // Validate that the blob is still in the same account
+            pipelineResponse = BlobPipelineTests.BlobRequest("GET", blobUri);
+            Assert.AreEqual(redirectHost.ToLower(), new Uri(pipelineResponse.Location).Host.ToLower());
         }
 
         [TestMethod]
         public void PutNonExistingBlobControllerTest()
         {
-            PutAndValidateBlob("http://localhost/blob/test/" + Guid.NewGuid().ToString());
+            PutAndValidateBlob(_ctx.GetUniqueBlobUri());
         }
 
         [TestMethod]
         public void EncodedBlobNameControllerTest()
         {
-            string blobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString() + "/workernode2.jokleinhbase.d6.internal.cloudapp.net,60020,1436223739284/workernode2.jokleinhbase.d6.internal.cloudapp.net%2C60020%2C1436223739284.1436223741878";
+            string blobUri = _ctx.GetBlobUri("workernode2.jokleinhbase.d6.internal.cloudapp.net,60020,1436223739284/workernode2.jokleinhbase.d6.internal.cloudapp.net%2C60020%2C1436223739284.1436223741878");
             PutAndValidateBlob(blobUri);
         }
 
@@ -80,12 +93,12 @@ namespace Microsoft.Tests
             content.Headers.Add("x-ms-meta-m1", "v1");
             content.Headers.Add("x-ms-meta-m2", "v2");
 
-            var response = _runner.ExecuteRequest(blobUri,
+            var response = _ctx.Runner.ExecuteRequest(blobUri,
                 "PUT",
                 content,
                 HttpStatusCode.Created);
             // Get it back & verify via the ETag
-            _runner.ExecuteRequestWithHeaders(blobUri,
+            _ctx.Runner.ExecuteRequestWithHeaders(blobUri,
                 "GET",
                 null,
                 new[] {
@@ -93,24 +106,19 @@ namespace Microsoft.Tests
                 },
                 expectedStatusCode: HttpStatusCode.OK);
             // Verify with an invalid ETag
-            _runner.ExecuteRequestWithHeaders(blobUri,
+            _ctx.Runner.ExecuteRequestWithHeaders(blobUri,
                 "GET",
                 null,
                 new[] {
                     Tuple.Create("If-Match", "FredFlinstone"),
                 },
                 expectedStatusCode: HttpStatusCode.PreconditionFailed);
-
-            // Cleanup
-            _runner.ExecuteRequest(blobUri,
-                "DELETE",
-                expectedStatusCode: HttpStatusCode.Accepted);
         }
 
         [TestMethod]
         public void BlobPropertiesAndMetadataControllerTest()
         {
-            string blobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString();
+            string blobUri = _ctx.GetUniqueBlobUri();
             string metadataUri = blobUri + "?comp=metadata";
             var content = new StringContent("hello world", System.Text.Encoding.UTF8, "text/plain");
             content.Headers.Add("x-ms-version", "2013-08-15");
@@ -119,19 +127,19 @@ namespace Microsoft.Tests
             content.Headers.Add("x-ms-blob-type", "BlockBlob");
             content.Headers.Add("x-ms-meta-m1", "v1");
             content.Headers.Add("x-ms-meta-m2", "v2");
-            var response = _runner.ExecuteRequest(blobUri,
+            var response = _ctx.Runner.ExecuteRequest(blobUri,
                 "PUT",
                 content,
                 HttpStatusCode.Created);
             // Set Blob Properties
             content = new StringContent(String.Empty);
             content.Headers.Add("x-ms-blob-content-encoding", "application/csv");
-            response = _runner.ExecuteRequest(blobUri + "?comp=properties",
+            response = _ctx.Runner.ExecuteRequest(blobUri + "?comp=properties",
                 "PUT",
                 content,
                 HttpStatusCode.OK);
             // Get Blob Properties            
-            response = _runner.ExecuteRequest(blobUri,
+            response = _ctx.Runner.ExecuteRequest(blobUri,
                 "HEAD",
                 expectedStatusCode: HttpStatusCode.OK);
             Assert.AreEqual(response.Headers.GetValues("x-ms-blob-type").First(), "BlockBlob");
@@ -141,31 +149,26 @@ namespace Microsoft.Tests
             content = new StringContent(String.Empty);
             content.Headers.Add("x-ms-meta-m1", "v1");
             content.Headers.Add("x-ms-meta-m2", "v2");
-            response = _runner.ExecuteRequest(metadataUri,
+            response = _ctx.Runner.ExecuteRequest(metadataUri,
                 "PUT",
                 content,
                 HttpStatusCode.OK);
             // Get Blob Metadata
-            response = _runner.ExecuteRequest(metadataUri,
+            response = _ctx.Runner.ExecuteRequest(metadataUri,
                 "HEAD",
                 expectedStatusCode: HttpStatusCode.OK);
             Assert.AreEqual(response.Headers.GetValues("x-ms-meta-m1").First(), "v1");
-            response = _runner.ExecuteRequest(metadataUri,
+            response = _ctx.Runner.ExecuteRequest(metadataUri,
                 "GET",
                 expectedStatusCode: HttpStatusCode.OK);
             Assert.AreEqual(response.Headers.GetValues("x-ms-meta-m2").First(), "v2");
-
-            // Cleanup
-            _runner.ExecuteRequest(blobUri,
-                "DELETE",
-                expectedStatusCode: HttpStatusCode.Accepted);
         }
 
         [TestMethod]
         public void DeleteNonExistingBlobTest()
         {
-            string blobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString();
-            _runner.ExecuteRequest(blobUri,
+            string blobUri = _ctx.GetUniqueBlobUri();
+            _ctx.Runner.ExecuteRequest(blobUri,
                 "DELETE",
                 expectedStatusCode: HttpStatusCode.NotFound);
         }
@@ -178,18 +181,18 @@ namespace Microsoft.Tests
         [TestMethod]
         public void PutBlobBlockControllerTest()
         {
-            string blobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString();
+            string blobUri = _ctx.GetUniqueBlobUri();
             string blockBlobUri = blobUri + "?comp=block&blockid=";
             string blockId1 = GetBlockId();
             string blockId2 = GetBlockId();
             var content = new StringContent("This is a block's worth of content", System.Text.Encoding.UTF8, "text/plain");
-            var response = _runner.ExecuteRequest(blockBlobUri + HttpUtility.UrlEncode(blockId1),
+            var response = _ctx.Runner.ExecuteRequest(blockBlobUri + HttpUtility.UrlEncode(blockId1),
                 "PUT",
                 content,
                 HttpStatusCode.Created);
             // 2nd block - now an existing blob
             content = new StringContent("This is the next block", System.Text.Encoding.UTF8, "text/plain");
-            response = _runner.ExecuteRequest(blockBlobUri + HttpUtility.UrlEncode(blockId2),
+            response = _ctx.Runner.ExecuteRequest(blockBlobUri + HttpUtility.UrlEncode(blockId2),
                 "PUT",
                 content,
                 HttpStatusCode.Created);
@@ -200,90 +203,81 @@ namespace Microsoft.Tests
                     new XElement("Latest", blockId2)
                 )
             );
-            response = _runner.ExecuteRequest(blobUri + "?comp=blocklist",
+            response = _ctx.Runner.ExecuteRequest(blobUri + "?comp=blocklist",
                 "PUT",
                 blockList,
                 HttpStatusCode.Created);
 
             // Read back the complete blob
-            response = _runner.ExecuteRequest(blobUri,
+            response = _ctx.Runner.ExecuteRequest(blobUri,
                 "GET",
                 expectedStatusCode: HttpStatusCode.OK);
             Assert.AreEqual(response.Content.Headers.ContentLength.Value, 56);
             Assert.AreEqual(response.Content.ReadAsStringAsync().Result, "This is a block's worth of contentThis is the next block");
-            // Cleanup
-            _runner.ExecuteRequest(blobUri,
-                "DELETE",
-                expectedStatusCode: HttpStatusCode.Accepted);
         }
 
         [TestMethod]
         public void CopyExistingBlobControllerTest()
         {
-            string destBlobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString();
-            var response = _runner.ExecuteRequestWithHeaders(destBlobUri,
+            string destBlobUri = _ctx.GetUniqueBlobUri();
+            var response = _ctx.Runner.ExecuteRequestWithHeaders(destBlobUri,
                 "PUT",
                 null,
                 new[] {
                     Tuple.Create("x-ms-version", "2013-08-15"),
-                    Tuple.Create("x-ms-copy-source", "http://localhost/test/fixed-test.txt"),
+                    Tuple.Create("x-ms-copy-source", _ctx.GetBlobUri("fixed-test.txt", false)),
                 },
                 HttpStatusCode.Accepted);
             Assert.IsNotNull(response.Headers.GetValues("x-ms-copy-id"));
             Assert.AreEqual("success", response.Headers.GetValues("x-ms-copy-status").First());
 
-            var pipelineResponse = BlobPipelineTests.BlobRequest("GET", "http://localhost/blob/test/fixed-test.txt");
+            var pipelineResponse = BlobPipelineTests.BlobRequest("GET", _ctx.GetBlobUri("fixed-test.txt"));
             string redirectHost = new Uri(pipelineResponse.Location).Host;
             pipelineResponse = BlobPipelineTests.BlobRequest("GET", destBlobUri);
             Assert.AreEqual(redirectHost, new Uri(pipelineResponse.Location).Host);
 
             string redirectUrl = new Uri(pipelineResponse.Location).GetLeftPart(UriPartial.Path);
             // Repeat the copy to verify the operation is idempotent
-            response = _runner.ExecuteRequestWithHeaders(destBlobUri,
+            response = _ctx.Runner.ExecuteRequestWithHeaders(destBlobUri,
                 "PUT",
                 null,
                 new[] {
                     Tuple.Create("x-ms-version", "2013-08-15"),
-                    Tuple.Create("x-ms-copy-source", "http://localhost/test/fixed-test.txt"),
+                    Tuple.Create("x-ms-copy-source", _ctx.GetBlobUri("fixed-test.txt", false)),
                 },
                 HttpStatusCode.Accepted);
             pipelineResponse = BlobPipelineTests.BlobRequest("GET", destBlobUri);
             Assert.AreEqual(redirectUrl, new Uri(pipelineResponse.Location).GetLeftPart(UriPartial.Path));
 
             // Copy a different source to the same destination & verify that destination moves to the same account as the new source
-            pipelineResponse = BlobPipelineTests.BlobRequest("GET", "http://localhost/blob/test/test_in_different_data_account.txt");
+            pipelineResponse = BlobPipelineTests.BlobRequest("GET", _ctx.GetBlobUri("test_in_different_data_account.txt"));
             var newSourceAccount = new Uri(pipelineResponse.Location).Host;
-            response = _runner.ExecuteRequestWithHeaders(destBlobUri,
+            response = _ctx.Runner.ExecuteRequestWithHeaders(destBlobUri,
                 "PUT",
                 null,
                 new[] {
                     Tuple.Create("x-ms-version", "2013-08-15"),
-                    Tuple.Create("x-ms-copy-source", "http://localhost/test/test_in_different_data_account.txt"),
+                    Tuple.Create("x-ms-copy-source", _ctx.GetBlobUri("test_in_different_data_account.txt", false)),
                 },
                 HttpStatusCode.Accepted);
             pipelineResponse = BlobPipelineTests.BlobRequest("GET", destBlobUri);
             Assert.AreEqual(newSourceAccount, new Uri(pipelineResponse.Location).Host);
-
-            // Cleanup
-            _runner.ExecuteRequest(destBlobUri,
-                "DELETE",
-                expectedStatusCode: HttpStatusCode.Accepted);
         }
 
         [TestMethod]
         public void CopyNonExistingBlobControllerTest()
         {
-            string destBlobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString();
-            _runner.ExecuteRequestWithHeaders(destBlobUri,
+            string destBlobUri = _ctx.GetUniqueBlobUri();
+            _ctx.Runner.ExecuteRequestWithHeaders(destBlobUri,
                 "PUT",
                 null,
                 new[] {
                     Tuple.Create("x-ms-version", "2013-08-15"),
-                    Tuple.Create("x-ms-copy-source", "http://localhost/test/foobar.txt"),
+                    Tuple.Create("x-ms-copy-source", _ctx.GetBlobUri("foobar.txt", false)),
                 },
                 HttpStatusCode.NotFound);
 
-            _runner.ExecuteRequestWithHeaders(destBlobUri,
+            _ctx.Runner.ExecuteRequestWithHeaders(destBlobUri,
                 "PUT",
                 null,
                 new[] {
@@ -292,7 +286,7 @@ namespace Microsoft.Tests
                 },
                 HttpStatusCode.InternalServerError);
 
-            _runner.ExecuteRequestWithHeaders(destBlobUri,
+            _ctx.Runner.ExecuteRequestWithHeaders(destBlobUri,
                 "PUT",
                 null,
                 new[] {
@@ -301,7 +295,7 @@ namespace Microsoft.Tests
                 },
                 HttpStatusCode.BadRequest);
 
-            _runner.ExecuteRequestWithHeaders(destBlobUri,
+            _ctx.Runner.ExecuteRequestWithHeaders(destBlobUri,
                 "PUT",
                 null,
                 new[] {
@@ -309,16 +303,13 @@ namespace Microsoft.Tests
                     Tuple.Create("x-ms-copy-source", "fredflinstone"),
                 },
                 HttpStatusCode.BadRequest);
-
-            // Cleanup
-            _runner.ExecuteRequest(destBlobUri, "DELETE");
         }
 
         [TestMethod]
         public void CopyNonStorageBlobControllerTest()
         {
-            string destBlobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString();
-            var response = _runner.ExecuteRequestWithHeaders(destBlobUri,
+            string destBlobUri = _ctx.GetUniqueBlobUri();
+            var response = _ctx.Runner.ExecuteRequestWithHeaders(destBlobUri,
                 "PUT",
                 null,
                 new[] {
@@ -329,7 +320,7 @@ namespace Microsoft.Tests
             Assert.IsNotNull(response.Headers.GetValues("x-ms-copy-id"));
             Assert.AreEqual("pending", response.Headers.GetValues("x-ms-copy-status").First());
             // Abort the copy
-            _runner.ExecuteRequestWithHeaders(destBlobUri + "?comp=copy&copyid=" + response.Headers.GetValues("x-ms-copy-id").First(),
+            _ctx.Runner.ExecuteRequestWithHeaders(destBlobUri + "?comp=copy&copyid=" + response.Headers.GetValues("x-ms-copy-id").First(),
                 "PUT",
                 null,
                 new[] {
@@ -337,42 +328,34 @@ namespace Microsoft.Tests
                     Tuple.Create("x-ms-copy-action", "abort"),
                 },
                 HttpStatusCode.NoContent);
-            // Cleanup
-            _runner.ExecuteRequest(destBlobUri,
-                "DELETE",
-                expectedStatusCode: HttpStatusCode.Accepted);
         }
 
         [TestMethod]
         public void CopyBlobToExistingDestinationControllerTest()
         {
             string destBlobUri = String.Empty;
-            var pipelineResponse = BlobPipelineTests.BlobRequest("GET", "http://localhost/blob/test/test.txt");
+            var pipelineResponse = BlobPipelineTests.BlobRequest("GET", _ctx.GetBlobUri("test.txt"));
             string sourceHost = new Uri(pipelineResponse.Location).Host;
             while (true)
             {
                 // Loop until we place a blob in a different storage account than our source
-                destBlobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString();
+                destBlobUri = _ctx.GetUniqueBlobUri();
                 var content = new StringContent("hello world", System.Text.Encoding.UTF8, "text/plain");
                 content.Headers.Add("x-ms-blob-type", "BlockBlob");
-                _runner.ExecuteRequest(destBlobUri, "PUT", content);
+                _ctx.Runner.ExecuteRequest(destBlobUri, "PUT", content);
                 // See where the blob landed
                 pipelineResponse = BlobPipelineTests.BlobRequest("GET", destBlobUri);
                 if (!String.Equals(new Uri(pipelineResponse.Location).Host, sourceHost, StringComparison.OrdinalIgnoreCase))
                 {
                     break;
                 }
-                // Cleanup
-                _runner.ExecuteRequest(destBlobUri,
-                    "DELETE",
-                    expectedStatusCode: HttpStatusCode.Accepted);
             }
-            var response = _runner.ExecuteRequestWithHeaders(destBlobUri,
+            var response = _ctx.Runner.ExecuteRequestWithHeaders(destBlobUri,
                 "PUT",
                 null,
                 new[] {
                     Tuple.Create("x-ms-version", "2013-08-15"),
-                    Tuple.Create("x-ms-copy-source", "http://localhost/test/test.txt"),
+                    Tuple.Create("x-ms-copy-source", _ctx.GetBlobUri("test.txt", false)),
                 },
                 HttpStatusCode.Accepted);
             Assert.IsNotNull(response.Headers.GetValues("x-ms-copy-id"));
@@ -380,18 +363,13 @@ namespace Microsoft.Tests
 
             pipelineResponse = BlobPipelineTests.BlobRequest("GET", destBlobUri);
             Assert.AreEqual(sourceHost, new Uri(pipelineResponse.Location).Host);
-
-            // Cleanup
-            _runner.ExecuteRequest(destBlobUri,
-                "DELETE",
-                expectedStatusCode: HttpStatusCode.Accepted);
         }
 
         [TestMethod]
         public void CopyBlobOldVersionControllerTest()
         {
-            string destBlobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString();
-            var response = _runner.ExecuteRequestWithHeaders(destBlobUri,
+            string destBlobUri = _ctx.GetUniqueBlobUri();
+            var response = _ctx.Runner.ExecuteRequestWithHeaders(destBlobUri,
                 "PUT",
                 null,
                 new[] {
@@ -402,12 +380,12 @@ namespace Microsoft.Tests
             Assert.IsNotNull(response.Headers.GetValues("x-ms-copy-id"));
             Assert.AreEqual("success", response.Headers.GetValues("x-ms-copy-status").First());
             // Cleanup
-            _runner.ExecuteRequest(destBlobUri,
+            _ctx.Runner.ExecuteRequest(destBlobUri,
                 "DELETE",
                 expectedStatusCode: HttpStatusCode.Accepted);
 
-            destBlobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString();
-            response = _runner.ExecuteRequestWithHeaders(destBlobUri,
+            destBlobUri = _ctx.GetUniqueBlobUri();
+            response = _ctx.Runner.ExecuteRequestWithHeaders(destBlobUri,
                 "PUT",
                 null,
                 new[] {
@@ -416,8 +394,8 @@ namespace Microsoft.Tests
                 },
                 HttpStatusCode.NotFound);
 
-            destBlobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString();
-            response = _runner.ExecuteRequestWithHeaders(destBlobUri,
+            destBlobUri = _ctx.GetUniqueBlobUri();
+            response = _ctx.Runner.ExecuteRequestWithHeaders(destBlobUri,
                 "PUT",
                 null,
                 new[] {

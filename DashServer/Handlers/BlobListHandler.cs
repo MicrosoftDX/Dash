@@ -77,19 +77,21 @@ namespace Microsoft.Dash.Server.Handlers
                 }
             }
             var joinedList = namespaceBlobs
-                .Select(nsBlob => new {
+                .Select(nsBlob => new
+                {
                     BlobWrapper = new NamespaceListWrapper(nsBlob),
                     SortMarker = GetRawMarkerForBlob(nsBlob),
                 })
                 .Where(nsBlob => nsBlob.BlobWrapper.IsDirectory || !nsBlob.BlobWrapper.NamespaceBlob.IsMarkedForDeletion)
                 .OrderBy(nsBlob => nsBlob.SortMarker, StringComparer.Ordinal)
-                .SkipWhile(nsBlob => !String.IsNullOrWhiteSpace(marker) && GetMarker(nsBlob.SortMarker) != marker)
                 .Where(nsBlob => dataBlobsLookup.ContainsKey(makeWrapperKey(nsBlob.BlobWrapper)))
                 .SelectMany(nsBlob => dataBlobsLookup[makeWrapperKey(nsBlob.BlobWrapper)]
-                                                .Select(dataBlob => new {
+                                                .Select(dataBlob => new
+                                                {
                                                     DataBlob = dataBlob,
                                                     NamespaceWrapper = nsBlob.BlobWrapper,
-                                                }));
+                                                }))
+                .SkipWhile(dataBlob => !String.IsNullOrWhiteSpace(marker) && GetMarkerForBlob(dataBlob.DataBlob) != marker);
             if (isHierarchicalListing)
             {
                 // For a hierarchical listing we have to deal with a corner case in that we may have orphaned replicated data blobs
@@ -112,7 +114,7 @@ namespace Microsoft.Dash.Server.Handlers
                 .Select(blobPair => blobPair.DataBlob);
             return new BlobListResults
             {
-                RequestVersion = request.Headers.Value("x-ms-version", StorageServiceVersions.Version_2009_09_19),
+                RequestVersion = request.Headers.RequestVersion,
                 ServiceEndpoint = request.Url.GetComponents(UriComponents.SchemeAndServer, UriFormat.Unescaped),
                 ContainerName = container,
                 MaxResults = maxResults,

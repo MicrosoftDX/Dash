@@ -33,7 +33,7 @@ namespace Microsoft.Tests
             this.ExpectedAbnormalResponse = false;
         }
 
-        public Action<Configuration> UpdateConfigAction { get; set; }
+        public Action<DashServer.ManagementAPI.Models.Configuration> UpdateConfigAction { get; set; }
         public Action<IEnumerable<Tuple<string, string>>, UpdateConfigStatus.ConfigUpdate, Exception> VerifyConfigAction { get; set; }
         public Action<IHttpActionResult, DeploymentUpgradeParameters> VerifyUpgradeAction { get; set; }
         public Action<Mock<AzureServiceManagementClient>> CustomizeMockAction { get; set; }
@@ -76,19 +76,19 @@ namespace Microsoft.Tests
             ExecuteSoftwareUpgradeCore((operationId) => WaitOperation(operationId));
         }
 
-        void ExecuteUpdateConfigCore(Func<Configuration, UpdateConfigStatus.ConfigUpdate> processResponse)
+        void ExecuteUpdateConfigCore(Func<DashServer.ManagementAPI.Models.Configuration, UpdateConfigStatus.ConfigUpdate> processResponse)
         {
             ExecuteCore(() =>
             {
                 var retval = new ExecuteCoreOutputs();
-                var currentConfig = this.ConfigController.GetCurrentConfiguration().Result as OkNegotiatedContentResult<Configuration>;
+                var currentConfig = this.ConfigController.GetCurrentConfiguration().Result as OkNegotiatedContentResult<DashServer.ManagementAPI.Models.Configuration>;
                 Assert.IsNotNull(currentConfig);
                 var updatedConfig = currentConfig.Content;
                 this.UpdateConfigAction(updatedConfig);
-                NegotiatedContentResult<Configuration> updateResponse = null;
+                NegotiatedContentResult<DashServer.ManagementAPI.Models.Configuration> updateResponse = null;
                 try
                 {
-                    updateResponse = this.ConfigController.UpdateConfiguration(updatedConfig).Result as NegotiatedContentResult<Configuration>;
+                    updateResponse = this.ConfigController.UpdateConfiguration(updatedConfig).Result as NegotiatedContentResult<DashServer.ManagementAPI.Models.Configuration>;
                 }
                 catch (Exception ex)
                 {

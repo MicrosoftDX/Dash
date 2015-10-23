@@ -134,6 +134,9 @@
     <Compile Include="AccountControllerTests.cs" />
     <Compile Include="AccountManagementTests.cs" />
     <Compile Include="BlobReplicationTests.cs" />
+    <Compile Include="Configuration\TestConfiguration.cs" />
+    <Compile Include="Configuration\TestConfigurations.cs" />
+    <Compile Include="DashTestBase.cs" />
     <Compile Include="ManagementApiTestBase.cs" />
     <Compile Include="ManagementApiRunner.cs" />
     <Compile Include="MockAzureService.cs" />
@@ -172,8 +175,9 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="app.config">
-      <SubType>Designer</SubType>
+    <None Include="app.config" />
+    <None Include="TestConfigurations.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="packages.config">
       <SubType>Designer</SubType>

@@ -19,7 +19,7 @@ namespace Microsoft.Tests
         public TestConfigurationProvider(IDictionary<string, string> config)
         {
             _testConfig = config;
-            string connectionString = GetSetting("StorageConnectionStringMaster", "");
+            string connectionString = GetSetting(DashConfiguration.KeyNamespaceAccount, "");
             if (!String.IsNullOrWhiteSpace(connectionString))
             {
                 _namespaceAccount = CloudStorageAccount.Parse(connectionString);
@@ -43,7 +43,7 @@ namespace Microsoft.Tests
         {
             for (int accountIndex = 0; true; accountIndex++)
             {
-                var connectString = GetSetting("ScaleoutStorage" + accountIndex.ToString(), "");
+                var connectString = GetSetting(DashConfiguration.KeyScaleoutAccountPrefix + accountIndex.ToString(), "");
                 if (String.IsNullOrWhiteSpace(connectString))
                 {
                     yield break;

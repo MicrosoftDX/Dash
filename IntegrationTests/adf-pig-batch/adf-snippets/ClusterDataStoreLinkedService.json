@@ -1,7 +1,7 @@
 {
     "name": "ClusterDataStore",
     "properties": {
-        "connectionString": "DefaultEndpointsProtocol=https;AccountName=dashadftest;AccountKey=w5mNcPZQ2sooPH2cMFMErFkfWGDAwjuqKjzWolKIc0WRw1Erk3biDSlEoR6HlHi8VunpqkUcheSR1ff5x1hAtg==",
+        "connectionString": "DefaultEndpointsProtocol=https;AccountName=dashadftest;AccountKey=???",
         "type": "AzureStorageLinkedService"
     }
 }

@@ -2,52 +2,46 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Threading.Tasks;
-using System.Web;
-using System.Web.Http;
-using Microsoft.Dash.Server.Controllers;
-using Microsoft.Dash.Server.Handlers;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Xml.Linq;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Microsoft.Tests
 {
     [TestClass]
-    public class ContainerTests
+    public class ContainerTests : DashTestBase
     {
-        WebApiTestRunner _runner;
+        static DashTestContext _ctx;
 
-        [TestInitialize]
-        public void Init()
+        [ClassInitialize]
+        public static void Init(TestContext ctx)
         {
-            _runner = new WebApiTestRunner(new Dictionary<string, string>()
-                {
-                    { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=https;AccountName=dashtestnamespace;AccountKey=N+BMOAp/bswfqp4dxoQYLLwmYnERysm1Xxv3qSf5H9RVhQ0q+f/QKNHhXX4Z/P67mZ+5QwT6RZv9qKV834pOqQ==" },
-                    { "ScaleoutStorage0", "DefaultEndpointsProtocol=https;AccountName=dashtestdata1;AccountKey=IatOQyIdf8x3HcCZuhtGGLv/nS0v/SwXu2vBS6E9/5/+GYllhdmFFX6YqMXmR7U6UyFYQt4pdZnlLCM+bPcJ4A==" },
-                    { "ScaleoutNumberOfAccounts", "1"},
-                });
+            _ctx = InitializeConfig(ctx, "datax1", new Dictionary<string, string>());
+        }
+
+        [ClassCleanup]
+        public static void Cleanup()
+        {
+            CleanupTestBlobs(_ctx);
         }
 
         [TestMethod]
         public void ContainerLifecycleTest()
         {
-            string containerName = Guid.NewGuid().ToString("N");
-            string baseUri = "http://mydashserver/container/" + containerName + "?restype=container";
-            var results = _runner.ExecuteRequest(baseUri, "PUT", expectedStatusCode: HttpStatusCode.Created);
+            string baseUri = _ctx.GetContainerUri();
+            var results = _ctx.Runner.ExecuteRequest(baseUri, "PUT", expectedStatusCode: HttpStatusCode.Created);
 
             //Try to re-create the same container again.
-            results = _runner.ExecuteRequest(baseUri, "PUT", expectedStatusCode: HttpStatusCode.Conflict);
+            results = _ctx.Runner.ExecuteRequest(baseUri, "PUT", expectedStatusCode: HttpStatusCode.Conflict);
             //TODO: Add more variations on create container, including attempt to create already existing container
 
             //Test insertion of metatags
             var content = new StringContent("", System.Text.Encoding.UTF8, "application/xml");
             content.Headers.Add("x-ms-meta-foo", "fee");
             content.Headers.Add("x-ms-meta-Dog", "Cat");
-            results = _runner.ExecuteRequest(baseUri + "&comp=metadata", "PUT");
+            results = _ctx.Runner.ExecuteRequest(baseUri + "&comp=metadata", "PUT");
             List<Tuple<string, string>> customHeaders = new List<Tuple<string, string>>();
             string requestGuid = Guid.NewGuid().ToString("N");
             string appVersion = "2014-02-14";
@@ -56,7 +50,7 @@ namespace Microsoft.Tests
             customHeaders.Add(new Tuple<string, string>("x-ms-meta-Dog", "Cat"));
             customHeaders.Add(new Tuple<string, string>("x-ms-client-request-id", requestGuid));
             customHeaders.Add(new Tuple<string, string>("x-ms-version", appVersion));
-            results = _runner.ExecuteRequestWithHeaders(metadataUri, "PUT", content, customHeaders, HttpStatusCode.OK);
+            results = _ctx.Runner.ExecuteRequestWithHeaders(metadataUri, "PUT", content, customHeaders, HttpStatusCode.OK);
             Assert.AreEqual(requestGuid, results.Headers.GetValues("x-ms-request-id").First());
             Assert.AreEqual(appVersion, results.Headers.GetValues("x-ms-version").First());
 
@@ -65,7 +59,7 @@ namespace Microsoft.Tests
             requestGuid = Guid.NewGuid().ToString("N");
             customHeaders.Add(new Tuple<string, string>("x-ms-client-request-id", requestGuid));
             customHeaders.Add(new Tuple<string, string>("x-ms-version", appVersion));
-            results = _runner.ExecuteRequestWithHeaders(metadataUri, "GET", content, customHeaders, HttpStatusCode.OK);
+            results = _ctx.Runner.ExecuteRequestWithHeaders(metadataUri, "GET", content, customHeaders, HttpStatusCode.OK);
             Assert.AreEqual(requestGuid, results.Headers.GetValues("x-ms-request-id").First());
             Assert.AreEqual(appVersion, results.Headers.GetValues("x-ms-version").First());
             Assert.AreEqual("fee", results.Headers.GetValues("x-ms-meta-foo").First());
@@ -79,7 +73,7 @@ namespace Microsoft.Tests
             customHeaders.Add(new Tuple<string, string>("x-ms-version", appVersion));
             customHeaders.Add(new Tuple<string, string>("x-ms-lease-action", "acquire"));
             customHeaders.Add(new Tuple<string, string>("x-ms-lease-duration", "30")); //30 second lease
-            results = _runner.ExecuteRequestWithHeaders(leaseUri, "PUT", content, customHeaders, HttpStatusCode.Created);
+            results = _ctx.Runner.ExecuteRequestWithHeaders(leaseUri, "PUT", content, customHeaders, HttpStatusCode.Created);
             Assert.AreEqual(requestGuid, results.Headers.GetValues("x-ms-request-id").First());
             Assert.AreEqual(appVersion, results.Headers.GetValues("x-ms-version").First());
             Assert.IsNotNull(results.Headers.GetValues("x-ms-lease-id").First());
@@ -92,7 +86,7 @@ namespace Microsoft.Tests
             customHeaders.Add(new Tuple<string, string>("x-ms-version", appVersion));
             customHeaders.Add(new Tuple<string, string>("x-ms-lease-action", "renew"));
             customHeaders.Add(new Tuple<string, string>("x-ms-lease-id", leaseId));
-            results = _runner.ExecuteRequestWithHeaders(leaseUri, "PUT", content, customHeaders, HttpStatusCode.OK);
+            results = _ctx.Runner.ExecuteRequestWithHeaders(leaseUri, "PUT", content, customHeaders, HttpStatusCode.OK);
             Assert.AreEqual(requestGuid, results.Headers.GetValues("x-ms-request-id").First());
             Assert.AreEqual(appVersion, results.Headers.GetValues("x-ms-version").First());
             Assert.AreEqual(leaseId, results.Headers.GetValues("x-ms-lease-id").First());
@@ -106,7 +100,7 @@ namespace Microsoft.Tests
             customHeaders.Add(new Tuple<string, string>("x-ms-lease-action", "change"));
             customHeaders.Add(new Tuple<string, string>("x-ms-lease-id", leaseId));
             customHeaders.Add(new Tuple<string, string>("x-ms-proposed-lease-id", proposedLeaseId));
-            results = _runner.ExecuteRequestWithHeaders(leaseUri, "PUT", content, customHeaders, HttpStatusCode.OK);
+            results = _ctx.Runner.ExecuteRequestWithHeaders(leaseUri, "PUT", content, customHeaders, HttpStatusCode.OK);
             Assert.AreEqual(requestGuid, results.Headers.GetValues("x-ms-request-id").First());
             Assert.AreEqual(appVersion, results.Headers.GetValues("x-ms-version").First());
             Assert.AreEqual(proposedLeaseId, results.Headers.GetValues("x-ms-lease-id").First().Replace("-", ""));
@@ -121,7 +115,7 @@ namespace Microsoft.Tests
             customHeaders.Add(new Tuple<string, string>("x-ms-version", appVersion));
             customHeaders.Add(new Tuple<string, string>("x-ms-lease-action", "renew"));
             customHeaders.Add(new Tuple<string, string>("x-ms-lease-id", oldLeaseId));
-            results = _runner.ExecuteRequestWithHeaders(leaseUri, "PUT", content, customHeaders, HttpStatusCode.PreconditionFailed);
+            results = _ctx.Runner.ExecuteRequestWithHeaders(leaseUri, "PUT", content, customHeaders, HttpStatusCode.PreconditionFailed);
 
             //Test breaking of lease
             requestGuid = Guid.NewGuid().ToString("N");
@@ -131,7 +125,7 @@ namespace Microsoft.Tests
             customHeaders.Add(new Tuple<string, string>("x-ms-lease-action", "break"));
             customHeaders.Add(new Tuple<string, string>("x-ms-lease-id", leaseId));
             customHeaders.Add(new Tuple<string, string>("x-ms-lease-break-period", "0"));
-            results = _runner.ExecuteRequestWithHeaders(leaseUri, "PUT", content, customHeaders, HttpStatusCode.Accepted);
+            results = _ctx.Runner.ExecuteRequestWithHeaders(leaseUri, "PUT", content, customHeaders, HttpStatusCode.Accepted);
             Assert.AreEqual(requestGuid, results.Headers.GetValues("x-ms-request-id").First());
             Assert.AreEqual(appVersion, results.Headers.GetValues("x-ms-version").First());
             Assert.AreEqual("0", results.Headers.GetValues("x-ms-lease-time").First());
@@ -143,7 +137,7 @@ namespace Microsoft.Tests
             customHeaders.Add(new Tuple<string, string>("x-ms-version", appVersion));
             customHeaders.Add(new Tuple<string, string>("x-ms-lease-action", "acquire"));
             customHeaders.Add(new Tuple<string, string>("x-ms-lease-duration", "30")); //30 second lease
-            results = _runner.ExecuteRequestWithHeaders(leaseUri, "PUT", content, customHeaders, HttpStatusCode.Created);
+            results = _ctx.Runner.ExecuteRequestWithHeaders(leaseUri, "PUT", content, customHeaders, HttpStatusCode.Created);
             Assert.AreEqual(requestGuid, results.Headers.GetValues("x-ms-request-id").First());
             Assert.AreEqual(appVersion, results.Headers.GetValues("x-ms-version").First());
             Assert.IsNotNull(results.Headers.GetValues("x-ms-lease-id").First());
@@ -156,7 +150,7 @@ namespace Microsoft.Tests
             customHeaders.Add(new Tuple<string, string>("x-ms-version", appVersion));
             customHeaders.Add(new Tuple<string, string>("x-ms-lease-action", "release"));
             customHeaders.Add(new Tuple<string, string>("x-ms-lease-id", leaseId));
-            results = _runner.ExecuteRequestWithHeaders(leaseUri, "PUT", content, customHeaders, HttpStatusCode.OK);
+            results = _ctx.Runner.ExecuteRequestWithHeaders(leaseUri, "PUT", content, customHeaders, HttpStatusCode.OK);
             Assert.AreEqual(requestGuid, results.Headers.GetValues("x-ms-request-id").First());
             Assert.AreEqual(appVersion, results.Headers.GetValues("x-ms-version").First());
 
@@ -180,7 +174,7 @@ namespace Microsoft.Tests
             xmlBody += "</SignedIdentifier>";
             xmlBody += "</SignedIdentifiers>";
             var xmlContent = new StringContent(xmlBody, System.Text.Encoding.UTF8, "application/xml");
-            results = _runner.ExecuteRequestWithHeaders(aclUri, "PUT", xmlContent, customHeaders, HttpStatusCode.OK);
+            results = _ctx.Runner.ExecuteRequestWithHeaders(aclUri, "PUT", xmlContent, customHeaders, HttpStatusCode.OK);
             Assert.AreEqual(requestGuid, results.Headers.GetValues("x-ms-request-id").First());
             Assert.AreEqual(appVersion, results.Headers.GetValues("x-ms-version").First());
 
@@ -189,7 +183,7 @@ namespace Microsoft.Tests
             requestGuid = Guid.NewGuid().ToString("N");
             customHeaders.Add(new Tuple<string, string>("x-ms-client-request-id", requestGuid));
             customHeaders.Add(new Tuple<string, string>("x-ms-version", appVersion));
-            results = _runner.ExecuteRequestWithHeaders(aclUri, "GET", content, customHeaders, HttpStatusCode.OK);
+            results = _ctx.Runner.ExecuteRequestWithHeaders(aclUri, "GET", content, customHeaders, HttpStatusCode.OK);
             Assert.AreEqual(requestGuid, results.Headers.GetValues("x-ms-request-id").First());
             Assert.AreEqual(appVersion, results.Headers.GetValues("x-ms-version").First());
             Assert.AreEqual("container", results.Headers.GetValues("x-ms-blob-public-access").First());
@@ -201,7 +195,7 @@ namespace Microsoft.Tests
             Assert.AreEqual("r", accessPolicy.Element("Permission").Value);
 
             //Test deletion of container (and cleanup)
-            results = _runner.ExecuteRequest(baseUri, "DELETE", expectedStatusCode: HttpStatusCode.Accepted);
+            results = _ctx.Runner.ExecuteRequest(baseUri, "DELETE", expectedStatusCode: HttpStatusCode.Accepted);
         }
 
         [TestMethod]
@@ -209,7 +203,7 @@ namespace Microsoft.Tests
         {
             string containerName = Guid.NewGuid().ToString("N");
             string baseUri = "http://mydashserver/container/" + containerName + "?restype=container";
-            var results = _runner.ExecuteRequest(baseUri, "DELETE", expectedStatusCode: HttpStatusCode.NotFound);
+            var results = _ctx.Runner.ExecuteRequest(baseUri, "DELETE", expectedStatusCode: HttpStatusCode.NotFound);
         }
 
     }

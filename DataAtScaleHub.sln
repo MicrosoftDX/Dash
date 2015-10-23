@@ -31,6 +31,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		HostedLoad.testsettings = HostedLoad.testsettings
 		Local.testsettings = Local.testsettings
+		testconfiguration.runsettings = testconfiguration.runsettings
 	EndProjectSection
 EndProject
 Project("{CC5FD16D-436D-48AD-A40C-5A424C6E3E79}") = "DashServer.Azure", "DashServer.Azure\DashServer.Azure.ccproj", "{2F03F471-8951-4B92-8DD1-D335258C005C}"

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Dash.Common.OperationStatus;
 using Microsoft.Dash.Common.Platform;
@@ -14,25 +15,36 @@ using Moq.Protected;
 
 namespace Microsoft.Tests
 {
-    public class ManagementApiTestBase
+    public class ManagementApiTestBase : DashTestBase
     {
-        protected static MockAzureService _serviceFactory;
-        protected static Mock<AzureServiceManagementClient> _defaultServiceMock;
-
-        protected void SetupTestClass<T>(Mock<T> controllerMock, IDictionary<string, string> defaultSettings) where T : class
+        protected class ManagementApiTestContext : DashTestContext
         {
-            WebApiTestRunner.InitializeConfig(new Dictionary<string, string>
+            public MockAzureService ServiceFactory { get; set; }
+            public Mock<AzureServiceManagementClient> DefaultServiceMock { get; set; }
+        }
+
+        protected static ManagementApiTestContext SetupTestClass<T>(Mock<T> controllerMock, IDictionary<string, string> defaultSettings, TestContext ctx) where T : class
+        {
+            var retval = (ManagementApiTestContext)InitializeConfig(ctx, "datax1", new Dictionary<string, string>
                 {
-                    { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=https;AccountName=dashtestnamespace;AccountKey=N+BMOAp/bswfqp4dxoQYLLwmYnERysm1Xxv3qSf5H9RVhQ0q+f/QKNHhXX4Z/P67mZ+5QwT6RZv9qKV834pOqQ==" },
-                    { "ScaleoutStorage0", "DefaultEndpointsProtocol=https;AccountName=dashtestdata1;AccountKey=IatOQyIdf8x3HcCZuhtGGLv/nS0v/SwXu2vBS6E9/5/+GYllhdmFFX6YqMXmR7U6UyFYQt4pdZnlLCM+bPcJ4A==" },
-                    { "WorkerQueueName", Guid.NewGuid().ToString("N") },
+                    { DashConfiguration.KeyWorkerQueueName, Guid.NewGuid().ToString("N") },
                     { "LogNormalOperations", "true" }
-                });
-            AzureService.ServiceFactory = _serviceFactory = new MockAzureService();
+                }, 
+                "", 
+                () => new ManagementApiTestContext());
+            AzureService.ServiceFactory = retval.ServiceFactory = new MockAzureService();
             UpdateConfigStatus.TableName = "test" + Guid.NewGuid().ToString("N");
 
-            _defaultServiceMock = new Mock<AzureServiceManagementClient>();
-            _defaultServiceMock.Setup(service => service.GetDeploymentConfiguration(DeploymentSlot.Production))
+            // Fixup the supplied settings with configuration read from config file
+            var secretsConfig = _testConfig.Configurations["datax3"];
+            defaultSettings[DashConfiguration.KeyNamespaceAccount] = secretsConfig.NamespaceConnectionString;
+            for (int index = 0; index < secretsConfig.DataConnectionStrings.Count(); index++)
+            {
+                defaultSettings[DashConfiguration.KeyScaleoutAccountPrefix + index.ToString()] = secretsConfig.DataConnectionStrings.ElementAt(index);
+            }
+
+            retval.DefaultServiceMock = new Mock<AzureServiceManagementClient>();
+            retval.DefaultServiceMock.Setup(service => service.GetDeploymentConfiguration(DeploymentSlot.Production))
                 .Returns(() => Task.FromResult(MockAzureService.GetServiceConfiguration(defaultSettings)));
 
             controllerMock.CallBase = true;
@@ -42,14 +54,14 @@ namespace Microsoft.Tests
             controllerMock.Protected()
                 .Setup<Task<string>>("GetRdfeRefreshToken")
                 .Returns(Task.FromResult(String.Empty));
+
+            return retval;
         }
 
-        [TestCleanup]
-        public void Cleanup()
+        protected static void Cleanup(ManagementApiTestContext ctx)
         {
-            var queue = new AzureMessageQueue();
-            queue.DeleteQueue();
             DashConfiguration.NamespaceAccount.CreateCloudTableClient().GetTableReference(UpdateConfigStatus.TableName).DeleteIfExists();
+            CleanupTestBlobs(ctx);
         }
 
     }

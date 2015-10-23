@@ -8,14 +8,14 @@ using System.Reflection;
 using System.Web;
 using System.Web.Http;
 using System.Xml.Linq;
+using Microsoft.Dash.Common.Utils;
 using Microsoft.Dash.Server;
 using Microsoft.Dash.Server.Utils;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Microsoft.Dash.Common.Utils;
 
 namespace Microsoft.Tests
 {
-    class WebApiTestRunner 
+    public class WebApiTestRunner 
     {
         HttpClient _requestClient;
 

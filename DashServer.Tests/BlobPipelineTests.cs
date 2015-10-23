@@ -1,48 +1,59 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
-using Microsoft.Dash.Server.Utils;
-using Microsoft.Dash.Server.Handlers;
+using System.Linq;
 using System.Net;
 using System.Web;
+using Microsoft.Dash.Common.Utils;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace Microsoft.Tests
 {
     [TestClass]
     public class BlobPipelineTests : PipelineTestBase
     {
-        [TestInitialize]
-        public void Init()
+        static DashTestContext _ctx;
+
+        [ClassInitialize]
+        public static void Init(TestContext ctx)
         {
-            InitializeConfig(new Dictionary<string, string>()
-                {
-                    { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=https;AccountName=dashtestnamespace;AccountKey=N+BMOAp/bswfqp4dxoQYLLwmYnERysm1Xxv3qSf5H9RVhQ0q+f/QKNHhXX4Z/P67mZ+5QwT6RZv9qKV834pOqQ==" },
-                    { "ScaleoutStorage0", "DefaultEndpointsProtocol=https;AccountName=dashtestdata1;AccountKey=IatOQyIdf8x3HcCZuhtGGLv/nS0v/SwXu2vBS6E9/5/+GYllhdmFFX6YqMXmR7U6UyFYQt4pdZnlLCM+bPcJ4A==" },
-                    { "ScaleoutStorage1", "DefaultEndpointsProtocol=https;AccountName=dashtestdata2;AccountKey=OOXSVWWpImRf79sbiEtpIwFsggv7VAhdjtKdt7o0gOLr2krzVXwZ+cb/gJeMqZRlXHTniRN6vnKKjs1glijihA==" },
-                    { "ScaleoutNumberOfAccounts", "2"},
+            _ctx = InitializeConfigAndCreateTestBlobs(ctx, "datax2", new Dictionary<string, string>(), 
+                new[] {
+                    TestBlob.DefineBlob("test.txt"),
+                    TestBlob.DefineBlob("pagetest.txt", blobType: BlobType.PageBlob),
                 });
+        }
+
+        [ClassCleanup]
+        public static void Cleanup()
+        {
+            CleanupTestBlobs(_ctx);
         }
 
         [TestMethod]
         public void GetBlobPipelineTest()
         {
-            var result = BlobRequest("GET", "http://localhost/blob/test/test.txt");
+            var result = BlobRequest("GET", _ctx.GetBlobUri("test.txt"));
             Assert.IsNotNull(result);
             Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
             var location = new Uri(result.Location);
-            Assert.AreEqual("http://dashtestdata1.blob.core.windows.net/test/test.txt", location.GetLeftPart(UriPartial.Path));
+            var account = location.Host.Split('.')[0];
+            Assert.IsTrue(DashConfiguration.DataAccounts
+                .Any(dataAccount => String.Equals(dataAccount.Credentials.AccountName, account, StringComparison.OrdinalIgnoreCase)));
             var redirectQueryParams = HttpUtility.ParseQueryString(location.Query);
             Assert.AreEqual("2014-02-14", redirectQueryParams["sv"]);
             Assert.IsNotNull(redirectQueryParams["sig"]);
             Assert.IsNotNull(redirectQueryParams["se"]);
+            Assert.IsTrue(DateTimeOffset.Parse(redirectQueryParams["st"]) < DateTimeOffset.UtcNow);
+            Assert.IsTrue(DateTimeOffset.Parse(redirectQueryParams["se"]) > DateTimeOffset.UtcNow);
         }
 
         [TestMethod]
         public void GetNonExistingBlobPipelineTest()
         {
-            var result = BlobRequest("GET", "http://localhost/blob/test/test1.txt");
+            var result = BlobRequest("GET", _ctx.GetBlobUri("fredflinstone.txt"));
             Assert.IsNotNull(result);
             Assert.AreEqual(HttpStatusCode.NotFound, result.StatusCode);
         }
@@ -50,7 +61,7 @@ namespace Microsoft.Tests
         [TestMethod]
         public void PutExistingBlobPipelineTest()
         {
-            var result = BlobRequest("PUT", "http://localhost/blob/test/test.txt", new[] {
+            var result = BlobRequest("PUT", _ctx.GetBlobUri("test.txt"), new[] {
                 Tuple.Create("x-ms-version", "2013-08-15"),
                 Tuple.Create("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT"),
                 Tuple.Create("x-ms-blob-content-disposition", "attachment; filename=\"test.txt\""),
@@ -62,13 +73,15 @@ namespace Microsoft.Tests
             });
             Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
             var location = new Uri(result.Location);
-            Assert.AreEqual("http://dashtestdata1.blob.core.windows.net/test/test.txt", location.GetLeftPart(UriPartial.Path));
+            var account = location.Host.Split('.')[0];
+            Assert.IsTrue(DashConfiguration.DataAccounts
+                .Any(dataAccount => String.Equals(dataAccount.Credentials.AccountName, account, StringComparison.OrdinalIgnoreCase)));
         }
 
         [TestMethod]
         public void PutNonExistingBlobPipelineTest()
         {
-            string blobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString();
+            string blobUri = _ctx.GetBlobUri(Guid.NewGuid().ToString());
             var result = BlobRequest("PUT", blobUri, new[] {
                 Tuple.Create("x-ms-version", "2013-08-15"),
                 Tuple.Create("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT"),
@@ -84,14 +97,12 @@ namespace Microsoft.Tests
             // Get it back & verify we get redirected to the same location
             result = BlobRequest("GET", blobUri);
             Assert.AreEqual(redirectLocation, new Uri(result.Location).GetLeftPart(UriPartial.Path));
-
-            // Cleanup - TODO
         }
 
         [TestMethod]
         public void EncodedBlobNamePipelineTest()
         {
-            string blobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString() + "/workernode2.jokleinhbase.d6.internal.cloudapp.net,60020,1436223739284/workernode2.jokleinhbase.d6.internal.cloudapp.net%2C60020%2C1436223739284.1436223741878";
+            string blobUri = _ctx.GetBlobUri(Guid.NewGuid().ToString()) + "/workernode2.jokleinhbase.d6.internal.cloudapp.net,60020,1436223739284/workernode2.jokleinhbase.d6.internal.cloudapp.net%2C60020%2C1436223739284.1436223741878";
             var result = BlobRequest("PUT", blobUri, new[] {
                 Tuple.Create("x-ms-version", "2013-08-15"),
                 Tuple.Create("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT"),
@@ -107,14 +118,12 @@ namespace Microsoft.Tests
             // Get it back & verify we get redirected to the same location
             result = BlobRequest("GET", blobUri);
             Assert.AreEqual(redirectLocation, new Uri(result.Location).GetLeftPart(UriPartial.Path));
-
-            // Cleanup - TODO
         }
 
         [TestMethod]
         public void BlobPropertiesAndMetadataPipelineTest()
         {
-            string blobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString();
+            string blobUri = _ctx.GetBlobUri(Guid.NewGuid().ToString());
             string metadataUri = blobUri + "?comp=metadata";
             var result = BlobRequest("PUT", blobUri);
             Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
@@ -148,8 +157,6 @@ namespace Microsoft.Tests
             });
             Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
             Assert.AreEqual(redirectLocation, new Uri(result.Location).GetLeftPart(UriPartial.Path));
-
-            // Cleanup - TODO
         }
 
         static string GetBlockId()
@@ -160,7 +167,7 @@ namespace Microsoft.Tests
         [TestMethod]
         public void PutBlobBlockControllerTest()
         {
-            string blobUri = "http://localhost/blob/test/" + Guid.NewGuid().ToString();
+            string blobUri = _ctx.GetBlobUri(Guid.NewGuid().ToString());
             string blockBlobUri = blobUri + "?comp=block&blockid=";
             string blockId1 = GetBlockId();
             string blockId2 = GetBlockId();
@@ -175,14 +182,12 @@ namespace Microsoft.Tests
             result = BlobRequest("PUT", blobUri + "?comp=blocklist");
             Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
             Assert.AreEqual(redirectLocation, new Uri(result.Location).GetLeftPart(UriPartial.Path));
-
-            // Cleanup - TODO
         }
 
         [TestMethod]
         public void PutExistingPageBlobPipelineTest()
         {
-            var result = BlobRequest("PUT", "http://localhost/blob/test/pagetest.txt?comp=page", new[] {
+            var result = BlobRequest("PUT", _ctx.GetBlobUri("pagetest.txt") + "?comp=page", new[] {
                 Tuple.Create("x-ms-version", "2013-08-15"),
                 Tuple.Create("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT"),
                 Tuple.Create("x-ms-range", "bytes=1024-2047"),
@@ -193,13 +198,15 @@ namespace Microsoft.Tests
             });
             Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
             var location = new Uri(result.Location);
-            Assert.AreEqual("http://dashtestdata1.blob.core.windows.net/test/pagetest.txt", location.GetLeftPart(UriPartial.Path));
+            var account = location.Host.Split('.')[0];
+            Assert.IsTrue(DashConfiguration.DataAccounts
+                .Any(dataAccount => String.Equals(dataAccount.Credentials.AccountName, account, StringComparison.OrdinalIgnoreCase)));
         }
 
         [TestMethod]
         public void PutNonExistingPageBlobPipelineTest()
         {
-            var result = BlobRequest("PUT", "http://localhost/blob/test/non-existant-page-test.txt?comp=page", new[] {
+            var result = BlobRequest("PUT", _ctx.GetBlobUri("non-existant-page-test.txt") + "?comp=page", new[] {
                 Tuple.Create("x-ms-version", "2013-08-15"),
                 Tuple.Create("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT"),
                 Tuple.Create("x-ms-range", "bytes=1024-2047"),
@@ -214,17 +221,19 @@ namespace Microsoft.Tests
         [TestMethod]
         public void GetPageBlobPipelineTest()
         {
-            var result = BlobRequest("GET", "http://localhost/blob/test/pagetest.txt?comp=pagelist");
+            var result = BlobRequest("GET", _ctx.GetBlobUri("pagetest.txt") + "?comp=pagelist");
             Assert.IsNotNull(result);
             Assert.AreEqual(HttpStatusCode.Redirect, result.StatusCode);
             var location = new Uri(result.Location);
-            Assert.AreEqual("http://dashtestdata1.blob.core.windows.net/test/pagetest.txt", location.GetLeftPart(UriPartial.Path));
+            var account = location.Host.Split('.')[0];
+            Assert.IsTrue(DashConfiguration.DataAccounts
+                .Any(dataAccount => String.Equals(dataAccount.Credentials.AccountName, account, StringComparison.OrdinalIgnoreCase)));
         }
 
         [TestMethod]
         public void GetNonExistingPageBlobPipelineTest()
         {
-            var result = BlobRequest("GET", "http://localhost/blob/test/non-existant-page-test.txt?comp=pagelist");
+            var result = BlobRequest("GET", _ctx.GetBlobUri("non-existant-page-test.txt") + "?comp=pagelist");
             Assert.IsNotNull(result);
             Assert.AreEqual(HttpStatusCode.NotFound, result.StatusCode);
         }
@@ -232,10 +241,10 @@ namespace Microsoft.Tests
         [TestMethod]
         public void BlobPipelineForwardRequestsTest()
         {
-            var result = BlobRequest("GET", "http://localhost/blob/test/test.txt", new Tuple<string, string>[] { });
+            var result = BlobRequest("GET", _ctx.GetBlobUri("test.txt"), new Tuple<string, string>[] { });
             Assert.IsNull(result);
 
-            result = BlobRequest("PUT", "http://localhost/blob/test/test.txt", new[] {
+            result = BlobRequest("PUT", _ctx.GetBlobUri("test.txt"), new[] {
                 Tuple.Create("x-ms-version", "2013-08-15"),
                 Tuple.Create("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT"),
                 Tuple.Create("x-ms-blob-content-disposition", "attachment; filename=\"test.txt\""),
@@ -245,7 +254,7 @@ namespace Microsoft.Tests
             });
             Assert.IsNull(result);
 
-            result = BlobRequest("PUT", "http://localhost/blob/test/test.txt", new[] {
+            result = BlobRequest("PUT", _ctx.GetBlobUri("test.txt"), new[] {
                 Tuple.Create("x-ms-version", "2013-08-15"),
                 Tuple.Create("x-ms-date", "Wed, 23 Oct 2013 22:33:355 GMT"),
                 Tuple.Create("x-ms-blob-content-disposition", "attachment; filename=\"test.txt\""),

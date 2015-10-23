@@ -129,7 +129,7 @@ namespace Microsoft.Dash.Server.Controllers
             var formatter = GlobalConfiguration.Configuration.Formatters.XmlFormatter;
             var stream = await Request.Content.ReadAsStreamAsync();
             SharedAccessBlobPolicies policies = (SharedAccessBlobPolicies)await formatter.ReadFromStreamAsync(typeof(SharedAccessBlobPolicies), stream, null, null);
-            string accessLevel = Request.Headers.GetValues("x-ms-blob-public-access").FirstOrDefault();
+            string accessLevel = TryGetHeader(Request.Headers, "x-ms-blob-public-access");
             BlobContainerPublicAccessType access = BlobContainerPublicAccessType.Off;
             if (!String.IsNullOrWhiteSpace(accessLevel))
             {
@@ -339,6 +339,16 @@ namespace Microsoft.Dash.Server.Controllers
             return response;
         }
 
+        private string TryGetHeader(HttpHeaders headers, string headerName)
+        {
+            IEnumerable<string> values;
+            if (headers.TryGetValues(headerName, out values))
+            {
+                return values.FirstOrDefault();
+            }
+            return String.Empty;
+        }
+
         private async Task AddBasicContainerHeaders(HttpResponseMessage response, CloudBlobContainer container)
         {
             await container.FetchAttributesAsync();
@@ -358,7 +368,7 @@ namespace Microsoft.Dash.Server.Controllers
             {
                 response.Headers.Add("x-ms-request-id", headerValues);
             }
-            response.Headers.Add("x-ms-version", Request.Headers.GetValues("x-ms-version"));
+            response.Headers.Add("x-ms-version", TryGetHeader(Request.Headers, "x-ms-version"));
             response.Headers.Date = DateTimeOffset.UtcNow;
         }
 
@@ -545,8 +555,8 @@ namespace Microsoft.Dash.Server.Controllers
                     break;
                 }
                 string id = "";
-                DateTimeOffset? start = new DateTimeOffset();
-                DateTimeOffset? expiry = new DateTimeOffset();
+                DateTimeOffset? start = null;
+                DateTimeOffset? expiry = null;
                 //Set permissions to None by default
                 SharedAccessBlobPermissions permissionObj = 0;
                 reader.Read(); //Go past start tag.

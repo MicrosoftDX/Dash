@@ -5,33 +5,28 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Web;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Net.Http.Headers;
+using System.Threading;
 using System.Xml.Linq;
 using Microsoft.Dash.Common.Processors;
 using Microsoft.Dash.Common.Utils;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.WindowsAzure.Storage.Blob;
-using System.Threading;
-using System.Text;
-using System.Net.Http.Headers;
 
 namespace Microsoft.Tests
 {
     [TestClass]
     public class AccountManagementTests : PipelineTestBase
     {
-        WebApiTestRunner _runner = new WebApiTestRunner();
+        static DashTestContext _ctx;
 
-        [TestInitialize]
-        public void Init()
+        [ClassInitialize]
+        public static void Init(TestContext ctx)
         {
-            InitializeConfig(new Dictionary<string, string>()
-                {
-                    { "AccountName", "dashtest" },
-                    { "StorageConnectionStringMaster", "DefaultEndpointsProtocol=https;AccountName=dashtestnamespace;AccountKey=N+BMOAp/bswfqp4dxoQYLLwmYnERysm1Xxv3qSf5H9RVhQ0q+f/QKNHhXX4Z/P67mZ+5QwT6RZv9qKV834pOqQ==" },
-                    { "ScaleoutStorage0", "DefaultEndpointsProtocol=https;AccountName=dashtestdata1;AccountKey=IatOQyIdf8x3HcCZuhtGGLv/nS0v/SwXu2vBS6E9/5/+GYllhdmFFX6YqMXmR7U6UyFYQt4pdZnlLCM+bPcJ4A==" },
-                    { "ScaleoutStorage1", "DefaultEndpointsProtocol=https;AccountName=dashtestimport;AccountKey=eQrjK2CLvgjrMkMqamI05DZWzQwVxVevKJThNc1pK2U7Kjs1Vcs9TAWV09OLj/FWe25gqPYHHdS1ZzGLFZw9rw==" },
-                });
+            _ctx = InitializeConfig(ctx, "dataimportx2", new Dictionary<string, string>
+            {
+                { "AccountName", "dashtest" },
+            });
         }
 
         [TestMethod]
@@ -52,12 +47,12 @@ namespace Microsoft.Tests
             var requestHeaders = new[] {
                 Tuple.Create("x-ms-version", appVersion),
             };
-            var results = _runner.ExecuteRequestWithHeaders(baseUri, "GET", null, requestHeaders, HttpStatusCode.OK);
+            var results = _ctx.Runner.ExecuteRequestWithHeaders(baseUri, "GET", null, requestHeaders, HttpStatusCode.OK);
             // Verify that all the existing containers were created in the import account
             Assert.IsTrue(importClient.ListContainers().Count() > 1);
 
             // Cleanup
-            _runner.ExecuteRequest(baseUri, "DELETE", (HttpContent)null, HttpStatusCode.Accepted);
+            _ctx.Runner.ExecuteRequest(baseUri, "DELETE", (HttpContent)null, HttpStatusCode.Accepted);
 
             // Test container permissions & metadata on import
             containerName = "import-container-" + Guid.NewGuid().ToString("N");
@@ -78,8 +73,8 @@ namespace Microsoft.Tests
 
             // Verify that our container was imported
             baseUri = "http://mydashserver/container/" + containerName + "?restype=container";
-            results = _runner.ExecuteRequestWithHeaders(baseUri, "GET", null, requestHeaders, HttpStatusCode.OK);
-            results = _runner.ExecuteRequestWithHeaders(baseUri + "&comp=acl", "GET", null, requestHeaders, HttpStatusCode.OK);
+            results = _ctx.Runner.ExecuteRequestWithHeaders(baseUri, "GET", null, requestHeaders, HttpStatusCode.OK);
+            results = _ctx.Runner.ExecuteRequestWithHeaders(baseUri + "&comp=acl", "GET", null, requestHeaders, HttpStatusCode.OK);
             Assert.AreEqual(results.Headers.GetValues("x-ms-blob-public-access").First(), "blob");
             var storedPolicyResponse = XDocument.Load(results.Content.ReadAsStreamAsync().Result);
             var storedPolicy = (XElement)storedPolicyResponse.Root.FirstNode;
@@ -90,7 +85,7 @@ namespace Microsoft.Tests
             Assert.AreEqual(DateTimeOffset.Parse(accessPolicy.Element("Start").Value).ToString(), policy.SharedAccessStartTime.Value.ToString());
             Assert.AreEqual(DateTimeOffset.Parse(accessPolicy.Element("Expiry").Value).ToString(), policy.SharedAccessExpiryTime.Value.ToString());
 
-            results = _runner.ExecuteRequestWithHeaders(baseUri + "&comp=metadata", "GET", null, requestHeaders, HttpStatusCode.OK);
+            results = _ctx.Runner.ExecuteRequestWithHeaders(baseUri + "&comp=metadata", "GET", null, requestHeaders, HttpStatusCode.OK);
             ValidateMetadata(results.Headers, metadata);
 
             // Cleanup
@@ -128,17 +123,17 @@ namespace Microsoft.Tests
             // Verify that our blobs were imported
             string baseUri = "http://mydashserver/blob/" + containerName + "/";
 
-            var response = _runner.ExecuteRequest(baseUri + blob1Name,
+            var response = _ctx.Runner.ExecuteRequest(baseUri + blob1Name,
                 "GET",
                 expectedStatusCode: HttpStatusCode.OK);
             Assert.AreEqual(response.Content.Headers.ContentLength.Value, 18);
 
-            response = _runner.ExecuteRequest(baseUri + blob2Name,
+            response = _ctx.Runner.ExecuteRequest(baseUri + blob2Name,
                 "GET",
                 expectedStatusCode: HttpStatusCode.OK);
             Assert.AreEqual(response.Content.Headers.ContentLength.Value, 512);
 
-            response = _runner.ExecuteRequest(baseUri + blob3Name + "?comp=metadata",
+            response = _ctx.Runner.ExecuteRequest(baseUri + blob3Name + "?comp=metadata",
                 "HEAD",
                 expectedStatusCode: HttpStatusCode.OK);
             ValidateMetadata(response.Headers, metadata);
@@ -172,7 +167,7 @@ namespace Microsoft.Tests
 
         void CleanupImportClient(CloudBlobClient importClient, string containerName)
         {
-            _runner.ExecuteRequest("http://mydashserver/container/" + containerName + "?restype=container",
+            _ctx.Runner.ExecuteRequest("http://mydashserver/container/" + containerName + "?restype=container",
                 "DELETE",
                 (HttpContent)null,
                 HttpStatusCode.Accepted);
