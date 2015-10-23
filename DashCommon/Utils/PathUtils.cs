@@ -27,13 +27,58 @@ namespace Microsoft.Dash.Common.Utils
             return String.Join(StandardPathDelimiter, segments);
         }
 
-        public static string[] GetPathSegments(string path)
+        public static IEnumerable<string> GetPathSegments(Uri uri)
         {
-            if (String.IsNullOrWhiteSpace(path))
+            // Manually parse the uri - there's no methods on the Uri class which give us the path section of an absolute or relative uri based
+            // on the OriginalString (which is what we want the segments for as we don't want 'automagic' decoding).
+            string path = uri.OriginalString;
+            if (uri.IsAbsoluteUri)
             {
-                return new string[0];
+                // Given that the UriParser has stated that this is an absolute uri, we can carry forward some assumptions (ie. the path will start at the 3rd backslash)
+                int startPos = 0, seenSlashes = 3;
+                for (int index = 0; seenSlashes > 0 && index < path.Length; index++)
+                {
+                    if (path[index] == StandardPathDelimiterChar)
+                    {
+                        seenSlashes--;
+                        startPos = index;
+                    }
+                }
+                if (seenSlashes == 0)
+                {
+                    path = path.Substring(startPos);
+                }
+                else
+                {
+                    path = String.Empty;
+                }
             }
-            return path.Split(new[] { StandardPathDelimiterChar }, StringSplitOptions.RemoveEmptyEntries);
+            return GetPathSegments(path);
+        }
+
+        public static IEnumerable<string> GetPathSegments(string path)
+        {
+            int startIdx, currentIdx;
+            for (startIdx = 0, currentIdx = 0; currentIdx < path.Length; currentIdx++)
+            {
+                char ch = path[currentIdx];
+                if (ch == StandardPathDelimiterChar)
+                {
+                    if (currentIdx > startIdx)
+                    {
+                        yield return path.Substring(startIdx, currentIdx - startIdx);
+                    }
+                    startIdx = currentIdx + 1;
+                }
+                else if (ch == '?')
+                {
+                    break;
+                }
+            }
+            if (currentIdx > startIdx)
+            {
+                yield return path.Substring(startIdx, currentIdx - startIdx);
+            }
         }
 
         public static string AddPathSegment(string path, string pathToAdd)
@@ -89,13 +134,21 @@ namespace Microsoft.Dash.Common.Utils
             return new string(encodedRetval, 0, encodedLength);
         }
 
+        public static string PathDecode(string path)
+        {
+            // Again, the utility functions converting '+' -> ' ' is invalid for storage. Mitigate by pre-processing the string.
+            // This is a little inefficient as we are processing the string twice, but it is the most thorough
+            // implementation as it deals with the full unicode character set
+            return WebUtility.UrlDecode(path.Replace("+", "%2B"));
+        }
+
         static char IntToHex(int n)
         {
             if (n <= 9)
             {
-                return (char)(n + 0x30);
+                return (char)(n + (int)'0');
             }
-            return (char)((n - 10) + 0x41);
+            return (char)(n - 10 + (int)'A');
         }
     }
 }

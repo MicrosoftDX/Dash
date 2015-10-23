@@ -27,6 +27,8 @@ namespace Microsoft.Tests
                     TestBlob.DefineBlob("fixed-test.txt"),
                     TestBlob.DefineBlob("test.txt"),
                     TestBlob.DefineBlob("test_in_different_data_account.txt"),
+                    TestBlob.DefineBlob("encoded%2d1.txt"),
+                    TestBlob.DefineBlob("1"),
                 });
         }
 
@@ -79,8 +81,8 @@ namespace Microsoft.Tests
         [TestMethod]
         public void EncodedBlobNameControllerTest()
         {
-            string blobUri = _ctx.GetBlobUri("workernode2.jokleinhbase.d6.internal.cloudapp.net,60020,1436223739284/workernode2.jokleinhbase.d6.internal.cloudapp.net%2C60020%2C1436223739284.1436223741878");
-            PutAndValidateBlob(blobUri);
+            PutAndValidateBlob(_ctx.GetBlobUri("workernode2.jokleinhbase.d6.internal.cloudapp.net,60020,1436223739284/workernode2.jokleinhbase.d6.internal.cloudapp.net%2C60020%2C1436223739284.1436223741878"));
+            PutAndValidateBlob(_ctx.GetBlobUri("reserved-characters-blob-[]@!$&()*+,;='"));
         }
 
         void PutAndValidateBlob(string blobUri)
@@ -262,6 +264,30 @@ namespace Microsoft.Tests
                 HttpStatusCode.Accepted);
             pipelineResponse = BlobPipelineTests.BlobRequest("GET", destBlobUri);
             Assert.AreEqual(newSourceAccount, new Uri(pipelineResponse.Location).Host);
+
+            // Copy blob with encoded characters in name
+            response = _ctx.Runner.ExecuteRequestWithHeaders(_ctx.GetBlobUri("encoded+copy"),
+                "PUT",
+                null,
+                new[] {
+                    Tuple.Create("x-ms-version", "2013-08-15"),
+                    Tuple.Create("x-ms-copy-source", _ctx.GetBlobUri("encoded%252d1.txt", false)),
+                },
+                HttpStatusCode.Accepted);
+            Assert.IsNotNull(response.Headers.GetValues("x-ms-copy-id"));
+            Assert.AreEqual("success", response.Headers.GetValues("x-ms-copy-status").First());
+
+            // Copy blob with single character in name
+            response = _ctx.Runner.ExecuteRequestWithHeaders(_ctx.GetBlobUri("2"),
+                "PUT",
+                null,
+                new[] {
+                    Tuple.Create("x-ms-version", "2013-08-15"),
+                    Tuple.Create("x-ms-copy-source", _ctx.GetBlobUri("1", false)),
+                },
+                HttpStatusCode.Accepted);
+            Assert.IsNotNull(response.Headers.GetValues("x-ms-copy-id"));
+            Assert.AreEqual("success", response.Headers.GetValues("x-ms-copy-status").First());
         }
 
         [TestMethod]

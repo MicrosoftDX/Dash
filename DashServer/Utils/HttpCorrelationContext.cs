@@ -16,7 +16,7 @@ namespace Microsoft.Dash.Server.Utils
         public static void Set(HttpRequest request)
         {
             // Set the correlation id - this can come from the request's x-ms-client-request-id header or we gen up something unique
-            var headers = DashHttpRequestWrapper.Create(request, true).Headers;
+            var headers = DashHttpRequestWrapper.Create(request).Headers;
             string clientId = headers.ClientRequestId;
             Guid correlationId;
             if (String.IsNullOrWhiteSpace(clientId) || !Guid.TryParse(clientId, out correlationId))

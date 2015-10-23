@@ -23,11 +23,15 @@ namespace Microsoft.Tests
             this.OriginalPathSegments = this.Url.Segments
                 .Select(segment => segment.Trim('/'))
                 .Where(segment => !String.IsNullOrWhiteSpace(segment))
+                .Skip(1)
                 .ToArray();
-            this.PathSegments = this.Url.GetComponents(UriComponents.Path, UriFormat.SafeUnescaped)
+            var segements = this.Url.GetComponents(UriComponents.Path, UriFormat.SafeUnescaped)
                     .Trim('/')
-                    .Split('/')
-                    .ToArray();
+                    .Split('/');
+            this.Controller = segements.FirstOrDefault();
+            this.PathSegments = segements
+                .Skip(1)
+                .ToArray();
 
             if (headers != null)
             {
@@ -43,6 +47,7 @@ namespace Microsoft.Tests
         public RequestHeaders Headers { get; set; }
         public Uri Url { get; set; }
         public string HttpMethod { get; set; }
+        public string Controller { get; set; }
         public IEnumerable<string> PathSegments { get; private set; }
         public IEnumerable<string> OriginalPathSegments { get; private set; }
         public string AuthenticationScheme { get; set; }
@@ -53,7 +58,7 @@ namespace Microsoft.Tests
         }
         public RequestUriParts UriParts 
         {
-            get { return RequestUriParts.Create(this.PathSegments, this.OriginalPathSegments); }
+            get { return RequestUriParts.Create(this.Controller, this.PathSegments, this.OriginalPathSegments); }
         }
 
     }

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web;
 using Microsoft.Dash.Common.Diagnostics;
@@ -103,10 +104,9 @@ namespace Microsoft.Dash.Server.Handlers
                             processRelativeSource = true;
                         }
                         if (processRelativeSource ||
-                            (String.Equals(sourceUri.Host, requestWrapper.Url.Host, StringComparison.OrdinalIgnoreCase) &&
-                            ((sourceUri.IsDefaultPort && requestWrapper.Url.IsDefaultPort) || (sourceUri.Port == requestWrapper.Url.Port))))
+                            Uri.Compare(sourceUri, requestWrapper.Url, UriComponents.StrongAuthority, UriFormat.Unescaped, StringComparison.OrdinalIgnoreCase) == 0)
                         {
-                            var segments = PathUtils.GetPathSegments(sourceUri.AbsolutePath);
+                            var segments = PathUtils.GetPathSegments(sourceUri);
                             if (processRelativeSource)
                             {
                                 // Blob in named container: /accountName/containerName/blobName
@@ -128,11 +128,11 @@ namespace Microsoft.Dash.Server.Handlers
                                 if (segments.Count() == 2)
                                 {
                                     sourceContainer = "root";
-                                    sourceBlobName = segments[1];
+                                    sourceBlobName = segments.ElementAt(1);
                                 }
                                 else if (segments.Count() > 2)
                                 {
-                                    sourceContainer = segments[1];
+                                    sourceContainer = segments.ElementAt(1);
                                     sourceBlobName = PathUtils.CombinePathSegments(segments.Skip(2));
                                 }
                             }
@@ -163,7 +163,7 @@ namespace Microsoft.Dash.Server.Handlers
                             // exists, we need to place the destination in the same data account as the source.
                             // If the destination blob already exists, we delete it below to prevent an orphaned data blob
                             destAccount = sourceNamespaceBlob.PrimaryAccountName;
-                            var sourceUriBuilder = ControllerOperations.GetRedirectUriBuilder("GET",
+                            var sourceUriBuilder = ControllerOperations.GetRedirectUriBuilder(HttpMethod.Get.Method,
                                 requestWrapper.Url.Scheme,
                                 DashConfiguration.GetDataAccountByAccountName(destAccount),
                                 sourceContainer,
