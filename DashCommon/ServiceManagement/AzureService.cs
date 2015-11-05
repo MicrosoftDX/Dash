@@ -10,6 +10,7 @@ using Microsoft.WindowsAzure;
 using Microsoft.WindowsAzure.Management.Compute;
 using Microsoft.WindowsAzure.ServiceRuntime;
 using Microsoft.WindowsAzure.Subscriptions;
+using System.Collections.Generic;
 
 namespace Microsoft.Dash.Common.ServiceManagement
 {
@@ -100,6 +101,7 @@ namespace Microsoft.Dash.Common.ServiceManagement
             private static async Task<ServiceInformation> GetAzureServiceInformation(string bearerToken)
             {
                 string deploymentId = RoleEnvironment.DeploymentId;
+                var accumlatedExceptions = new List<Exception>();
                 using (var subscriptionClient = new SubscriptionClient(new TokenCloudCredentials(bearerToken)))
                 {
                     foreach (var subscription in (await subscriptionClient.Subscriptions.ListAsync())
@@ -107,22 +109,43 @@ namespace Microsoft.Dash.Common.ServiceManagement
                     {
                         using (var cloudServiceClient = new ComputeManagementClient(new TokenCloudCredentials(subscription.SubscriptionId, bearerToken)))
                         {
-                            foreach (var cloudService in (await cloudServiceClient.HostedServices.ListAsync()))
+                            try
                             {
-                                var deployment = await cloudServiceClient.Deployments.GetBySlotAsync(cloudService.ServiceName, Microsoft.WindowsAzure.Management.Compute.Models.DeploymentSlot.Production);
-                                if (deployment.PrivateId == deploymentId)
+                                foreach (var cloudService in (await cloudServiceClient.HostedServices.ListAsync()))
                                 {
-                                    return new ServiceInformation
+                                    try
                                     {
-                                        SubscriptionId = subscription.SubscriptionId,
-                                        ServiceName = cloudService.ServiceName,
-                                    };
+                                        var deployment = await cloudServiceClient.Deployments.GetBySlotAsync(cloudService.ServiceName, Microsoft.WindowsAzure.Management.Compute.Models.DeploymentSlot.Production);
+                                        if (deployment.PrivateId == deploymentId)
+                                        {
+                                            return new ServiceInformation
+                                            {
+                                                SubscriptionId = subscription.SubscriptionId,
+                                                ServiceName = cloudService.ServiceName,
+                                            };
+                                        }
+                                    }
+                                    catch (CloudException ex)
+                                    {
+                                        // Accumulate the exception & keep enumerating
+                                        accumlatedExceptions.Add(ex);
+                                    }
                                 }
+                            }
+                            catch (CloudException ex)
+                            {
+                                // Accumulate the exception & keep enumerating
+                                accumlatedExceptions.Add(ex);
                             }
                         }
                     }
                 }
                 DashTrace.TraceWarning("Unable to identify running service. Possible unauthorized user.");
+                if (accumlatedExceptions.Any())
+                {
+                    DashTrace.TraceWarning("Accumulated exceptions when enumerating services: {0}", String.Join("\n", accumlatedExceptions
+                        .Select(ex => ex.ToString())));
+                }
                 return null;
             }
 
