@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Http;
+using Microsoft.Dash.Common.Diagnostics;
 using Microsoft.Dash.Common.Handlers;
 using Microsoft.Dash.Common.Utils;
 using Microsoft.Dash.Server.Handlers;
@@ -76,8 +77,18 @@ namespace Microsoft.Dash.Server.Controllers
                     {
                         await BlobReplicationHandler.EnqueueBlobReplicationAsync(namespaceBlob, true, false);
                     }
-                    // Mark the namespace blob for deletion
-                    await namespaceBlob.MarkForDeletionAsync();
+                    // Mark the namespace blob for deletion - allow to complete async as we don't need to block on this for the
+                    // blob to be effectively deleted
+                    var completeAsync = namespaceBlob.MarkForDeletionAsync()
+                        .ContinueWith((namespaceTask) =>
+                        {
+                            if (namespaceTask.IsFaulted)
+                            {
+                                DashTrace.TraceWarning("Namespace entry for deleted blob [{0}] could not be marked for deletion. This operation will not be retried. Details: {1}",
+                                    PathUtils.CombineContainerAndBlob(container, blob),
+                                    namespaceTask.Exception);
+                            }
+                        });
                     return this.CreateResponse(HttpStatusCode.Accepted, headers);
                 }));
         }
@@ -180,6 +191,7 @@ namespace Microsoft.Dash.Server.Controllers
             "x-original-url",
             "Expect",
         };
+        static ConcurrentDictionary<string, HttpClient> _forwardClients = new ConcurrentDictionary<string, HttpClient>(StringComparer.OrdinalIgnoreCase);
         private async Task<HttpResponseMessage> ForwardRequestHandler(NamespaceBlob namespaceBlob, StorageOperationTypes operation)
         {
             // Clone the inbound request
@@ -231,7 +243,7 @@ namespace Microsoft.Dash.Server.Controllers
                     clonedRequest.Content = sourceRequest.Content;
                     break;
             }
-            var client = new HttpClient();
+            var client = _forwardClients.GetOrAdd(clonedRequest.RequestUri.Authority, (authority) => new HttpClient());
             var response = await client.SendAsync(clonedRequest, HttpCompletionOption.ResponseHeadersRead);
             // Fixup response for HEAD requests
             switch (operation)
