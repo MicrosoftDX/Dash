@@ -1,0 +1,124 @@
+﻿.tab-content {
+    border-left: 1px solid #ddd;
+    border-right: 1px solid #ddd;
+    border-bottom: 1px solid #ddd;
+    padding: 10px;
+}
+
+.nav-tabs {
+    margin-bottom: 0;
+}
+
+.input-group-addon {
+    min-width: 75px;
+    text-align: left;
+}
+
+.has-feedback .form-control-feedback {
+    position: absolute;
+    top: 0px;
+    right: 10px;
+    display: block;
+    text-align: right;
+}
+
+div[role=main] {
+    overflow: auto;
+    padding-bottom: 100px; /* this needs to be bigger than footer height*/
+}
+
+.glyphicon-spin {
+    -webkit-animation: spin 2s infinite linear;
+    -moz-animation: spin 2s infinite linear;
+    -o-animation: spin 2s infinite linear;
+    animation: spin 2s infinite linear;
+}
+
+@-moz-keyframes spin {
+    0% {
+        -moz-transform: rotate(0deg);
+    }
+
+    100% {
+        -moz-transform: rotate(359deg);
+    }
+}
+
+@-webkit-keyframes spin {
+    0% {
+        -webkit-transform: rotate(0deg);
+    }
+
+    100% {
+        -webkit-transform: rotate(359deg);
+    }
+}
+
+@-o-keyframes spin {
+    0% {
+        -o-transform: rotate(0deg);
+    }
+
+    100% {
+        -o-transform: rotate(359deg);
+    }
+}
+
+@keyframes spin {
+    0% {
+        -webkit-transform: rotate(0deg);
+        transform: rotate(0deg);
+    }
+
+    100% {
+        -webkit-transform: rotate(359deg);
+        transform: rotate(359deg);
+    }
+}
+
+.warning {
+    color: red;
+    font-weight: bold;
+}
+
+#buttonDiv {
+    width: 165px;
+    margin: auto;
+}
+
+.controlButtons {
+    margin-top: 10px;
+    margin-right: 10px;
+}
+
+.accountName.form-control[readonly] {
+    background-color: transparent;
+    border: 0px none;
+    cursor: text;
+    border-radius: 0;
+    box-shadow: none;
+    padding-top: 0;
+    padding-bottom: 0;
+    height: 20px;
+}
+
+table tbody tr td.tableControl {
+    vertical-align: bottom;
+}
+
+.table-striped tbody tr td.generalHeader {
+    background-color:#d9edf7;
+}
+
+.generalHeader h4 {
+    font-weight: bold;
+}
+
+.updated {
+    color: blue;
+    font-weight: bold;
+}
+
+.setting_label {
+    margin-bottom: 10px;
+}

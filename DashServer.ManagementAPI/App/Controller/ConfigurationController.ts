@@ -5,39 +5,38 @@
 module Dash.Management.Controller {
 
     export class ConfigurationController {
-        static $inject = ['$scope', '$rootScope', '$timeout', 'configurationService', 'operationStatusService'];
+        static $inject = ['$scope', '$rootScope', '$timeout', 'configurationService', '$location', 'operationStatusService'];
 
         constructor(private $scope: Model.IDashManagementScope,
             $rootScope: Model.IDashManagementScope,
             private $timeout: ng.ITimeoutService,
             configurationService: Service.ConfigurationService,
+            private $location: ng.ILocationService,
             private operationStatusService: Service.OperationStatusService) {
 
-            $scope.editSwitch = (item, discardChanges) => this.editSwitch(item, discardChanges);
             $scope.addAccount = () => this.addAccount();
             $scope.deleteAccount = (item) => this.deleteAccount(item);
             $scope.generateStorageKey = (item) => this.generateStorageKey(item);
+            $rootScope.isControllerActive = (loc) => this.isActive(loc);
 
             this.buttonBarButtons = [
-                new Model.ButtonBarButton("Save", $scope, "!updateInProgress && !configuration.editingInProgress", () => this.update(configurationService.getResourceClass())),
-                new Model.ButtonBarButton("Cancel", $scope, "!updateInProgress", () => this.populate(configurationService.getResourceClass()))
+                new Model.ButtonBarButton("Commit", $scope, "!updateInProgress", () => this.update(configurationService.getResourceClass())),
+                new Model.ButtonBarButton("Revert", $scope, "!updateInProgress", () => this.populate(configurationService.getResourceClass()))
             ];
-            $rootScope.buttonBarButtons = this.buttonBarButtons;
+            $scope.buttonBarButtons = this.buttonBarButtons;
 
             this.populate(configurationService.getResourceClass());
         }
 
-        public buttonBarButtons: Model.ButtonBarButton[]
-
-        public editSwitch(editItem : Model.ConfigurationItem, discardChanges: boolean) : void {
-            editItem.toggleEdit(discardChanges);
-            this.$scope.configuration.editingInProgress = editItem.editing;
+        public isActive(viewLocation): boolean {
+            return viewLocation === this.$location.path();
         }
+
+        public buttonBarButtons: Model.ButtonBarButton[]
 
         public addAccount() : void {
             var newAccount = Model.StorageConnectionItem.createScaleOutAccount("", true);
             this.$scope.configuration.settings.scaleOutStorage.accounts.push(newAccount);
-            this.editSwitch(newAccount, false);
         }
 
         public deleteAccount(deleteItem: Model.ConfigurationItem) : void {
@@ -65,7 +64,7 @@ module Dash.Management.Controller {
                     }
                 },
                 (err) => {
-                    this.setError(true, err.data);
+                    this.setMessage(true, err.data);
                 });
         }
 
@@ -78,7 +77,7 @@ module Dash.Management.Controller {
                     this.updateOperationStatus(results.operationId);
                 },
                 (err) => {
-                    this.setError(true, err.data);
+                    this.setMessage(true, err.data);
                     this.setUpdateState(false);
                 });
         }
@@ -93,17 +92,17 @@ module Dash.Management.Controller {
                     }
                     else {
                         var failure = status.Status == "Failed";
-                        this.setError(failure, failure ? status.Message : "Configuration update completed successfully");
+                        this.setMessage(failure, failure ? status.Message : "Configuration update completed successfully");
                         this.setUpdateState(false);
                     }
                 },
                 (err) => {
-                    this.setError(true, err.data);
+                    this.setMessage(true, err.data);
                     this.setUpdateState(false);
                 });
         }
 
-        private setError(error: boolean, message: string): void {
+        private setMessage(error: boolean, message: string): void {
             this.$scope.error_class = error ? "alert-danger" : "alert-info";
             this.$scope.error = message;
             this.$scope.loadingMessage = "";

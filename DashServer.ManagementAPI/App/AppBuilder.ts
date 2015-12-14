@@ -22,22 +22,22 @@ module Dash.Management {
                     $routeProvider
                         .when("/Home",
                         {
-                            title: "Home",
+                            name: "Home",
                             controller: Controller.HomeController,
                             templateUrl: "/app/views/home.html",
                             caseInsensitiveMatch: true,
                         })
                         .when("/Configuration",
-                        {
-                            title: "Configuration",
+                        <adal.shared.INavRoute>{
+                            name: "Configuration",
                             controller: Controller.ConfigurationController,
                             templateUrl: "/App/Views/Configuration.html",
                             requireADLogin: true,
                             caseInsensitiveMatch: true,
                         })
                         .when("/Update",
-                        {
-                            title: "Software Upgrades",
+                        <adal.shared.INavRoute>{
+                            name: "Software Upgrades",
                             controller: Controller.UpdateController,
                             templateUrl: "/App/Views/Update.html",
                             requireADLogin: true,

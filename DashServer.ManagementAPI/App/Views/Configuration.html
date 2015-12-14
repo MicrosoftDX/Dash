@@ -26,9 +26,11 @@
             <div class="panel panel-default">
                 <div class="panel-heading">Storage Accounts</div>
                 <div class="panel-body">
+                    <p>You currently have {{configuration.settings.scaleOutStorage.accounts.length}} accounts out of a possible {{configuration.settings.scaleOutStorage.maxAccounts}}.</p>
                     <p>This is the list of storage accounts that hold the actual data blobs in the DASH virtual account.</p>
                     <p>New accounts can be added or created (you cannot delete a data account) and account keys can be updated.</p>
                     <p>(Coming soon)You can also 'roll over' all of your data account keys to maintain data access security or maintain expiring keys.</p>
+                    <h4><span class="warning">WARNING: </span> Ensure that any account keys you add are valid storage account keys. Entering invalid keys could cause unpredictable behavior in Dash.</h4>
                 </div>
                 <table class="table table-striped">
                     <tbody>
@@ -40,7 +42,7 @@
                             <td class="col-sm-2">
                                 <p>
                                     <button type="button"
-                                            class="btn btn-link"
+                                            class="btn btn-primary"
                                             ng-disabled="updateInProgress || configuration.settings.scaleOutStorage.accounts.length >= configuration.settings.scaleOutStorage.maxAccounts"
                                             data-ng-click="addAccount()">
                                         Add Account
@@ -60,23 +62,42 @@
                 </div>
                 <table class="table table-striped">
                     <tbody>
+                        <tr>
+                            <td class="generalHeader"><h4>Replication Settings</h4></td>
+                            <td class="generalHeader"></td>
+                        </tr>
+                        <tr data-ng-repeat="setting in configuration.settings.replicationSettings" ng-include="'ConfigSetting.html'" />
+                        <tr>
+                            <td class="generalHeader"><h4>Worker Queue Settings</h4></td>
+                            <td class="generalHeader"></td>
+                        </tr>
+                        <tr data-ng-repeat="setting in configuration.settings.workerQueueSettings" ng-include="'ConfigSetting.html'" />
+                        <tr>
+                            <td class="generalHeader"><h4>Miscellaneous Settings</h4></td>
+                            <td class="generalHeader"></td>
+                        </tr>
                         <tr data-ng-repeat="setting in configuration.settings.miscSettings" ng-include="'ConfigSetting.html'" />
                     </tbody>
                 </table>
             </div>
         </tab>
     </tabset>
+    <div id="buttonDiv">
+        <a ng-repeat="button in buttonBarButtons" class="btn btn-primary controlButtons" ng-disabled="!button.enabled" ng-click="button.doClick()">{{button.displayText}}</a>
+    </div>
 </div>
+
 <script type="text/ng-template" id="ConfigSetting.html">
-    <td class="col-sm-10">
-        <label ng-hide="!setting.displayLabel">{{setting.displayLabel}}:</label>
+    <td class="col-sm-10" colspan="{{(setting.isEditorStyleGenerate() || setting.isEditorStyleDelete() || setting.isNew)?1:2}}">
+        <label class="setting_label" ng-hide="!setting.displayLabel">{{setting.displayLabel}}:</label>
         <!-- Standard input edit box -->
         <input type="text"
                ng-if="!setting.isEditorStyleStorageAccount()"
                ng-model="setting.value"
+               ng-class="{'updated': setting.value != setting.updatedValue}"
                class="form-control"
                ng-required="setting.isRequired"
-               ng-readonly="(setting.isEditorStyleEditMode() && !setting.editing) || setting.isEditorStyleGenerate() || updateInProgress" />
+               ng-readonly="setting.isEditorStyleGenerate() || updateInProgress" />
         <!-- Input edit group for account name -->
         <div class="has-feedback"
              storage-validator="{accountName: 'setting.accountName', accountKey: 'setting.accountKey'}"
@@ -85,48 +106,42 @@
              ng-form="StorageAccount"
              ng-class="{'has-error': StorageAccount.$invalid}">
             <div class="has-feedback" ng-class="{'has-error': StorageAccount.AccountName.$invalid}">
-                <div class="input-group">
-                    <span class="input-group-addon" id="{{'StorageAccount' + $index}}">Name</span>
-                    <input type="text"
-                           name="AccountName"
-                           class="form-control"
-                           placeholder="Account Name"
-                           aria-describedby="{{'StorageAccount' + $index}}"
-                           ng-model="setting.accountName"
-                           ng-readonly="(setting.isEditorStyleEditMode() && !setting.editing) || (setting.isEditorStyleCantChangeAccount() && setting.originalAccountName) || updateInProgress"
-                           ng-required="true"
-                           ng-model-options="{ updateOn: 'blur' }" />
+                <div class="form-group row">
+                    <label class="col-sm-1 form-control-label" id="{{'StorageAccount' + $index}}">Name</label>
+                    <div class="col-sm-11">
+                        <input type="text"
+                               name="AccountName"
+                               class="form-control accountName"
+                               placeholder="Account Name"
+                               aria-describedby="{{'StorageAccount' + $index}}"
+                               ng-model="setting.accountName"
+                               ng-readonly="(setting.isEditorStyleCantChangeAccount() && setting.originalAccountName) || updateInProgress"
+                               ng-model-options="{ updateOn: 'blur' }" />
+                    </div>
                 </div>
                 <span class="glyphicon glyphicon-exclamation-sign form-control-feedback" ng-show="StorageAccount.AccountName.$invalid" title="The entered Account Name is not valid or already used" aria-hidden="true"></span>
             </div>
             <!-- Input edit group for account key -->
-            <div class="has-feedback" ng-class="{has-error: StorageAccount.AccountKey.$invalid}">
-                <div class="input-group">
-                    <span class="input-group-addon" id="{{'StorageKey' + $index}}">Key</span>
-                    <input type="text"
-                           name="AccountKey"
-                           class="form-control"
-                           placeholder="Account Key (Leave blank for new accounts)"
-                           aria-describedby="{{'StorageKey' + $index}}"
-                           ng-model="setting.accountKey"
-                           ng-readonly="(setting.isEditorStyleEditMode() && !setting.editing) || updateInProgress"
-                           ng-model-options="{ updateOn: 'blur' }" />
+            <div class="has-feedback" ng-class="{ 'has-error': StorageAccount.AccountKey.$invalid}">
+                <div class="form-group row">
+                    <label for="AccountKey" class="col-sm-1 form-control-label" id="{{'StorageKey' + $index}}">Key</label>
+                    <div class="col-sm-11">
+                        <input type="text"
+                               name="AccountKey"
+                               class="form-control"
+                               placeholder="Account Key (Leave blank to have Dash make a new account)"
+                               aria-describedby="{{'StorageKey' + $index}}"
+                               ng-model="setting.accountKey"
+                               ng-readonly="updateInProgress"
+                               ng-model-options="{ updateOn: 'blur' }" />
+                    </div>
                 </div>
-                <span class="glyphicon glyphicon-exclamation-sign form-control-feedback" ng-show="StorageAccount.AccountKey.$invalid" title="This is bad" aria-hidden="true"></span>
+                <span class="glyphicon glyphicon-exclamation-sign form-control-feedback" ng-show="StorageAccount.AccountKey.$invalid" title="The entered Account Key is not valid" aria-hidden="true"></span>
             </div>
         </div>
     </td>
-    <td class="col-sm-2">
-        <p ng-show="(setting.isEditorStyleEditMode() || setting.isEditorStyleDelete()) && !configuration.editingInProgress">
-            <button type="button" class="btn btn-link" ng-show="setting.isEditorStyleEditMode()" ng-disabled="updateInProgress" data-ng-click="editSwitch(setting, false)">Edit</button>
-            <button type="button" class="btn btn-link" ng-show="setting.isEditorStyleDelete() || setting.isNew" ng-disabled="updateInProgress" data-ng-click="deleteAccount(setting)">Delete</button>
-        </p>
-        <p ng-show="setting.editing">
-            <button type="button" class="btn btn-link" ng-disabled="updateInProgress" data-ng-click="editSwitch(setting, false)">Save</button>
-            <button type="button" class="btn btn-link" ng-disabled="updateInProgress" data-ng-click="editSwitch(setting, true)">Cancel</button>
-        </p>
-        <p ng-show="setting.isEditorStyleGenerate() && !configuration.editingInProgress">
-            <button type="button" class="btn btn-link" ng-disabled="updateInProgress" data-ng-click="generateStorageKey(setting)">Generate</button>
-        </p>
+    <td ng-if="setting.isEditorStyleGenerate() || setting.isEditorStyleDelete() || setting.isNew" class="col-sm-2 tableControl">
+        <button type="button" class="btn btn-link" ng-show="setting.isEditorStyleDelete() || setting.isNew" ng-disabled="updateInProgress" data-ng-click="deleteAccount(setting)">Delete</button>
+        <button ng-show="setting.isEditorStyleGenerate()" type="button" class="btn btn-primary" ng-disabled="updateInProgress" data-ng-click="generateStorageKey(setting)">Generate New Key</button>
     </td>
 </script>

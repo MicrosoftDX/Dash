@@ -5,9 +5,9 @@
 module Dash.Management.Controller {
 
     export class UpdateController {
-        static $inject = ['$scope', '$rootScope', 'updateService', '$sce'];
+        static $inject = ['$scope', '$rootScope', 'updateService', '$sce', '$location'];
 
-        constructor(private $scope: Model.IDashManagementScope, $rootScope: Model.IDashManagementScope, private updateService: Service.UpdateService, private $sce: ng.ISCEService) {
+        constructor(private $scope: Model.IDashManagementScope, $rootScope: Model.IDashManagementScope, private updateService: Service.UpdateService, private $sce: ng.ISCEService, private $location: ng.ILocationService) {
 
             $scope.getHtmlDescription = (update: Model.VersionUpdate) => this.getHtmlDescription(update);
             $scope.applyUpdate = (update: Model.VersionUpdate) => this.applyUpdate(update);
@@ -15,10 +15,15 @@ module Dash.Management.Controller {
             $scope.loadingMessage = "Retrieving available versions for the Dash service...";
             $scope.error = "";
             $scope.availableUpdates = new Model.AvailableUpdates();
+            $rootScope.isControllerActive = (loc) => this.isActive(loc);
 
             $rootScope.buttonBarButtons = [];
 
             this.getAvailableUpdates(true);
+        }
+
+        public isActive(viewLocation): boolean {
+            return viewLocation === this.$location.path();
         }
 
         public getAvailableUpdates(clearLoadingMessage: boolean): void {

@@ -13,7 +13,6 @@ module Dash.Management.Model {
         login: Function
         logout: Function
         isControllerActive: Function
-        editSwitch: Function
         addAccount: Function
         deleteAccount: Function
         generateStorageKey: Function

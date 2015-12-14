@@ -8,12 +8,10 @@ module Dash.Management.Model {
 
         constructor(settings: ConfigurationSettings, operationId: string) {
             this.settings = settings;
-            this.editingInProgress = false;
             this.operationId = operationId;
         }
 
         public settings: ConfigurationSettings
-        public editingInProgress: boolean
         public operationId: string
     }
 
@@ -33,16 +31,20 @@ module Dash.Management.Model {
             this.specialSettings.accountName = new ConfigurationItem("AccountName", settings.AccountSettings, EditorStyles.Simple, "Account Name", false, true);
             this.specialSettings.primaryKey = new ConfigurationItem("AccountKey", settings.AccountSettings, EditorStyles.Generate, "Primary Key", false, true);
             this.specialSettings.secondaryKey = new ConfigurationItem("SecondaryAccountKey", settings.AccountSettings, EditorStyles.Generate, "Secondary Key");
-            this.specialSettings.namespaceStorage = new StorageConnectionItem("StorageConnectionStringMaster", settings.AccountSettings.StorageConnectionStringMaster, EditorStyles.EditMode | EditorStyles.CantChangeAccount, "Namespace Account");
-            this.specialSettings.diagnostics = new StorageConnectionItem("Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString", settings.AccountSettings["Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString"], EditorStyles.EditMode, "Diagnostics Account");
+            this.specialSettings.namespaceStorage = new StorageConnectionItem("StorageConnectionStringMaster", settings.AccountSettings.StorageConnectionStringMaster, EditorStyles.CantChangeAccount, "Namespace Account");
+            this.specialSettings.diagnostics = new StorageConnectionItem("Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString", settings.AccountSettings["Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString"], EditorStyles.Simple, "Diagnostics Account");
             this.scaleOutStorage = new ScaleSettings();
             this.scaleOutStorage.maxAccounts = settings.ScaleAccounts.MaxAccounts;
             this.scaleOutStorage.accounts = $.map(settings.ScaleAccounts.Accounts, (value) => StorageConnectionItem.createScaleOutAccount(value));
+            this.replicationSettings = $.map(settings.ReplicationSettings, (value, key) => new ConfigurationItem(key, value, EditorStyles.Simple));
+            this.workerQueueSettings = $.map(settings.WorkerQueueSettings, (value, key) => new ConfigurationItem(key, value, EditorStyles.Simple));
             this.miscSettings = $.map(settings.GeneralSettings, (value, key) => new ConfigurationItem(key, value, EditorStyles.Simple));
         }
 
         public specialSettings: SpecialSettings
         public scaleOutStorage: ScaleSettings
+        public replicationSettings: ConfigurationItem[]
+        public workerQueueSettings: ConfigurationItem[]
         public miscSettings: ConfigurationItem[]
 
         public toString(): string {
@@ -91,7 +93,6 @@ module Dash.Management.Model {
             this.setting = setting;
             this.updatedValue = jQuery.isPlainObject(value) ? value[setting] : value;
             this.value = this.updatedValue;
-            this.editing = false;
             this.editorStyles = editorStyles;
             this.displayLabel = displayLabel || setting;
             this.isNew = isNew || false;
@@ -102,24 +103,9 @@ module Dash.Management.Model {
         public updatedValue: string
         public value: string
         public displayLabel: string
-        public editing: boolean
         public editorStyles: EditorStyles
         public isNew: boolean
         public isRequired: boolean
-
-        public toggleEdit(discardChanges: boolean): boolean {
-            var retval: boolean = false;
-            if ((this.editorStyles & EditorStyles.EditMode) == 0 || this.editing) {
-                if (discardChanges) {
-                    this.discardChanges();
-                }
-                else {
-                    retval = this.commitChanges();
-                }
-            }
-            this.editing = !this.editing;
-            return retval;
-        }
 
         public isEditorStyle(style: EditorStyles): boolean {
             return (this.editorStyles & style) === style;
@@ -164,10 +150,6 @@ module Dash.Management.Model {
 
         public getValue(): string {
             return this.value;
-        }
-
-        protected discardChanges(): void {
-            this.value = this.updatedValue;
         }
     }
 
@@ -215,11 +197,6 @@ module Dash.Management.Model {
         public updatedAccountName: string;
         public updatedAccountKey: string;
         public originalAccountName: string;
-        protected discardChanges(): void {
-            super.discardChanges();
-            this.accountName = this.updatedAccountName;
-            this.accountKey = this.updatedAccountKey;
-        }
 
         public commitChanges(): boolean {
             var retval: boolean = super.commitChanges() || this.updatedAccountName !== this.accountName || this.updatedAccountKey !== this.accountKey;

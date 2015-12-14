@@ -25,7 +25,7 @@
     <IISExpressUseClassicPipelineMode />
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\</SolutionDir>
     <RestorePackages>true</RestorePackages>
-    <TypeScriptToolsVersion>1.4</TypeScriptToolsVersion>
+    <TypeScriptToolsVersion>1.7</TypeScriptToolsVersion>
     <NuGetPackageImportStamp>ec80c07e</NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -220,6 +220,7 @@
     <Content Include="App\Views\Home.html" />
     <Content Include="App\Views\Configuration.html" />
     <Content Include="App\Views\Update.html" />
+    <Content Include="Content\style.css" />
     <Content Include="favicon.ico" />
     <Content Include="Global.asax" />
     <Content Include="index.html" />
@@ -263,6 +264,7 @@
     <TypeScriptCompile Include="App\Service\OperationStatusService.ts" />
     <TypeScriptCompile Include="App\Service\UpdateService.ts" />
     <TypeScriptCompile Include="App\start.ts" />
+    <TypeScriptCompile Include="Scripts\typings\adal\INavRoute.d.ts" />
     <TypeScriptCompile Include="Scripts\typings\angularjs\angular-animate.d.ts" />
     <TypeScriptCompile Include="Scripts\typings\angularjs\angular-cookies.d.ts" />
     <TypeScriptCompile Include="Scripts\typings\angularjs\angular-mocks.d.ts" />

@@ -4,86 +4,7 @@
     <title ng-bind="title">Dash Management</title>
     <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
     <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
-    <style type="text/css">
-        .tab-content {
-            border-left: 1px solid #ddd;
-            border-right: 1px solid #ddd;
-            border-bottom: 1px solid #ddd;
-            padding: 10px;
-        }
-
-        .nav-tabs {
-            margin-bottom: 0;
-        }
-
-        .input-group-addon {
-            min-width: 75px;
-            text-align: left;
-        }
-
-        .has-feedback .form-control-feedback {
-            position: absolute;
-            top: 0px;
-            right: 10px;
-            display: block;
-            text-align: right;
-        }
-
-        div[role=main] {
-            overflow: auto;
-            padding-bottom: 100px; /* this needs to be bigger than footer height*/
-        }
-
-        .glyphicon-spin {
-            -webkit-animation: spin 2s infinite linear;
-            -moz-animation: spin 2s infinite linear;
-            -o-animation: spin 2s infinite linear;
-            animation: spin 2s infinite linear;
-        }
-
-        @-moz-keyframes spin {
-            0% {
-                -moz-transform: rotate(0deg);
-            }
-
-            100% {
-                -moz-transform: rotate(359deg);
-            }
-        }
-
-        @-webkit-keyframes spin {
-            0% {
-                -webkit-transform: rotate(0deg);
-            }
-
-            100% {
-                -webkit-transform: rotate(359deg);
-            }
-        }
-
-        @-o-keyframes spin {
-            0% {
-                -o-transform: rotate(0deg);
-            }
-
-            100% {
-                -o-transform: rotate(359deg);
-            }
-        }
-
-        @keyframes spin {
-            0% {
-                -webkit-transform: rotate(0deg);
-                transform: rotate(0deg);
-            }
-
-            100% {
-                -webkit-transform: rotate(359deg);
-                transform: rotate(359deg);
-            }
-        }
-    </style>
-
+    <link rel="stylesheet" href="Content/style.css" />
 </head>
 <body role="document">
     <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
@@ -118,26 +39,7 @@
     </div>
     <br />
     <div class="container" role="main">
-        <div class="panel panel-info">
-            <div class="panel-heading">
-                <div class="page-header">
-                    <h1>Data At Scale Hub (DASH)</h1>
-                </div>
-                <p>This portal allows you to edit DASH settings, like rotating storage keys, add new storage accounts and increase the number of instances</p>
-            </div>
-        </div>
         <div ng-view class="panel-body">
-        </div>
-    </div>
-    <div class="navbar navbar-inverse navbar-fixed-bottom" role="navigation">
-        <div class="container">
-            <div class="navbar-collapse collapse">
-                <ul class="nav navbar-nav navbar-right" ng-cloak>
-                    <li ng-repeat="button in buttonBarButtons" ng-class="{ active: button.enabled }">
-                        <a class="btn btn-link" ng-disabled="!button.enabled" ng-click="button.doClick()">{{button.displayText}}</a>
-                    </li>
-                </ul>
-            </div>
         </div>
     </div>
 
