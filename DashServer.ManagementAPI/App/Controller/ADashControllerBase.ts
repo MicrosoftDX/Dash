@@ -25,12 +25,12 @@ module Dash.Management.Controller {
             this.adalAuthenticationService.login();
         }
 
-        public logout(): void {
-            this.adalAuthenticationService.logOut();
+        public loginWithMfa() {
+            this.adalAuthenticationService.login({ amr_values: 'mfa' });
         }
 
-        public acquireTokenForResource(resource: string) {
-            this.adalAuthenticationService.login(resource);
+        public logout(): void {
+            this.adalAuthenticationService.logOut();
         }
 
         public isActive(viewLocation): boolean {
@@ -64,12 +64,8 @@ module Dash.Management.Controller {
                 }
             }
             if (acquireMfaResource) {
-                // TODO: When we have a mechanism in adal to re-authenticate to a specific resource, applying
-                // the MFA policies of that resource, we'll hit that. In the interim, the user will have to manually
-                // work around
-                //this.acquireTokenForResource(acquireMfaResource)
-                message = (message || "") + (message ? " - " : "") + "Microsoft Azure requires Two Factor Authentication to manipulate your service configuration. " +
-                    "Please use another application (eg. Azure Portal) to enforce 2FA and then re-logon to this application.";
+                // The WebAPI needs 2FA authentication to be able to access its resources
+                this.loginWithMfa();
             }
             if ($.isPlainObject(message)) {
                 message = $.map(["Message", "ExceptionMessage", "ExceptionType"], (attributeName) => message[attributeName])

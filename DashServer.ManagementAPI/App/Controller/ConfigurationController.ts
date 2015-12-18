@@ -60,7 +60,7 @@ module Dash.Management.Controller {
                     }
                 },
                 (err: ng.IHttpPromiseCallbackArg<any>) => {
-                    this.setError(true, err.data, err.headers);
+                    this.setError(true, err.data || err.statusText, err.headers);
                 });
         }
 
@@ -73,7 +73,7 @@ module Dash.Management.Controller {
                     this.updateOperationStatus(results.operationId);
                 },
                 (err: ng.IHttpPromiseCallbackArg<any>) => {
-                    this.setError(true, err.data, err.headers);
+                    this.setError(true, err.data || err.statusText, err.headers);
                     this.setUpdateState(false);
                 });
         }
@@ -93,7 +93,7 @@ module Dash.Management.Controller {
                     }
                 },
                 (err: ng.IHttpPromiseCallbackArg<any>) => {
-                    this.setError(true, err.data, err.headers);
+                    this.setError(true, err.data || err.statusText, err.headers);
                     this.setUpdateState(false);
                 });
         }

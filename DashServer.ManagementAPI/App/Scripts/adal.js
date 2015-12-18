@@ -148,7 +148,7 @@ AuthenticationContext = function (config) {
  * Gets initial Idtoken for the app backend
  * Saves the resulting Idtoken in localStorage.
  */
-AuthenticationContext.prototype.login = function (resource) {
+AuthenticationContext.prototype.login = function (additionalParams) {
     // Token is not present and user needs to login
     var expectedState = this._guid();
     this.config.state = expectedState;
@@ -162,8 +162,21 @@ AuthenticationContext.prototype.login = function (resource) {
     this._saveItem(this.CONSTANTS.STORAGE.ERROR, '');
     this._saveItem(this.CONSTANTS.STORAGE.ERROR_DESCRIPTION, '');
 
-
-    var urlNavigate = this._getNavigateUrl('id_token', resource) + '&nonce=' + encodeURIComponent(this._idTokenNonce);
+    if (!additionalParams) {
+        additionalParams = {};
+    }
+    if (typeof additionalParams === "object") {
+        additionalParams['nonce'] = encodeURIComponent(this._idTokenNonce);
+        var paramsArray = [];
+        for (var attribute in additionalParams) {
+            paramsArray.push(attribute + '=' + additionalParams[attribute]);
+        }
+        additionalParams = paramsArray.join('&');
+    }
+    else if (typeof additionalParams === "string") {
+        additionalParams += '&nonce=' + encodeURIComponent(this._idTokenNonce);
+    }
+    var urlNavigate = this._getNavigateUrl('id_token', null) + '&' + additionalParams;
     this.frameCallInProgress = false;
     this._loginInProgress = true;
     if (this.config.displayCall) {
@@ -845,7 +858,12 @@ AuthenticationContext.prototype._convertUrlSafeToRegularBase64EncodedString = fu
 AuthenticationContext.prototype._serialize = function (responseType, obj, resource) {
     var str = [];
     if (obj !== null) {
-        str.push('?response_type=' + responseType);
+        if (Array.isArray(responseType)) {
+            str.push('?response_type=' + responseType.join(' '));
+        }
+        else {
+            str.push('?response_type=' + responseType);
+        }
         str.push('client_id=' + encodeURIComponent(obj.clientId));
         if (resource) {
             str.push('resource=' + encodeURIComponent(resource));

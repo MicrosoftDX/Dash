@@ -39,7 +39,6 @@ namespace Microsoft.Dash.Common.Authentication
                 DashTrace.TraceWarning("Error attempting to retrieve delegation token for resource [{0}]. Details: {1}", resource, ex);
                 throw;
             }
-            return null;
         }
 
         public static async Task<AuthenticationResult> GetAccessTokenFromRefreshToken(string refreshToken)
