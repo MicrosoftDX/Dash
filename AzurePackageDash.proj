@@ -6,9 +6,9 @@ Also writes the required package.manifest to upload to the Update Service's stor
 -->
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <SolutionDir Condition="'$(SolutionDir)' == ''">.</SolutionDir>
-    <OutDir Condition="'$(OutDir)' == ''">bin\</OutDir>
-    <PackageRoot Condition="'$(PackageRoot)' == ''">$([System.IO.Path]::GetFullPath($(OutDir)Package\))</PackageRoot>
+    <SolutionDir Condition="'$(SolutionDir)' == ''">$(MSBuildProjectDirectory)</SolutionDir>
+    <OutDir Condition="'$(OutDir)' == ''">$(SolutionDir)\bin\</OutDir>
+    <PackageRoot Condition="'$(PackageRoot)' == ''">$(OutDir)Package\</PackageRoot>
     <CloudServiceDir Condition="'$(CloudServiceDir)' == ''">DashServer.Azure</CloudServiceDir>
     <CloudServiceILBDir Condition="'$(CloudServiceILBDir)' == ''">DashServer.Azure.ILB</CloudServiceILBDir>
     <CloudServiceHttpsDir Condition="'$(CloudServiceHttpsDir)' == ''">DashServer.Azure.Https</CloudServiceHttpsDir>
