@@ -257,11 +257,7 @@ namespace Microsoft.Tests
             var operationsController = new OperationsController();
             string currentState = String.Empty;
             DateTime expiry = DateTime.UtcNow.AddMinutes(1);
-            while (currentState != "Succeeded" && 
-                currentState != "Failed" && 
-                currentState != this.ExpectedCompletionOperation && 
-                (this.ShouldContinueWait == null || this.ShouldContinueWait(null)) && 
-                DateTime.UtcNow < expiry)
+            do
             {
                 Task.Delay(2500).Wait();
                 var operationResponse = operationsController.Get(operationId).Result as OkNegotiatedContentResult<OperationState>;
@@ -269,6 +265,11 @@ namespace Microsoft.Tests
                 var operationState = operationResponse.Content;
                 currentState = operationState.Status;
             }
+            while (currentState != "Succeeded" &&
+                currentState != "Failed" &&
+                currentState != this.ExpectedCompletionOperation &&
+                (this.ShouldContinueWait == null || this.ShouldContinueWait(null)) &&
+                DateTime.UtcNow < expiry);
             Assert.AreEqual(this.ExpectedCompletionOperation, currentState);
             return UpdateConfigStatus.GetConfigUpdateStatus(operationId).Result;
         }
