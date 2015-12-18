@@ -19,12 +19,12 @@ Shared msbuild logic to build, publish & incorporate into a cloud service packag
       <!-- When TFS build -->
       <PublishDestinationPath>$(OutDir)</PublishDestinationPath>
     </PropertyGroup>
-    <Message Text="Publishing '%(VirtualApp.Identity)' to '$(PublishDestinationPath)%(VirtualApp.PhysicalDirectory)'" />
+    <Message Text="Publishing '%(VirtualApp.Identity)' to '$([System.IO.Path]::GetFullPath($(PublishDestinationPath)%(VirtualApp.PhysicalDirectory)))'" />
     <MSBuild
       Projects="%(VirtualApp.Identity)"
       ContinueOnError="false"
       Targets="PublishToFileSystem"
-      Properties="Configuration=$(Configuration);PublishDestination=$(PublishDestinationPath)%(VirtualApp.PhysicalDirectory);AutoParameterizationWebConfigConnectionStrings=False" />
+      Properties="Configuration=$(Configuration);PublishDestination=$([System.IO.Path]::GetFullPath($(PublishDestinationPath)%(VirtualApp.PhysicalDirectory)));AutoParameterizationWebConfigConnectionStrings=False" />
     <!-- Delete files excluded from packaging; take care not to delete xml files unless there is a matching dll -->
     <CreateItem Include="$(PublishDestinationPath)%(VirtualApp.PhysicalDirectory)\**\*.dll">
       <Output ItemName="DllFiles" TaskParameter="Include" />
