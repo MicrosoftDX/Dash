@@ -1,0 +1,284 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"location": {
+			"type": "string",
+			"allowedValues": ["North Central US",
+			"Central US",
+			"East Asia",
+			"East US",
+			"Japan East",
+			"Japan West",
+			"North Europe",
+			"South Central US",
+			"Southeast Asia",
+			"West Europe",
+			"West US"],
+			"metadata": {
+				"description": "The location where all azure resources will be deployed."
+			}
+		},
+		"clusterType": {
+			"type": "string",
+			"allowedValues": ["hadoop",
+			"hbase",
+			"storm",
+			"spark"],
+			"metadata": {
+				"description": "The type of the HDInsight cluster to create."
+			}
+		},
+		"clusterName": {
+			"type": "string",
+			"metadata": {
+				"description": "The name of the HDInsight cluster to create."
+			}
+		},
+		"clusterLoginUserName": {
+			"type": "string",
+			"metadata": {
+				"description": "These credentials can be used to submit jobs to the cluster and to log into cluster dashboards."
+			}
+		},
+		"clusterLoginPassword": {
+			"type": "securestring",
+			"metadata": {
+				"description": "The password must be at least 10 characters in length and must contain at least one digit, one non-alphanumeric character, and one upper or lower case letter."
+			}
+		},
+		"sshUserName": {
+			"type": "string",
+			"metadata": {
+				"description": "These credentials can be used to remotely access the cluster."
+			}
+		},
+		"sshPublicKey": {
+			"type": "securestring",
+			"metadata": {
+				"description": "This field must be a valid SSH public key."
+			}
+		},
+		"clusterStorageAccountName": {
+			"type": "string",
+			"metadata": {
+				"description": "The name of the storage account to be created and be used as the cluster's storage."
+			}
+		},
+		"dashStorageAccountName": {
+			"type": "string",
+			"metadata": {
+				"description": "The name of the storage account to be created and be used as the cluster's storage."
+			}
+		},
+		"dashStorageAccountKey": {
+			"type": "securestring",
+			"metadata": {
+				"description": "Credential for accessing Dash virtual storage account"
+			}
+		},
+		"clusterWorkerNodeCount": {
+			"type": "int",
+			"defaultValue": 4,
+			"metadata": {
+				"description": "The number of nodes in the HDInsight cluster."
+			}
+		},
+		"scriptActionUri": {
+            "type": "string",
+            "defaultValue": "https://www.dash-update.net/client/latest/HDIScript/dash-linux-fixup-cache-files.sh", 
+            "metadata": { 
+                "description": "Replace storage sdk in jar cache on headnode with Dash storage sdk"
+            }
+		},
+		"sqlServerDns": {
+            "type": "string",
+            "metadata": { 
+                "description": "Azure DB Server for Hive Metastore, Oozie etc"
+            }
+		},
+		"sqlServerLoginUserName": {
+			"type": "string",
+			"metadata": {
+				"description": "These credentials are used to access Azure DB meta store database."
+			}
+		},
+		"sqlServerLoginPassword": {
+			"type": "securestring",
+			"metadata": {
+				"description": "The password must be at least 10 characters in length and must contain at least one digit, one non-alphanumeric character, and one upper or lower case letter."
+			}
+		},
+		"hiveDatabase": {
+            "type": "string",
+            "defaultValue": "hivemetastore", 
+            "metadata": { 
+                "description": "Name of Hive Metastore Database"
+            }
+		}	
+	},
+	"variables": {
+		"defaultApiVersion": "2015-05-01-preview",
+		"clusterApiVersion": "2015-03-01-preview",
+		"sqlConnectionUrl": "[concat('jdbc:sqlserver://',parameters('sqlServerDns'))]",
+		"sqlConnectionHiveDatabase": "[concat(';database=',parameters('hiveDatabase'))]",
+		"sqlConnectionProperties": ";encrypt=true;trustServerCertificate=true;create=false;loginTimeout={0};sendStringParametersAsUnicode=true;prepareSQL=0"
+		
+	},
+	
+	"resources": [{
+		"name": "[parameters('clusterStorageAccountName')]",
+		"type": "Microsoft.Storage/storageAccounts",
+		"location": "[parameters('location')]",
+		"apiVersion": "[variables('defaultApiVersion')]",
+		"dependsOn": [],
+		"tags": {
+			
+		},
+		"properties": {
+			"accountType": "Standard_LRS"
+		}
+	}, 
+	{
+		"name": "[parameters('clusterName')]",
+		"type": "Microsoft.HDInsight/clusters",
+		"location": "[parameters('location')]",
+		"apiVersion": "[variables('clusterApiVersion')]",
+		"dependsOn": ["[concat('Microsoft.Storage/storageAccounts/',parameters('clusterStorageAccountName'))]"], 
+		"tags": {
+			
+		},
+		"properties": {
+			"clusterVersion": "3.2",
+			"osType": "Linux",
+			"clusterDefinition": {
+				"kind": "[parameters('clusterType')]",
+				"configurations": {
+					"gateway": {
+						"restAuthCredential.isEnabled": true,
+						"restAuthCredential.username": "[parameters('clusterLoginUserName')]",
+						"restAuthCredential.password": "[parameters('clusterLoginPassword')]"
+					},
+					
+					"hive-site": {
+						"javax.jdo.option.ConnectionURL": "[concat(variables('sqlConnectionUrl'),variables('sqlConnectionHiveDatabase'),variables('sqlConnectionProperties'))]",				
+						"javax.jdo.option.ConnectionUserName": "[parameters('sqlServerLoginUserName')]",
+						"javax.jdo.option.ConnectionPassword": "[parameters('sqlServerLoginPassword')]",
+						"javax.jdo.option.ConnectionDriverName": "com.microsoft.sqlserver.jdbc.SQLServerDriver"
+					},
+					"hive-env": {
+						"hive_database": "Existing MSSQL Server database with SQL authentication",
+						"hive_database_name": "[parameters('hiveDatabase')]",
+						"hive_database_type": "mssql",
+						"hive_existing_mssql_server_database": "[parameters('hiveDatabase')]",
+						"hive_existing_mssql_server_host": "[parameters('sqlServerDns')]",
+						"hive_hostname": "[parameters('sqlServerDns')]"
+					},
+					/*
+					"tez-site": {
+					},
+					"oozie-env": {
+					},
+					"oozie-site": {
+					},
+					"webhcat-site": {
+					},
+					"hbase-env": {
+					},
+					"hbase-site": {
+					},
+					"storm-site": {
+					},
+					"hdfs-site": {
+					},
+					*/
+					"core-site": {	
+						"fs.azure.selfthrottling.read.factor" : "1.0",
+						"fs.azure.selfthrottling.write.factor" : "1.0",
+						"fs.azure.io.retry.max.retries" : "90",
+						"fs.azure.io.copyblob.retry.max.retries" : "30"
+					},
+					"yarn-site" :{
+					  "yarn.scheduler.capacity.node-locality-delay" : "0"
+					},
+					"mapred-site" :{
+						"mapreduce.task.io.sort.mb" : "2047",
+						"mapreduce.map.memory.mb" : "3072",
+						"mapreduce.reduce.java.opts" : "-Xmx4916m -Xms4916m -Djava.net.preferIPv4Stack=true -XX:NewRatio=8 -XX:+UseNUMA -XX:+UseParallelGC",
+						"mapreduce.reduce.memory.mb" : "6144",
+						"yarn.app.mapreduce.am.command-opts" : "-Xmx4916m -Xms4916m -Djava.net.preferIPv4Stack=true -XX:NewRatio=8 -XX:+UseNUMA -XX:+UseParallelGC",
+						"yarn.app.mapreduce.am.resource.mb" : "6144",
+						"mapreduce.map.speculative" : "true",
+						"mapreduce.reduce.speculative" : "true",
+						"mapreduce.input.fileinputformat.list-status.num-threads" : "16"
+					}
+				}
+			},
+			"storageProfile": {
+				"storageaccounts": [{
+					"name": "[concat(parameters('clusterStorageAccountName'),'.blob.core.windows.net')]",
+					"isDefault": true,
+					"container": "[parameters('clusterName')]",
+					"key": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('clusterStorageAccountName')), variables('defaultApiVersion')).key1]"
+				},
+				{
+					"name": "[concat(parameters('dashStorageAccountName'),'.cloudapp.net')]",
+					"isDefault": false,
+					"container": "[parameters('clusterName')]",
+					"key": "[parameters('dashStorageAccountKey')]"
+				}]
+			},
+			"computeProfile": {
+				"roles": [{
+					"name": "headnode",
+					"targetInstanceCount": "2",
+					"hardwareProfile": {
+						"vmSize": "Standard_D13"
+					},
+					"osProfile": {
+						"linuxOperatingSystemProfile": {
+							"username": "[parameters('sshUserName')]",
+							"sshProfile": {
+                                "publicKeys": [{
+                                    "certificateData": "[parameters('sshPublicKey')]"
+                                }]
+                            }
+						}
+					},
+					"scriptActions": [{
+                        "name": "dashreplacestoragesdk",
+						 "uri": "[parameters('scriptActionUri')]",
+                        "parameters": "headnode"
+                    }]
+				},
+				{
+					"name": "workernode",
+					"targetInstanceCount": "[parameters('clusterWorkerNodeCount')]",
+					"hardwareProfile": {
+						"vmSize": "Standard_D12"
+					},
+					"osProfile": {
+						"linuxOperatingSystemProfile": {
+							"username": "[parameters('sshUserName')]",
+							"sshProfile": {
+                                "publicKeys": [{
+                                    "certificateData": "[parameters('sshPublicKey')]"
+                                }]
+                            }
+						}
+					}
+				}]
+			}
+		}
+	}],
+	"outputs": {
+	    "sqlConnectionString": {
+		  "type": "string",
+		  "value": "[concat(variables('sqlConnectionUrl'),variables('sqlConnectionHiveDatabase'),variables('sqlConnectionProperties'))]"
+		},
+		"cluster": {
+			"type": "object",
+			"value": "[reference(resourceId('Microsoft.HDInsight/clusters',parameters('clusterName')))]"
+		}
+	}
+}
