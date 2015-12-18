@@ -10,8 +10,6 @@ namespace DashServer.ManagementAPI.Models
         public string OperationId { get; set; }
         public IDictionary<string, string> AccountSettings { get; set; }
         public ScaleAccounts ScaleAccounts { get; set; }
-        public IDictionary<string, string> ReplicationSettings { get; set; }
-        public IDictionary<string, string> WorkerQueueSettings { get; set; }
         public IDictionary<string, string> GeneralSettings { get; set; }
     }
 

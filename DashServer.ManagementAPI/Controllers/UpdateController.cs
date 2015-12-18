@@ -179,7 +179,8 @@ namespace DashServer.ManagementAPI.Controllers
         public virtual Version GetCurrentVersion()
         {
             // Can be mocked out for tests
-            return Assembly.GetAssembly(this.GetType()).GetName().Version;
+            var version = Assembly.GetAssembly(this.GetType()).GetName().Version;
+            return version;
         }
 
         public virtual int? GetMessageDelay()

@@ -199,8 +199,8 @@ if (typeof module !== 'undefined' && module.exports) {
                 return {
                     // public methods will be here that are accessible from Controller
                     config: _adal.config,
-                    login: function () {
-                        _adal.login();
+                    login: function (resource) {
+                        _adal.login(resource);
                     },
                     loginInProgress: function () {
                         return _adal.loginInProgress();

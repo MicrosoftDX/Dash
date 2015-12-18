@@ -36,29 +36,59 @@ module Dash.Management.Model {
             this.scaleOutStorage = new ScaleSettings();
             this.scaleOutStorage.maxAccounts = settings.ScaleAccounts.MaxAccounts;
             this.scaleOutStorage.accounts = $.map(settings.ScaleAccounts.Accounts, (value) => StorageConnectionItem.createScaleOutAccount(value));
-            this.replicationSettings = $.map(settings.ReplicationSettings, (value, key) => new ConfigurationItem(key, value, EditorStyles.Simple));
-            this.workerQueueSettings = $.map(settings.WorkerQueueSettings, (value, key) => new ConfigurationItem(key, value, EditorStyles.Simple));
-            this.miscSettings = $.map(settings.GeneralSettings, (value, key) => new ConfigurationItem(key, value, EditorStyles.Simple));
+            this.replicationSettings = this.spliceObject(settings.GeneralSettings, ConfigurationSettings.ReplicationAttributeNames, EditorStyles.Simple);
+            this.workerQueueSettings = this.spliceObject(settings.GeneralSettings, ConfigurationSettings.WorkerQueueAttributeNames, EditorStyles.Simple);
+            this.authenticationSettings = this.spliceObject(settings.GeneralSettings, ConfigurationSettings.AuthenticationAttributeNames, EditorStyles.Simple);
+            this.miscSettings = this.spliceObjectInverse(settings.GeneralSettings, ConfigurationSettings.MiscAttributeNames, EditorStyles.Simple);
         }
+
+        static ReplicationAttributeNames = {
+            ReplicationPathPattern: "Replication Path Pattern (RegEx)",
+            ReplicationMetadataName: "Metadata Name",
+            ReplicationMetadataValue: "Metadata Value"
+        };
+
+        static WorkerQueueAttributeNames = {
+            WorkerQueueName: "Queue Name",
+            AsyncWorkerTimeout: "Async Worker Timeout",
+            WorkerQueueInitialDelay: "Delay before processing item (secs)",
+            WorkerQueueDequeueLimit: "Number of attempts before discarding message"
+        };
+
+        static AuthenticationAttributeNames = {
+            Tenant: "Tenant",
+            ClientId: "Client ID",
+            AppKey: "Key"
+        };
+
+        static MiscAttributeNames = $.extend({},
+            ConfigurationSettings.ReplicationAttributeNames,
+            ConfigurationSettings.WorkerQueueAttributeNames,
+            ConfigurationSettings.AuthenticationAttributeNames);
 
         public specialSettings: SpecialSettings
         public scaleOutStorage: ScaleSettings
         public replicationSettings: ConfigurationItem[]
         public workerQueueSettings: ConfigurationItem[]
+        public authenticationSettings: ConfigurationItem[]
         public miscSettings: ConfigurationItem[]
 
         public toString(): string {
             var objectToSerialize = {
                 AccountSettings: this.mapObject(this.specialSettings, (value: ConfigurationItem) => value.setting, (value: ConfigurationItem) => value.getValue()),
                 ScaleAccounts: {
-                    Accounts: this.scaleOutStorage.accounts.map((value: StorageConnectionItem) => {
-                        return {
-                            AccountName: value.accountName,
-                            AccountKey: value.accountKey
-                        }
-                    })
+                    Accounts: this.scaleOutStorage.accounts.filter((value: StorageConnectionItem) => value.accountName !== undefined)
+                        .map((value: StorageConnectionItem) => {
+                            return {
+                                AccountName: value.accountName,
+                                AccountKey: value.accountKey
+                            }
+                        })
                 },
-                GeneralSettings: this.mapObject(this.miscSettings,(value: ConfigurationItem) => value.setting,(value: ConfigurationItem) => value.getValue()),
+                GeneralSettings: this.mapObject(
+                    new Array<ConfigurationItem>().concat(this.miscSettings, this.authenticationSettings, this.replicationSettings, this.workerQueueSettings),
+                    (value: ConfigurationItem) => value.setting,
+                    (value: ConfigurationItem) => value.getValue()),
             };
             return angular.toJson(objectToSerialize, true);
         }
@@ -70,6 +100,22 @@ module Dash.Management.Model {
                 retval[keyCallback(item)] = valueCallback(item);
             }
             return retval;
+        }
+
+        private spliceObject(srcObject: any, keys: any, editStyle: EditorStyles): ConfigurationItem[] {
+            return $.map(keys,
+                (label: string, key: string) => new ConfigurationItem(key, srcObject[key], editStyle, label));
+        }
+
+        private spliceObjectInverse(srcObject: any, excludeKeys: any, editStyle: EditorStyles): ConfigurationItem[] {
+            return $.map(srcObject,
+                (value: string, key: string) => {
+                    var isExcluded = excludeKeys[key] !== undefined;
+                    if (isExcluded) {
+                        return null;
+                    }
+                    return new ConfigurationItem(key, srcObject[key], editStyle);
+                });
         }
     }
 
@@ -111,6 +157,10 @@ module Dash.Management.Model {
             return (this.editorStyles & style) === style;
         }
 
+        public requiresActionButton(): boolean {
+            return this.isEditorStyleDelete() || this.isEditorStyleGenerate() || this.isNew;
+        }
+
         public isEditorStyleDelete(): boolean {
             return this.isEditorStyle(EditorStyles.Delete);
         }
@@ -121,10 +171,6 @@ module Dash.Management.Model {
 
         public isEditorStyleStorageAccount(): boolean {
             return this.isEditorStyle(EditorStyles.StorageAccount);
-        }
-
-        public isEditorStyleEditMode(): boolean {
-            return this.isEditorStyle(EditorStyles.EditMode);
         }
 
         public isEditorStyleCantChangeAccount(): boolean {

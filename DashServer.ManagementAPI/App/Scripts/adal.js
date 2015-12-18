@@ -148,7 +148,7 @@ AuthenticationContext = function (config) {
  * Gets initial Idtoken for the app backend
  * Saves the resulting Idtoken in localStorage.
  */
-AuthenticationContext.prototype.login = function () {
+AuthenticationContext.prototype.login = function (resource) {
     // Token is not present and user needs to login
     var expectedState = this._guid();
     this.config.state = expectedState;
@@ -163,7 +163,7 @@ AuthenticationContext.prototype.login = function () {
     this._saveItem(this.CONSTANTS.STORAGE.ERROR_DESCRIPTION, '');
 
 
-    var urlNavigate = this._getNavigateUrl('id_token', null) + '&nonce=' + encodeURIComponent(this._idTokenNonce);
+    var urlNavigate = this._getNavigateUrl('id_token', resource) + '&nonce=' + encodeURIComponent(this._idTokenNonce);
     this.frameCallInProgress = false;
     this._loginInProgress = true;
     if (this.config.displayCall) {

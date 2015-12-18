@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.Web.Http;
 using Microsoft.Dash.Common.Authentication;
@@ -21,13 +22,24 @@ namespace DashServer.ManagementAPI.Controllers
         {
             return await OperationRunner.DoActionAsync(operation, async () =>
             {
-                using (var serviceClient = await AzureService.GetServiceManagementClient(async () => await GetRdfeAccessToken()))
+                try
                 {
-                    if (serviceClient == null)
+                    using (var serviceClient = await AzureService.GetServiceManagementClient(async () => await GetRdfeAccessToken()))
                     {
-                        return StatusCode(HttpStatusCode.Forbidden);
+                        if (serviceClient == null)
+                        {
+                            return StatusCode(HttpStatusCode.Forbidden);
+                        }
+                        return await action(serviceClient);
                     }
-                    return await action(serviceClient);
+                }
+                catch (AdalServiceException ex)
+                {
+                    if (ex.ErrorCode == "interaction_required")
+                    {
+                        return Unauthorized(new AuthenticationHeaderValue("Bearer", String.Format("interaction_required={0}", DelegationToken.RdfeResource)));
+                    }
+                    return StatusCode(HttpStatusCode.Forbidden);
                 }
             });
         }

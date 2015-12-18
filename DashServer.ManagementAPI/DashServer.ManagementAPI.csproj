@@ -249,6 +249,7 @@
   </ItemGroup>
   <ItemGroup>
     <TypeScriptCompile Include="App\AppBuilder.ts" />
+    <TypeScriptCompile Include="App\Controller\ADashControllerBase.ts" />
     <TypeScriptCompile Include="App\Controller\ConfigurationController.ts" />
     <TypeScriptCompile Include="App\Controller\HomeController.ts" />
     <TypeScriptCompile Include="App\Controller\StorageValidation.ts" />

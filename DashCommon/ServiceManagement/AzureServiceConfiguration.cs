@@ -95,15 +95,5 @@ namespace Microsoft.Dash.Common.ServiceManagement
                    elem.Item1.StartsWith("Microsoft.WindowsAzure.Plugins.RemoteAccess", StringComparison.OrdinalIgnoreCase) ||
                    elem.Item1.StartsWith("Microsoft.WindowsAzure.Plugins.RemoteDebugger", StringComparison.OrdinalIgnoreCase);
         }
-
-        public static bool SettingPredicateReplication(Tuple<string, string> elem)
-        {
-            return elem.Item1.StartsWith("Replication");
-        }
-
-        public static bool SettingPredicateWorkerQueue(Tuple<string, string> elem)
-        {
-            return elem.Item1.StartsWith("WorkerQueue");
-        }
     }
 }

@@ -4,35 +4,31 @@
 
 module Dash.Management.Controller {
 
-    export class ConfigurationController {
-        static $inject = ['$scope', '$rootScope', '$timeout', 'configurationService', '$location', 'operationStatusService'];
+    export class ConfigurationController extends ADashControllerBase {
+        static $inject = ['$scope', '$rootScope', 'adalAuthenticationService', '$location', '$timeout', 'configurationService', 'operationStatusService'];
 
-        constructor(private $scope: Model.IDashManagementScope,
+        constructor($scope: Model.IDashManagementScope,
             $rootScope: Model.IDashManagementScope,
+            adalAuthenticationService,
+            $location: ng.ILocationService,
             private $timeout: ng.ITimeoutService,
             configurationService: Service.ConfigurationService,
-            private $location: ng.ILocationService,
             private operationStatusService: Service.OperationStatusService) {
+
+            super($scope, $rootScope, adalAuthenticationService, $location);
 
             $scope.addAccount = () => this.addAccount();
             $scope.deleteAccount = (item) => this.deleteAccount(item);
             $scope.generateStorageKey = (item) => this.generateStorageKey(item);
-            $rootScope.isControllerActive = (loc) => this.isActive(loc);
 
-            this.buttonBarButtons = [
-                new Model.ButtonBarButton("Commit", $scope, "!updateInProgress", () => this.update(configurationService.getResourceClass())),
-                new Model.ButtonBarButton("Revert", $scope, "!updateInProgress", () => this.populate(configurationService.getResourceClass()))
+            $scope.buttonBarButtons = [
+                new Model.ButtonBarButton("Commit", $scope, "configurationForm.$valid && !updateInProgress", () => this.update(configurationService.getResourceClass()), true),
+                new Model.ButtonBarButton("Revert", $scope, "!updateInProgress", () => this.populate(configurationService.getResourceClass()), false)
             ];
-            $scope.buttonBarButtons = this.buttonBarButtons;
+            $scope.updateConfiguration = () => this.update(configurationService.getResourceClass());
 
             this.populate(configurationService.getResourceClass());
         }
-
-        public isActive(viewLocation): boolean {
-            return viewLocation === this.$location.path();
-        }
-
-        public buttonBarButtons: Model.ButtonBarButton[]
 
         public addAccount() : void {
             var newAccount = Model.StorageConnectionItem.createScaleOutAccount("", true);
@@ -63,8 +59,8 @@ module Dash.Management.Controller {
                         this.$scope.loadingMessage = "";
                     }
                 },
-                (err) => {
-                    this.setMessage(true, err.data);
+                (err: ng.IHttpPromiseCallbackArg<any>) => {
+                    this.setError(true, err.data, err.headers);
                 });
         }
 
@@ -76,8 +72,8 @@ module Dash.Management.Controller {
                     this.$scope.configuration = results;
                     this.updateOperationStatus(results.operationId);
                 },
-                (err) => {
-                    this.setMessage(true, err.data);
+                (err: ng.IHttpPromiseCallbackArg<any>) => {
+                    this.setError(true, err.data, err.headers);
                     this.setUpdateState(false);
                 });
         }
@@ -92,24 +88,14 @@ module Dash.Management.Controller {
                     }
                     else {
                         var failure = status.Status == "Failed";
-                        this.setMessage(failure, failure ? status.Message : "Configuration update completed successfully");
+                        this.setError(failure, failure ? status.Message : "Configuration update completed successfully", null);
                         this.setUpdateState(false);
                     }
                 },
-                (err) => {
-                    this.setMessage(true, err.data);
+                (err: ng.IHttpPromiseCallbackArg<any>) => {
+                    this.setError(true, err.data, err.headers);
                     this.setUpdateState(false);
                 });
-        }
-
-        private setMessage(error: boolean, message: string): void {
-            this.$scope.error_class = error ? "alert-danger" : "alert-info";
-            this.$scope.error = message;
-            this.$scope.loadingMessage = "";
-        }
-
-        private setUpdateState(updateInProgress: boolean): void {
-            this.$scope.updateInProgress = updateInProgress;
         }
     }
 } 

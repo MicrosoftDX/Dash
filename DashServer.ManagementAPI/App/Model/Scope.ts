@@ -23,6 +23,7 @@ module Dash.Management.Model {
         availableUpdates: AvailableUpdates
         getHtmlDescription: Function
         applyUpdate: Function
+        updateConfiguration: Function
         buttonBarButtons: ButtonBarButton[]
     }
 } 

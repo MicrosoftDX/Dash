@@ -4,26 +4,25 @@
 
 module Dash.Management.Controller {
 
-    export class UpdateController {
-        static $inject = ['$scope', '$rootScope', 'updateService', '$sce', '$location'];
+    export class UpdateController extends ADashControllerBase {
+        static $inject = ['$scope', '$rootScope', 'adalAuthenticationService', '$location', 'updateService', '$sce'];
 
-        constructor(private $scope: Model.IDashManagementScope, $rootScope: Model.IDashManagementScope, private updateService: Service.UpdateService, private $sce: ng.ISCEService, private $location: ng.ILocationService) {
+        constructor($scope: Model.IDashManagementScope,
+            $rootScope: Model.IDashManagementScope,
+            adalAuthenticationService,
+            $location: ng.ILocationService,
+            private updateService: Service.UpdateService,
+            private $sce: ng.ISCEService) {
+
+            super($scope, $rootScope, adalAuthenticationService, $location);
 
             $scope.getHtmlDescription = (update: Model.VersionUpdate) => this.getHtmlDescription(update);
             $scope.applyUpdate = (update: Model.VersionUpdate) => this.applyUpdate(update);
 
             $scope.loadingMessage = "Retrieving available versions for the Dash service...";
-            $scope.error = "";
             $scope.availableUpdates = new Model.AvailableUpdates();
-            $rootScope.isControllerActive = (loc) => this.isActive(loc);
-
-            $rootScope.buttonBarButtons = [];
 
             this.getAvailableUpdates(true);
-        }
-
-        public isActive(viewLocation): boolean {
-            return viewLocation === this.$location.path();
         }
 
         public getAvailableUpdates(clearLoadingMessage: boolean): void {
@@ -31,8 +30,8 @@ module Dash.Management.Controller {
                 .then((versions: Model.AvailableUpdates) => {
                     this.$scope.availableUpdates = versions;
                 })
-                .catch((err) => {
-                    this.setError(true, err);
+                .catch((err: ng.IHttpPromiseCallbackArg<any>) => {
+                    this.setError(true, err.data, err.headers);
                 })
                 .finally(() => {
                     if (clearLoadingMessage) {
@@ -43,17 +42,17 @@ module Dash.Management.Controller {
 
         public applyUpdate(version: Model.VersionUpdate): void {
             if (confirm('You have selected to upgrade this DASH server to version: ' + version.versionString + '\n\nThis operation cannot be undone.\n\nAre you sure you want to continue?')) {
-                this.$scope.updateInProgress = true;
+                this.setUpdateState(true);
                 this.$scope.loadingMessage = "Updating DASH service to version: " + version.versionString;
                 this.updateService.applyUpdate(version.versionString)
-                    .success((results: any) => {
-                        this.$scope.loadingMessage = "The DASH service is being updated to version: " + version.versionString + ". The request id: " + results.RequestId;
-                    })
-                    .error((err: any) => {
-                        this.setError(true, err);
+                    .then((results: ng.IHttpPromiseCallbackArg<any>) => {
+                        this.$scope.loadingMessage = "The DASH service is being updated to version: " + version.versionString + ". The request id: " + results.data.OperationId;
+                    },
+                    (err: ng.IHttpPromiseCallbackArg<string>) => {
+                        this.setError(true, err.data || err.statusText, err.headers);
                     })
                     .finally(() => {
-                        this.$scope.updateInProgress = false;
+                        this.setUpdateState(false);
                         this.getAvailableUpdates(false);
                     });
             }
@@ -61,12 +60,6 @@ module Dash.Management.Controller {
 
         public getHtmlDescription(update: Model.VersionUpdate): void {
             return this.$sce.trustAsHtml(update.description);
-        }
-
-        private setError(error: boolean, message: string): void {
-            this.$scope.error_class = error ? "alert-danger" : "alert-info";
-            this.$scope.error = message;
-            this.$scope.loadingMessage = "";
         }
     }
 }

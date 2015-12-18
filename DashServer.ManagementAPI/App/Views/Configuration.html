@@ -1,4 +1,4 @@
-﻿<div>
+﻿<div ng-form="configurationForm" ng-submit="updateConfiguration()">
     <h2>Dash Configuration</h2>
     <div class="alert alert-dismissible" ng-class="error_class" ng-hide="!error" role="alert">
         <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
@@ -57,25 +57,40 @@
         <tab heading="General Settings">
             <div class="panel panel-default">
                 <div class="panel-heading">General Settings</div>
+                <div class="panel-heading">Authentication</div>
                 <div class="panel-body">
-                    <p>These are the general settings that do not apply to any specific category.</p>
+                    <p>These configuration settings enable this Management Portal and other REST API users to authenticate to the Management API.</p>
                 </div>
-                <table class="table table-striped">
+                <table class="table">
                     <tbody>
-                        <tr>
-                            <td class="generalHeader"><h4>Replication Settings</h4></td>
-                            <td class="generalHeader"></td>
-                        </tr>
+                        <tr data-ng-repeat="setting in configuration.settings.authenticationSettings" ng-include="'ConfigSetting.html'" />
+                    </tbody>
+                </table>
+                <div class="panel-heading" style="margin-top:10px;">Blob Replication</div>
+                <div class="panel-body">
+                    <p>The following settings control how and when blobs are replicated. Replicating blobs will improve read throughput, but will cost most for each copy of the blob being saved.</p>
+                </div>
+                <table class="table">
+                    <tbody>
                         <tr data-ng-repeat="setting in configuration.settings.replicationSettings" ng-include="'ConfigSetting.html'" />
-                        <tr>
-                            <td class="generalHeader"><h4>Worker Queue Settings</h4></td>
-                            <td class="generalHeader"></td>
-                        </tr>
+                    </tbody>
+                </table>
+                <div class="panel-heading" style="margin-top:10px;">Worker Queue</div>
+                <div class="panel-body">
+                    <p>All asynchronous operations (import accounts, blob replication, etc.) use an Azure Storage Queue to manage the list of operations.
+                    Leave configuration settings empty to use default values.</p>
+                </div>
+                <table class="table">
+                    <tbody>
                         <tr data-ng-repeat="setting in configuration.settings.workerQueueSettings" ng-include="'ConfigSetting.html'" />
-                        <tr>
-                            <td class="generalHeader"><h4>Miscellaneous Settings</h4></td>
-                            <td class="generalHeader"></td>
-                        </tr>
+                    </tbody>
+                </table>
+                <div class="panel-heading" style="margin-top:10px;">Miscellaneious</div>
+                <div class="panel-body">
+                    <p>The following configuration settings affect a variety of behaviors and operations.</p>
+                </div>
+                <table class="table">
+                    <tbody>
                         <tr data-ng-repeat="setting in configuration.settings.miscSettings" ng-include="'ConfigSetting.html'" />
                     </tbody>
                 </table>
@@ -83,23 +98,38 @@
         </tab>
     </tabset>
     <div id="buttonDiv">
-        <a ng-repeat="button in buttonBarButtons" class="btn btn-primary controlButtons" ng-disabled="!button.enabled" ng-click="button.doClick()">{{button.displayText}}</a>
+        <input ng-repeat="button in buttonBarButtons"
+               class="btn btn-primary controlButtons"
+               type="{{button.isSubmit ? 'submit' : 'button'}}"
+               ng-disabled="!button.enabled"
+               ng-click="button.doClick()"
+               value="{{button.displayText}}">
     </div>
 </div>
 
 <script type="text/ng-template" id="ConfigSetting.html">
-    <td class="col-sm-10" colspan="{{(setting.isEditorStyleGenerate() || setting.isEditorStyleDelete() || setting.isNew)?1:2}}">
-        <label class="setting_label" ng-hide="!setting.displayLabel">{{setting.displayLabel}}:</label>
+    
+    <td colspan="2">
+        <div class="col-sm-12"
+             ng-if="!setting.isEditorStyleStorageAccount()">
+            <label class="setting_label" ng-hide="!setting.displayLabel">{{setting.displayLabel}}:</label>
+        </div>
         <!-- Standard input edit box -->
-        <input type="text"
-               ng-if="!setting.isEditorStyleStorageAccount()"
-               ng-model="setting.value"
-               ng-class="{'updated': setting.value != setting.updatedValue}"
-               class="form-control"
-               ng-required="setting.isRequired"
-               ng-readonly="setting.isEditorStyleGenerate() || updateInProgress" />
+        <div class="{{setting.requiresActionButton() ? 'col-sm-10' : 'col-sm-12'}}"
+             ng-if="!setting.isEditorStyleStorageAccount()">
+            <input type="text"
+                   ng-model="setting.value"
+                   ng-class="{'updated': setting.value != setting.updatedValue}"
+                   class="form-control"
+                   ng-required="setting.isRequired"
+                   ng-readonly="setting.isEditorStyleGenerate() || updateInProgress" />
+        </div>
+        <div class="col-sm-2"
+             ng-if="setting.isEditorStyleGenerate()">
+            <button ng-show="setting.isEditorStyleGenerate()" type="button" class="btn btn-primary" ng-disabled="updateInProgress" data-ng-click="generateStorageKey(setting)">Generate New Key</button>
+        </div>
         <!-- Input edit group for account name -->
-        <div class="has-feedback"
+        <div class="has-feedback col-sm-12"
              storage-validator="{accountName: 'setting.accountName', accountKey: 'setting.accountKey'}"
              storage-validator-controls="{accountName: 'StorageAccount.AccountName', accountKey: 'StorageAccount.AccountKey'}"
              ng-show="setting.isEditorStyleStorageAccount()"
@@ -107,8 +137,10 @@
              ng-class="{'has-error': StorageAccount.$invalid}">
             <div class="has-feedback" ng-class="{'has-error': StorageAccount.AccountName.$invalid}">
                 <div class="form-group row">
-                    <label class="col-sm-1 form-control-label" id="{{'StorageAccount' + $index}}">Name</label>
-                    <div class="col-sm-11">
+                    <div class="col-sm-1">
+                        <label class="form-control-label" id="{{'StorageAccount' + $index}}">Name</label>
+                    </div>
+                    <div class="{{setting.requiresActionButton() ? 'col-sm-9' : 'col-sm-11'}}">
                         <input type="text"
                                name="AccountName"
                                class="form-control accountName"
@@ -118,30 +150,32 @@
                                ng-readonly="(setting.isEditorStyleCantChangeAccount() && setting.originalAccountName) || updateInProgress"
                                ng-model-options="{ updateOn: 'blur' }" />
                     </div>
+                    <div class="col-sm-2"
+                         ng-if="setting.isEditorStyleDelete() || setting.isNew">
+                        <button type="button" class="btn btn-link" ng-disabled="updateInProgress" data-ng-click="deleteAccount(setting)">Delete</button>
+                    </div>
                 </div>
                 <span class="glyphicon glyphicon-exclamation-sign form-control-feedback" ng-show="StorageAccount.AccountName.$invalid" title="The entered Account Name is not valid or already used" aria-hidden="true"></span>
             </div>
             <!-- Input edit group for account key -->
             <div class="has-feedback" ng-class="{ 'has-error': StorageAccount.AccountKey.$invalid}">
                 <div class="form-group row">
-                    <label for="AccountKey" class="col-sm-1 form-control-label" id="{{'StorageKey' + $index}}">Key</label>
-                    <div class="col-sm-11">
+                    <div class="col-sm-1">
+                        <label for="AccountKey" class="col-sm-1 form-control-label" id="{{'StorageKey' + $index}}">Key</label>
+                    </div>
+                    <div class="{{setting.requiresActionButton() ? 'col-sm-9' : 'col-sm-11'}}">
                         <input type="text"
-                               name="AccountKey"
-                               class="form-control"
-                               placeholder="Account Key (Leave blank to have Dash make a new account)"
-                               aria-describedby="{{'StorageKey' + $index}}"
-                               ng-model="setting.accountKey"
-                               ng-readonly="updateInProgress"
-                               ng-model-options="{ updateOn: 'blur' }" />
+                                name="AccountKey"
+                                class="form-control"
+                                placeholder="Account Key (Leave blank to have Dash make a new account)"
+                                aria-describedby="{{'StorageKey' + $index}}"
+                                ng-model="setting.accountKey"
+                                ng-readonly="updateInProgress"
+                                ng-model-options="{ updateOn: 'blur' }" />
                     </div>
                 </div>
                 <span class="glyphicon glyphicon-exclamation-sign form-control-feedback" ng-show="StorageAccount.AccountKey.$invalid" title="The entered Account Key is not valid" aria-hidden="true"></span>
             </div>
         </div>
-    </td>
-    <td ng-if="setting.isEditorStyleGenerate() || setting.isEditorStyleDelete() || setting.isNew" class="col-sm-2 tableControl">
-        <button type="button" class="btn btn-link" ng-show="setting.isEditorStyleDelete() || setting.isNew" ng-disabled="updateInProgress" data-ng-click="deleteAccount(setting)">Delete</button>
-        <button ng-show="setting.isEditorStyleGenerate()" type="button" class="btn btn-primary" ng-disabled="updateInProgress" data-ng-click="generateStorageKey(setting)">Generate New Key</button>
     </td>
 </script>

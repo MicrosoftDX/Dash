@@ -11,11 +11,12 @@ namespace Microsoft.Dash.Common.Authentication
 {
     public class DelegationToken
     {
-        const string BearerAuthType = "Bearer ";
+        public const string RdfeResource    = "https://management.core.windows.net/";
+        const string BearerAuthType         = "Bearer ";
 
         public static async Task<AuthenticationResult> GetRdfeToken(string bearerToken)
         {
-            return await GetDelegationToken("https://management.core.windows.net/", bearerToken);
+            return await GetDelegationToken(RdfeResource, bearerToken);
         }
 
         public static async Task<AuthenticationResult> GetDelegationToken(string resource, string bearerToken)
@@ -36,6 +37,7 @@ namespace Microsoft.Dash.Common.Authentication
             catch (Exception ex)
             {
                 DashTrace.TraceWarning("Error attempting to retrieve delegation token for resource [{0}]. Details: {1}", resource, ex);
+                throw;
             }
             return null;
         }

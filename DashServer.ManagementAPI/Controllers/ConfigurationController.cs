@@ -41,11 +41,6 @@ namespace DashServer.ManagementAPI.Controllers
                 }
                 var settings = AzureServiceConfiguration.GetSettingsProjected(serviceConfigTask.Result)
                     .ToList();
-                var miscSettings = settings
-                                        .Where(elem => !AzureServiceConfiguration.SettingPredicateSpecialName(elem) && 
-                                                        !AzureServiceConfiguration.SettingPredicateScaleoutStorage(elem) && 
-                                                        !AzureServiceConfiguration.SettingPredicateRdp(elem));
-
                 return Ok(new Configuration
                 {
                     OperationId = operationId,
@@ -53,23 +48,18 @@ namespace DashServer.ManagementAPI.Controllers
                                         .Where(AzureServiceConfiguration.SettingPredicateSpecialName)
                                         .ToDictionary(elem => elem.Item1, elem => elem.Item2),
                     ScaleAccounts = new ScaleAccounts
-                        {
-                            MaxAccounts = DashConfiguration.MaxDataAccounts,
-                            Accounts = settings
-                                        .Where(AzureServiceConfiguration.SettingPredicateScaleoutStorage)
-                                        .Select(setting => ParseConnectionString(setting.Item2))
-                                        .Where(account => account != null)
-                                        .ToList(),
-                        },
-                    ReplicationSettings = miscSettings
-                                            .Where(elem => AzureServiceConfiguration.SettingPredicateReplication(elem))
-                                            .ToDictionary(elem => elem.Item1, elem => elem.Item2),
-                    WorkerQueueSettings = miscSettings
-                                            .Where(elem => AzureServiceConfiguration.SettingPredicateWorkerQueue(elem))
-                                            .ToDictionary(elem => elem.Item1, elem => elem.Item2),
-                    GeneralSettings = miscSettings
-                                        .Where(elem => !AzureServiceConfiguration.SettingPredicateReplication(elem) && 
-                                                        !AzureServiceConfiguration.SettingPredicateWorkerQueue(elem))
+                    {
+                        MaxAccounts = DashConfiguration.MaxDataAccounts,
+                        Accounts = settings
+                                    .Where(AzureServiceConfiguration.SettingPredicateScaleoutStorage)
+                                    .Select(setting => ParseConnectionString(setting.Item2))
+                                    .Where(account => account != null)
+                                    .ToList(),
+                    },
+                    GeneralSettings = settings
+                                        .Where(elem => !AzureServiceConfiguration.SettingPredicateSpecialName(elem) && 
+                                                        !AzureServiceConfiguration.SettingPredicateScaleoutStorage(elem) && 
+                                                        !AzureServiceConfiguration.SettingPredicateRdp(elem))
                                         .ToDictionary(elem => elem.Item1, elem => elem.Item2),
                 });
             });

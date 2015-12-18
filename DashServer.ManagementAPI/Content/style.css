@@ -91,17 +91,6 @@ div[role=main] {
     margin-right: 10px;
 }
 
-.accountName.form-control[readonly] {
-    background-color: transparent;
-    border: 0px none;
-    cursor: text;
-    border-radius: 0;
-    box-shadow: none;
-    padding-top: 0;
-    padding-bottom: 0;
-    height: 20px;
-}
-
 table tbody tr td.tableControl {
     vertical-align: bottom;
 }
@@ -121,4 +110,9 @@ table tbody tr td.tableControl {
 
 .setting_label {
     margin-bottom: 10px;
+}
+
+.form-group {
+    margin-top: 7px;
+    margin-bottom: 7px;
 }
