@@ -6,6 +6,12 @@ DASH is a solution from Microsoft that allows you to bypass space and I/O limits
 
 You will need an active subscription to Azure and access to Visual Studio or Windows Powershell.
 
+### To Build with Visual Studio
+
+- Visual Studio 2013 (Update 5 or greater)
+- Azure SDK 2.4 (cannot be greater as 2.5 introduces a breaking change)
+- Typescript 1.7 or greater
+
 ## Set up Azure Resources ##
 
 DASH works by sharding your storage across multiple storage accounts. It uses one storage account to keep track of where your data is stored (a namespace account) and shards your data across the remaining accounts. To get started, you will need to create multiple empty storage accounts on your subscription. We recommend that you create at least five storage accounts to start (one namespace account and four storage accounts). You can create as many child storage accounts as you like, but you will need to add them to your .cscfg file and re-deploy DASH for it to take effect.
