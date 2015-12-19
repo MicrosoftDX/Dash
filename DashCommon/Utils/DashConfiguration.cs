@@ -236,7 +236,7 @@ namespace Microsoft.Dash.Common.Utils
 
         public static string Tenant
         {
-            get { return ConfigurationSource.GetSetting("Tenant", String.Empty); }
+            get { return ConfigurationSource.GetSetting("Tenant", "common" ); }
         }
 
         public static string ClientId

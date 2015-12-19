@@ -23,6 +23,11 @@ namespace Microsoft.Dash.Async
                     DashConfiguration.NamespaceAccount = newNamespace;
                 }
             }
+            if (DashConfiguration.NamespaceAccount == null)
+            {
+                DashTrace.TraceWarning("Namespace account configuration not set. Asynchronous processing cannot continue.");
+                return;
+            }
             IMessageQueue queue = new AzureMessageQueue(newNamespace, queueName);
             while (true)
             {

@@ -71,8 +71,14 @@ module Dash.Management {
 
         public start(): void {
             $(document).ready(() => {
-                console.log("booting " + this.app.name);
-                angular.bootstrap(document, [this.app.name]);
+                try {
+                    console.log("booting " + this.app.name);
+                    angular.bootstrap(document, [this.app.name]);
+                }
+                catch (ex) {
+                    $('#BootExceptionDetails').text(ex);
+                    $('#AngularBootError').show();
+                }
             });
         }
     }

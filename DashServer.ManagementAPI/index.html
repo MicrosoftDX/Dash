@@ -39,7 +39,24 @@
     </div>
     <br />
     <div class="container" role="main">
-        <div ng-view class="panel-body">
+        <div ng-view class="panel-body"></div>
+        <div id="AngularBootError" style="display:none">
+            <div class="panel panel-warning">
+                <div class="panel-heading">
+                    <div class="page-header">
+                        <h1>Data At Scale Hub (DASH)</h1>
+                    </div>
+                    <p>This portal allows you to edit DASH settings, like rotating storage keys, add new storage accounts and increase the number of instances</p>
+                </div>
+            </div>
+            <div class="alert alert-warning">
+                <p><h4>The DASH Management Portal application fail to initialize correct.</h4></p>
+                <p>This is most time due to incorrect configuration in the DASH service. Check the configuration and try again.</p>
+                <p>&nbsp;</p>
+                <p>Details:</p>
+                <p>&nbsp;</p>
+                <span id="BootExceptionDetails"></span>
+            </div>
         </div>
     </div>
 
