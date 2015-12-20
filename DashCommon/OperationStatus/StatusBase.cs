@@ -22,9 +22,26 @@ namespace Microsoft.Dash.Common.OperationStatus
         public void UpdateCloudStorageAccount(CloudStorageAccount newAccount)
         {
             _storageAccount = newAccount;
+            try
+            {
+                GetStatusTable().CreateIfNotExists();
+            }
+            catch (Exception ex)
+            {
+                DashTrace.TraceWarning("Error creating/referencing account status table: {0}. Details: {1}", _tableName, ex);
+            }
         }
 
         public abstract Task UpdateStatus(StatusItemBase statusItem);
+
+        protected CloudTable GetStatusTable()
+        {
+            if (this._storageAccount != null)
+            {
+                return this._storageAccount.CreateCloudTableClient().GetTableReference(_tableName);
+            }
+            return null;
+        }
     }
 
     public class StatusBase<T> : StatusBase where T : StatusItemBase
@@ -121,15 +138,6 @@ namespace Microsoft.Dash.Common.OperationStatus
             catch (Exception ex)
             {
                 DashTrace.TraceWarning("Error querying status table. Details: {0}", ex);
-            }
-            return null;
-        }
-
-        protected CloudTable GetStatusTable()
-        {
-            if (this._storageAccount != null)
-            {
-                return this._storageAccount.CreateCloudTableClient().GetTableReference(_tableName);
             }
             return null;
         }
