@@ -2,6 +2,7 @@
 
 using System;
 using System.Web.Http;
+using System.Web.Http.Cors;
 
 namespace DashServer.ManagementAPI
 {
@@ -19,6 +20,8 @@ namespace DashServer.ManagementAPI
                 routeTemplate: "api/{controller}/{action}/{id}",
                 defaults: new { action = "Index", id = RouteParameter.Optional }
             );
+
+            config.EnableCors(new EnableCorsAttribute("*", "*", "*", "www-authenticate"));
         }
     }
 }
