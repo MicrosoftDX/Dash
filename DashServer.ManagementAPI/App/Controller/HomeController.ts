@@ -28,11 +28,13 @@ module Dash.Management.Controller {
                 this.$scope.areUpdatesAvailable = this.updateService.updatesAreAvailable;
                 this.$scope.updateBannerClass = this.updateService.severityBannerClass;
             }
-            this.updateService.checkForUpdates()
-                .finally(() => {
-                    this.$scope.areUpdatesAvailable = this.updateService.updatesAreAvailable;
-                    this.$scope.updateBannerClass = this.updateService.severityBannerClass;
-                });
+            else {
+                this.updateService.checkForUpdates()
+                    .finally(() => {
+                        this.$scope.areUpdatesAvailable = this.updateService.updatesAreAvailable;
+                        this.$scope.updateBannerClass = this.updateService.severityBannerClass;
+                    });
+            }
         }
     }
 } 

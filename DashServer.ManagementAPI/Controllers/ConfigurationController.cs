@@ -23,7 +23,7 @@ namespace DashServer.ManagementAPI.Controllers
     [Authorize]
     public class ConfigurationController : DelegatedAuthController
     {
-        [HttpGet, ActionName("Index")]
+        [HttpGet]
         public async Task<IHttpActionResult> GetCurrentConfiguration()
         {
             return await DoActionAsync("ConfigurationController.GetCurrentConfiguration", async (serviceClient) =>
@@ -31,11 +31,11 @@ namespace DashServer.ManagementAPI.Controllers
                 // Load the XML config from RDFE
                 // Get only Dash storage related settings to show and make a dictionary
                 // which we can use to return the properties dynamic
-                var operationStatusTask = UpdateConfigStatus.GetMostRecentStatus();
+                var operationStatusTask = UpdateConfigStatus.GetActiveStatus();
                 var serviceConfigTask = serviceClient.GetDeploymentConfiguration();
                 await Task.WhenAll(operationStatusTask, serviceConfigTask);
                 string operationId = null;
-                if (operationStatusTask.Result.State != UpdateConfigStatus.States.Unknown && operationStatusTask.Result.StartTime > DateTime.UtcNow.AddHours(-1))
+                if (operationStatusTask.Result != null)
                 {
                     operationId = operationStatusTask.Result.OperationId;
                 }
@@ -72,7 +72,7 @@ namespace DashServer.ManagementAPI.Controllers
             public bool IsBlockingOperation { get; set; }
         }
 
-        [HttpPut, ActionName("Index")]
+        [HttpPut]
         public async Task<IHttpActionResult> UpdateConfiguration(Configuration newConfig)
         {
             return await DoActionAsync("ConfigurationController.UpdateConfiguration", async (serviceClient) =>
@@ -80,10 +80,34 @@ namespace DashServer.ManagementAPI.Controllers
                 UpdateConfigStatus.ConfigUpdate operationStatus = null;
                 try
                 {
+                    // Do some validation checks first
+                    var operationStatusTask = UpdateConfigStatus.GetActiveStatus();
+                    var serviceConfigTask = serviceClient.GetDeploymentConfiguration();
+                    await Task.WhenAll(operationStatusTask, serviceConfigTask);
+                    if (operationStatusTask.Result != null)
+                    {
+                        return BadRequest(String.Format("Operation: {0} is already underway. Wait for this operation to complete before attempting further updates.", operationStatusTask.Result.OperationId));
+                    }
+                    var serviceSettings = AzureServiceConfiguration.GetSettingsProjected(serviceConfigTask.Result);
+                    if (!CompareAccountName(serviceSettings, newConfig.AccountSettings, DashConfiguration.KeyNamespaceAccount))
+                    {
+                        return BadRequest("Cannot change the namespace account name once is has been set.");
+                    }
+                    int accountIndex = 0;
+                    foreach (var currentAccount in serviceSettings
+                                                        .Where(AzureServiceConfiguration.SettingPredicateScaleoutStorage))
+                    {
+                        if (!CompareAccountName(currentAccount, newConfig.ScaleAccounts.Accounts.ElementAtOrDefault(accountIndex++)))
+                        {
+                            var removedAccount = ParseConnectionString(currentAccount.Item2);
+                            return BadRequest(String.Format("Data account [{0]} cannot be removed.", removedAccount.AccountName));
+                        }
+                    }
+
                     // Do some preamble work here synchronously (begin creation of any new storage accounts - we need to return the keys),
                     // but then enqueue a message on our async worker queue to complete the full update in a reliable manner without having
                     // the client wait forever for a response. The response will be an operationid which can be checked on by calling
-                    // the /api/operations/operationid endpoint.
+                    // the /operations/operationid endpoint.
                     var operationId = DashTrace.CorrelationId.ToString();
                     // Reconcile storage accounts - any new accounts (indicated by a blank key) we will create immediately & include the key in the returned config
                     var newAccounts = new[] { 
@@ -139,8 +163,7 @@ namespace DashServer.ManagementAPI.Controllers
                         .Concat(newConfig.ScaleAccounts.Accounts
                             .Select((account, index) => Tuple.Create(String.Format("{0}{1}", DashConfiguration.KeyScaleoutAccountPrefix, index), GenerateConnectionString(account))))
                         .ToDictionary(setting => setting.Item1, setting => setting.Item2, StringComparer.OrdinalIgnoreCase);
-                    var serviceSettings = await serviceClient.GetDeploymentConfiguration();
-                    var scaleoutAccounts = AzureServiceConfiguration.GetSettingsProjected(serviceSettings)
+                    var scaleoutAccounts = serviceSettings
                         .Where(AzureServiceConfiguration.SettingPredicateScaleoutStorage)
                         .Select(account => ParseConnectionString(account.Item2))
                         .Where(account => account != null)
@@ -172,11 +195,7 @@ namespace DashServer.ManagementAPI.Controllers
                     // Post message to the new namespace account (it may have changed) as that is where the async workers will read from after update
                     await new AzureMessageQueue(namespaceAccount, asyncQueueName).EnqueueAsync(message, 0);
                     // Manually fire up the async worker (so that we can supply it with the new namespace account)
-                    var upgradeTask = Task.Factory.StartNew(() =>
-                    {
-                        int processed = 0, errors = 0;
-                        MessageProcessor.ProcessMessageLoop(ref processed, ref errors, GetMessageDelay(), GenerateConnectionString(namespaceAccount), asyncQueueName);
-                    });
+                    var queueTask = ProcessOperationMessageLoop(operationId, namespaceAccount, GenerateConnectionString(namespaceAccount), GetMessageDelay(), asyncQueueName);
                     newConfig.OperationId = operationId;
                     newConfig.ScaleAccounts.MaxAccounts = DashConfiguration.MaxDataAccounts; 
                     return Content(HttpStatusCode.Accepted, newConfig);
@@ -192,7 +211,7 @@ namespace DashServer.ManagementAPI.Controllers
             });
         }
 
-        [HttpGet, ActionName("validate")]
+        [HttpGet, Route("configuration/validate")]
         public async Task<IHttpActionResult> ValidateStorage(string storageAccountName, string storageAccountKey = null)
         {
             return await DoActionAsync("ConfigurationController.ValidateStorage", async (serviceClient) =>
@@ -215,10 +234,45 @@ namespace DashServer.ManagementAPI.Controllers
             });
         }
 
+        [NonAction]
         public virtual int? GetMessageDelay()
         {
             // Can be mocked out during testing
             return null;
+        }
+
+        static bool CompareAccountName(IEnumerable<Tuple<string, string>> currentSettings, IDictionary<string, string> newSettings, string settingKey)
+        {
+            return DoCompareAccounts(currentSettings.FirstOrDefault(setting => String.Equals(setting.Item1, settingKey, StringComparison.OrdinalIgnoreCase)),
+                () => {
+                    var newAccount = ParseConnectionString(newSettings, settingKey, true);
+                    if (newAccount == null)
+                    {
+                        return String.Empty;
+                    }
+                    return newAccount.AccountInfo.AccountName;
+                });
+        }
+
+        static bool CompareAccountName(Tuple<string, string> currentSetting, ScaleAccount newAccount)
+        {
+            return DoCompareAccounts(currentSetting, () => newAccount == null ? String.Empty : newAccount.AccountName);
+        }
+
+        static bool DoCompareAccounts(Tuple<string, string> currentSetting, Func<string> getNewAccountName)
+        {
+            if (currentSetting == null)
+            {
+                // If we don't have a current setting, then we can set anything
+                return true;
+            }
+            var currentAccount = ParseConnectionString(currentSetting.Item2);
+            if (currentAccount == null)
+            {
+                return true;
+            }
+            var newAccountName = getNewAccountName();
+            return String.Equals(currentAccount.AccountName, newAccountName, StringComparison.OrdinalIgnoreCase);
         }
 
         static StorageAccountCreationInfo ParseConnectionString(IDictionary<string, string> settings, string settingKey, bool blockingCall)

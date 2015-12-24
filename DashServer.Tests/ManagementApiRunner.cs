@@ -108,10 +108,10 @@ namespace Microsoft.Tests
                     retval.OperationCompletedNormally = retval.OperationStatus != null && retval.OperationStatus.State == UpdateConfigStatus.States.Completed;
                 }
                 this.VerifyConfigAction(this.UpdatedServiceConfig == null ?
-                    null :
-                    AzureServiceConfiguration.GetSettingsProjected(this.UpdatedServiceConfig),
-                retval.OperationStatus,
-                retval.ThrownException);
+                        null :
+                        AzureServiceConfiguration.GetSettingsProjected(this.UpdatedServiceConfig),
+                    retval.OperationStatus,
+                    retval.ThrownException);
                 return retval;
             });
         }
@@ -124,7 +124,7 @@ namespace Microsoft.Tests
                 IHttpActionResult response = null;
                 try
                 {
-                    response = this.UpgradeController.Update(new UpdateVersion { version = this.UpgradeVersion }).Result;
+                    response = this.UpgradeController.Update(new UpdateVersion { Version = this.UpgradeVersion }).Result;
                 }
                 catch (Exception ex)
                 {

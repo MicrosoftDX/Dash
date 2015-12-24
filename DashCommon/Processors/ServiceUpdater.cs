@@ -126,27 +126,31 @@ namespace Microsoft.Dash.Common.Processors
 
         public static async Task<bool> UpdateOperationStatus(string subscriptionId, string serviceName, string operationId, string refreshToken, bool abandonOperation)
         {
-            var operationStatus = await UpdateConfigStatus.GetConfigUpdateStatus(operationId);
-            switch (operationStatus.State)
+            return await OperationRunner.DoActionAsync(String.Format("ServiceUpdater.UpdateOperationStatus [{0}]", operationId), async () =>
             {
-                case UpdateConfigStatus.States.Failed:
-                case UpdateConfigStatus.States.Completed:
-                    // We're already done
-                    return false;
-            }
-            if (abandonOperation)
-            {
-                await operationStatus.UpdateStatus(UpdateConfigStatus.States.Failed, "Service update operation abandoned after too many failed retries.");
-                return false;
-            }
-            using (var serviceClient = await GetServiceManagementClient(subscriptionId, serviceName, refreshToken, operationStatus))
-            {
-                if (serviceClient == null)
+                var operationStatus = await UpdateConfigStatus.GetConfigUpdateStatus(operationId);
+                switch (operationStatus.State)
                 {
+                    case UpdateConfigStatus.States.Failed:
+                    case UpdateConfigStatus.States.Completed:
+                        // We're already done
+                        return false;
+                }
+                if (abandonOperation)
+                {
+                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.Failed, "Service update operation abandoned after too many failed retries.");
                     return false;
                 }
-                return await UpdateOperationStatus(serviceClient, operationStatus);
-            }
+                using (var serviceClient = await GetServiceManagementClient(subscriptionId, serviceName, refreshToken, operationStatus))
+                {
+                    if (serviceClient == null)
+                    {
+                        return false;
+                    }
+                    return await UpdateOperationStatus(serviceClient, operationStatus);
+                }
+            },
+            ex => false, false, true);
         }
 
         public static async Task<bool> UpdateOperationStatus(AzureServiceManagementClient serviceClient, UpdateConfigStatus.ConfigUpdate operationStatus)

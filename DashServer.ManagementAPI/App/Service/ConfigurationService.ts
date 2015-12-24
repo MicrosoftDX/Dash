@@ -17,7 +17,7 @@ module Dash.Management.Service {
         constructor($resource: ng.resource.IResourceService) {
 
             this.resourceClass = <IConfigurationResourceClass>$resource<Model.Configuration>(
-                '/api/configuration/:action',
+                '/configuration/:action',
                 null,
                 {
                     get: {

@@ -38,6 +38,11 @@ namespace Microsoft.Dash.Common.OperationStatus
             public string CloudServiceUpdateOperationId { get; set; }
             public string StatusMessage { get; set; }
 
+            public bool IsFinalized
+            {
+                get { return this.State == States.Completed || this.State == States.Failed; }
+            }
+
             public async Task UpdateStatus(States newState, string messageFormat, params string[] args)
             {
                 await UpdateStatus(String.Format(messageFormat, args), newState, TraceLevel.Info);
@@ -115,14 +120,21 @@ namespace Microsoft.Dash.Common.OperationStatus
 
         public static async Task<ConfigUpdate> GetMostRecentStatus(CloudStorageAccount namespaceAccount = null)
         {
-            return await (new UpdateConfigStatus(namespaceAccount)).QueryStatus(new TableQuery
+            return await (new UpdateConfigStatus(namespaceAccount))
+                .QueryStatus(new TableQuery(),
+                    (entity) => EntityAttribute((DynamicTableEntity)entity, FieldStartTime, DateTime.UtcNow));
+        }
+
+        public static async Task<ConfigUpdate> GetActiveStatus(CloudStorageAccount namespaceAccount = null)
+        {
+            var mostRecentStatus = await GetMostRecentStatus(namespaceAccount);
+            if (mostRecentStatus.State == UpdateConfigStatus.States.Unknown ||
+                mostRecentStatus.IsFinalized ||
+                mostRecentStatus.StartTime < DateTime.UtcNow.AddHours(-1))
             {
-                FilterString = TableQuery.CombineFilters(
-                    TableQuery.GenerateFilterCondition(FieldState, "ne", States.Completed.ToString()),
-                    "and",
-                    TableQuery.GenerateFilterCondition(FieldState, "ne", States.Failed.ToString())),
-            },
-            (entity) => EntityAttribute((DynamicTableEntity)entity, FieldStartTime, DateTime.UtcNow));
+                return null;
+            }
+            return mostRecentStatus;
         }
     }
 }

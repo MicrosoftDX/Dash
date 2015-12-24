@@ -22,7 +22,7 @@ module Dash.Management.Service {
 
             // Use JQuery here so that we can make this a synchronous call
             $.ajax({
-                url: "/api/authconfig",
+                url: "/authconfig",
                 async: false,
                 success: success
             });

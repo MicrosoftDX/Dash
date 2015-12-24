@@ -17,8 +17,8 @@ namespace DashServer.ManagementAPI
 
             config.Routes.MapHttpRoute(
                 name: "DefaultApi",
-                routeTemplate: "api/{controller}/{action}/{id}",
-                defaults: new { action = "Index", id = RouteParameter.Optional }
+                routeTemplate: "{controller}/{id}",
+                defaults: new { id = RouteParameter.Optional }
             );
 
             config.EnableCors(new EnableCorsAttribute("*", "*", "*", "www-authenticate"));

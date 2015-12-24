@@ -8,7 +8,7 @@ namespace DashServer.ManagementAPI.Controllers
 {
     public class AuthConfigController : ApiController
     {
-        [HttpGet, ActionName("Index")]
+        [HttpGet]
         public IHttpActionResult GetAuthConfig()
         {
             return Ok(new

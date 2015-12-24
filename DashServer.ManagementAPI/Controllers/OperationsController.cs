@@ -14,7 +14,7 @@ namespace DashServer.ManagementAPI.Controllers
     [Authorize]
     public class OperationsController : DelegatedAuthController
     {
-        [HttpGet, ActionName("Index")]
+        [HttpGet]
         public async Task<IHttpActionResult> Get(string id, string storageConnectionStringMaster = null)
         {
             return await DoActionAsync("OperationsController.Get", async () =>

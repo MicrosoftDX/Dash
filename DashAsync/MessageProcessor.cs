@@ -15,6 +15,17 @@ namespace Microsoft.Dash.Async
     {
         public static void ProcessMessageLoop(ref int msgProcessed, ref int msgErrors, int? invisibilityTimeout = null, string namespaceAccount = null, string queueName = null)
         {
+            ProcessMessageLoop(ref msgProcessed, ref msgErrors, (msg) => msg != null, () => true, invisibilityTimeout, namespaceAccount, queueName);
+        }
+
+        public static void ProcessMessageLoop(ref int msgProcessed, 
+            ref int msgErrors,
+            Func<QueueMessage, bool> continueLoopPostDequeue,
+            Func<bool> continueLoopPostProcess, 
+            int? invisibilityTimeout, 
+            string namespaceAccount, 
+            string queueName)
+        {
             CloudStorageAccount newNamespace = null;
             if (!String.IsNullOrWhiteSpace(namespaceAccount))
             {
@@ -29,26 +40,29 @@ namespace Microsoft.Dash.Async
                 return;
             }
             IMessageQueue queue = new AzureMessageQueue(newNamespace, queueName);
-            while (true)
+            do
             {
                 try
                 {
                     QueueMessage payload = queue.Dequeue(invisibilityTimeout);
-                    if (payload == null)
+                    if (!continueLoopPostDequeue(payload))
                     {
                         break;
                     }
                     // Right now, success/failure is indicated through a bool
                     // Do we want to surround this with a try/catch and use exceptions instead?
-                    if (ProcessMessage(payload, invisibilityTimeout) || payload.AbandonOperation)
+                    if (payload != null)
                     {
-                        payload.Delete();
-                        msgProcessed++;
-                    }
-                    else
-                    {
-                        // Leave it in the queue for retry after invisibility period expires
-                        msgErrors++;
+                        if (ProcessMessage(payload, invisibilityTimeout) || payload.AbandonOperation)
+                        {
+                            payload.Delete();
+                            msgProcessed++;
+                        }
+                        else
+                        {
+                            // Leave it in the queue for retry after invisibility period expires
+                            msgErrors++;
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -57,6 +71,7 @@ namespace Microsoft.Dash.Async
                     msgErrors++;
                 }
             }
+            while (continueLoopPostProcess());
         }
 
         static bool ProcessMessage(QueueMessage message, int? invisibilityTimeout = null)

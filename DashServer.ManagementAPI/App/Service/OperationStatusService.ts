@@ -11,7 +11,7 @@ module Dash.Management.Service {
 
         constructor($resource: ng.resource.IResourceService) {
 
-            this.resourceClass = $resource<Model.OperationStatus>('/api/operations/index/:operationId');
+            this.resourceClass = $resource<Model.OperationStatus>('/operations/:operationId');
         }
 
         public getOperationStatus(operationId: string, namespaceAccount: string, success: Function, error?: Function): Model.OperationStatus {

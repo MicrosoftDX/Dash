@@ -4,10 +4,13 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
+using Microsoft.Dash.Async;
 using Microsoft.Dash.Common.Authentication;
 using Microsoft.Dash.Common.Diagnostics;
+using Microsoft.Dash.Common.OperationStatus;
 using Microsoft.Dash.Common.Platform;
 using Microsoft.Dash.Common.Platform.Payloads;
 using Microsoft.Dash.Common.ServiceManagement;
@@ -97,6 +100,33 @@ namespace DashServer.ManagementAPI.Controllers
                     { UpdateServicePayload.RefreshToken, refreshToken },
                 },
                 DashTrace.CorrelationId));
+        }
+
+        protected Task ProcessOperationMessageLoop(string operationId, CloudStorageAccount namespaceAccount, string namespaceConnectString, int? messageDelay, string queueName)
+        {
+            // Manually fire up the async worker (so that we can supply it with the new namespace account)
+            return Task.Factory.StartNew(() =>
+            {
+                int processed = 0, errors = 0;
+                MessageProcessor.ProcessMessageLoop(ref processed,
+                    ref errors,
+                    (msg) =>
+                    {
+                        if (msg == null)
+                        {
+                            Thread.Sleep(5000);
+                        }
+                        return true;
+                    },
+                    () =>
+                    {
+                        var updateStatus = UpdateConfigStatus.GetConfigUpdateStatus(operationId, namespaceAccount).Result;
+                        return updateStatus != null && !updateStatus.IsFinalized;
+                    },
+                    messageDelay,
+                    namespaceConnectString,
+                    queueName);
+            });
         }
     }
 }

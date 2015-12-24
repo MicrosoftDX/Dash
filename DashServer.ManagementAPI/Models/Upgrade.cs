@@ -21,6 +21,6 @@ namespace DashServer.ManagementAPI.Models
 
     public class UpdateVersion
     {
-        public string version { get; set; }
+        public string Version { get; set; }
     }
 }

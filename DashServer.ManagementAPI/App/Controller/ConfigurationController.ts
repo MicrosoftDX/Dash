@@ -49,11 +49,11 @@ module Dash.Management.Controller {
             this.$scope.loadingMessage = "Retrieving configuration from the Dash service...";
             this.$scope.error = "";
             this.$scope.configuration = resource.get(
-                (results) => {
-                    var updateInProgress: boolean = this.$scope.configuration.operationId != null;
+                (results: Model.Configuration) => {
+                    var updateInProgress: boolean = results.operationId != null;
                     this.setUpdateState(updateInProgress);
                     if (updateInProgress) {
-                        this.updateOperationStatus(this.$scope.configuration.operationId);
+                        this.updateOperationStatus(results.operationId);
                     }
                     else {
                         this.$scope.loadingMessage = "";
@@ -68,7 +68,7 @@ module Dash.Management.Controller {
             this.$scope.loadingMessage = "Saving configuration to the Dash service...";
             this.setUpdateState(true);
             resource.save(this.$scope.configuration, 
-                (results) => {
+                (results: Model.Configuration) => {
                     this.$scope.configuration = results;
                     this.updateOperationStatus(results.operationId);
                 },
@@ -83,11 +83,11 @@ module Dash.Management.Controller {
             this.operationStatusService.getOperationStatus(operationId, namespaceAccount,
                 (status: Model.OperationStatus) => {
                     this.$scope.loadingMessage = "Updating service: " + status.Status + ": " + status.Message;
-                    if (status.Status != "Succeeded" && status.Status != "Failed") {
+                    if (status.Status !== "Succeeded" && status.Status !== "Failed") {
                         this.$timeout(() => this.updateOperationStatus(operationId), 10000);
                     }
                     else {
-                        var failure = status.Status == "Failed";
+                        var failure = status.Status === "Failed";
                         this.setError(failure, failure ? status.Message : "Configuration update completed successfully", null);
                         this.setUpdateState(false);
                     }

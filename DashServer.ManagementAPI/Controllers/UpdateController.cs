@@ -22,7 +22,7 @@ namespace DashServer.ManagementAPI.Controllers
 {
     public class UpdateController : DelegatedAuthController
     {
-        [HttpGet, ActionName("Index")]
+        [HttpGet, Route("update/available")]
         public async Task<IHttpActionResult> IsUpdateAvailable()
         {
             var availableUpdates = await GetAvailableUpdates();
@@ -41,7 +41,7 @@ namespace DashServer.ManagementAPI.Controllers
             });
         }
 
-        [HttpGet, ActionName("Updates")]
+        [HttpGet]
         public async Task<IHttpActionResult> Updates()
         {
             return Ok(new UpgradePackages
@@ -52,13 +52,13 @@ namespace DashServer.ManagementAPI.Controllers
         }
 
         [Authorize]
-        [HttpPost, ActionName("Update")]
+        [HttpPost]
         public async Task<IHttpActionResult> Update(UpdateVersion version)
         {
             return await DoActionAsync("UpdateController.Update", async (serviceClient) =>
             {
                 var updateClient = new UpdateClient(null, DashConfiguration.PackageUpdateServiceLocation);
-                var updateManifest = await updateClient.GetUpdateVersionAsync(UpdateClient.Components.DashServer, version.version);
+                var updateManifest = await updateClient.GetUpdateVersionAsync(UpdateClient.Components.DashServer, version.Version);
                 if (updateManifest == null)
                 {
                     return NotFound();
@@ -78,7 +78,7 @@ namespace DashServer.ManagementAPI.Controllers
                 try
                 {
                     var operationStatus = await UpdateConfigStatus.GetConfigUpdateStatus(operationId);
-                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.PreServiceUpdate, "Begin software upgrade to version [{0}]. Operation Id: [{1}]", version.version, operationId);
+                    await operationStatus.UpdateStatus(UpdateConfigStatus.States.PreServiceUpdate, "Begin software upgrade to version [{0}]. Operation Id: [{1}]", version.Version, operationId);
                     // Do a couple of things up-front to ensure that we can upgrade & then kick the upgrade off & don't wait for it to complete.
                     // Make sure reverse-DNS is configured
                     var updateResponse = await serviceClient.UpdateService(new HostedServiceUpdateParameters
@@ -139,12 +139,8 @@ namespace DashServer.ManagementAPI.Controllers
                     operationStatus.CloudServiceUpdateOperationId = upgradeResponse.RequestId;
                     await operationStatus.UpdateStatus(UpdateConfigStatus.States.UpdatingService, "Service upgrade in progress.");
                     await EnqueueServiceOperationUpdate(serviceClient, operationId);
-                    // Manually fire up the async worker (so that we can supply it with the new namespace account)
-                    var upgradeTask = Task.Factory.StartNew(() =>
-                    {
-                        int processed = 0, errors = 0;
-                        MessageProcessor.ProcessMessageLoop(ref processed, ref errors, GetMessageDelay(), null);
-                    });
+                    // Manually fire up the async worker 
+                    var queueTask = ProcessOperationMessageLoop(operationId, null, null, GetMessageDelay(), null);
 
                     return Content(upgradeResponse.StatusCode, new OperationResult 
                     { 
@@ -176,6 +172,7 @@ namespace DashServer.ManagementAPI.Controllers
                 .ToList();
         }
 
+        [NonAction]
         public virtual Version GetCurrentVersion()
         {
             // Can be mocked out for tests
@@ -183,6 +180,7 @@ namespace DashServer.ManagementAPI.Controllers
             return version;
         }
 
+        [NonAction]
         public virtual int? GetMessageDelay()
         {
             // Can be mocked out during testing
