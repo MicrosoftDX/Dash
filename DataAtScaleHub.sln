@@ -25,8 +25,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DashServer.Tests", "DashSer
 		{FD772AA8-3BD6-4224-9518-2D40E81792BF} = {FD772AA8-3BD6-4224-9518-2D40E81792BF}
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LoadTestDotNet", "LoadTestDotNet\LoadTestDotNet.csproj", "{4A63F369-57F6-4997-929D-1151B2567DE5}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{E18EA06E-979A-4675-87BC-65E3238EA56F}"
 	ProjectSection(SolutionItems) = preProject
 		HostedLoad.testsettings = HostedLoad.testsettings
@@ -58,10 +56,6 @@ Global
 		{98DFBF47-6F1E-4BB1-910B-88DFF5ABABED}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{98DFBF47-6F1E-4BB1-910B-88DFF5ABABED}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{98DFBF47-6F1E-4BB1-910B-88DFF5ABABED}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4A63F369-57F6-4997-929D-1151B2567DE5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4A63F369-57F6-4997-929D-1151B2567DE5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4A63F369-57F6-4997-929D-1151B2567DE5}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4A63F369-57F6-4997-929D-1151B2567DE5}.Release|Any CPU.Build.0 = Release|Any CPU
 		{2F03F471-8951-4B92-8DD1-D335258C005C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{2F03F471-8951-4B92-8DD1-D335258C005C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2F03F471-8951-4B92-8DD1-D335258C005C}.Release|Any CPU.ActiveCfg = Release|Any CPU

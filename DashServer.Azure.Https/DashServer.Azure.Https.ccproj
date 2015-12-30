@@ -38,7 +38,6 @@
   </PropertyGroup>
   <!-- Items for the project -->
   <ItemGroup>
-    <ServiceConfiguration Include="ServiceConfiguration.Cloud - East.cscfg" />
     <ServiceConfiguration Include="ServiceConfiguration.Local.cscfg" />
     <ServiceConfiguration Include="ServiceConfiguration.Cloud.cscfg" />
     <ServiceConfiguration Include="ServiceConfiguration.PublishHttps.cscfg" />
@@ -70,10 +69,6 @@
       <SubType>Content</SubType>
     </Content>
   </ItemGroup>
-  <ItemGroup>
-    <PublishProfile Include="Profiles\DashJbTestProduction.azurePubxml" />
-    <PublishProfile Include="Profiles\DashTestEastProduction.azurePubxml" />
-  </ItemGroup>
   <!-- Virtual applications to publish -->
   <ItemGroup>
     <!-- For each virtual application add a VirtualApp item to this ItemGroup: -->
@@ -88,4 +83,10 @@
   </PropertyGroup>
   <Import Project="$(CloudExtensionsDir)Microsoft.WindowsAzure.targets" />
   <Import Project="..\.build\AddVirtualApp.targets" />
+  <!-- Allow specification of own .cscfg file -->
+  <Target Name="BeforeResolveServiceModel">
+    <ItemGroup Condition="'$(SourceServiceConfiguration)' != ''">
+      <SourceServiceConfiguration Include="$(SourceServiceConfiguration)" />
+    </ItemGroup>
+  </Target>
 </Project>
