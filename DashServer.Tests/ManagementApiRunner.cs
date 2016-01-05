@@ -88,7 +88,14 @@ namespace Microsoft.Tests
                 NegotiatedContentResult<DashServer.ManagementAPI.Models.Configuration> updateResponse = null;
                 try
                 {
-                    updateResponse = this.ConfigController.UpdateConfiguration(updatedConfig).Result as NegotiatedContentResult<DashServer.ManagementAPI.Models.Configuration>;
+                    var response = this.ConfigController.UpdateConfiguration(updatedConfig).Result;
+                    updateResponse = response as NegotiatedContentResult<DashServer.ManagementAPI.Models.Configuration>;
+                    if (updateResponse == null && !this.ExpectedException && !this.ExpectedAbnormalResponse)
+                    {
+                        Assert.Fail("Unexpected response from ConfigurationController.UpdateConfiguration. Response type: {0}. Details: {1}",
+                            response.GetType().FullName,
+                            response);
+                    }
                 }
                 catch (Exception ex)
                 {
