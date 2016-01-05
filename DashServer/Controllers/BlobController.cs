@@ -70,6 +70,7 @@ namespace Microsoft.Dash.Server.Controllers
                         {
                             return forwardedResponse;
                         }
+                        forwardedResponse.Dispose();
                         dataBlobDeleted = true;
                     }
                     // See if we need to delete any replicas

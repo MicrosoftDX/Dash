@@ -62,7 +62,12 @@ namespace Microsoft.Tests
                     TestBlob.DefineBlob("snapshotblob.txt", numSnapshots: 2),
                     // Replicas
                     TestBlob.DefineBlob("creplicatedblob.txt", isReplicated: true),
-                });
+                }.Concat(Enumerable.Range(0, 20)
+                    .Select(index => TestBlob.DefineBlob(String.Format("deleteblob{0:000}.txt", index)))));
+            for (int index = 0; index < 20; index++)
+            {
+                _ctx.Runner.ExecuteRequest(_ctx.GetBlobUri(String.Format("deleteblob{0:000}.txt", index)), "DELETE");
+            }
         }
 
         [ClassCleanup]
