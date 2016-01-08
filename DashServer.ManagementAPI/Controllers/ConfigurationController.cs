@@ -204,7 +204,7 @@ namespace DashServer.ManagementAPI.Controllers
                 {
                     if (operationStatus != null)
                     {
-                        var task = operationStatus.UpdateStatus(UpdateConfigStatus.States.Failed, ex.ToString());
+                        operationStatus.UpdateStatus(UpdateConfigStatus.States.Failed, ex.ToString()).Wait();
                     }
                     throw;
                 }
