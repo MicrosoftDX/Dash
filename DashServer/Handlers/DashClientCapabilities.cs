@@ -2,6 +2,7 @@
 
 using System;
 using Microsoft.Dash.Server.Utils;
+using Microsoft.Dash.Common.Diagnostics;
 
 namespace Microsoft.Dash.Server.Handlers
 {
@@ -21,12 +22,13 @@ namespace Microsoft.Dash.Server.Handlers
             DashClientCapabilities retval = DashClientCapabilities.None;
             string agent = requestWrapper.Headers.Value("User-Agent", String.Empty).ToLower();
             bool expect100 = requestWrapper.Headers.Contains("Expect");
+            bool dashHeader = requestWrapper.Headers.Contains("x-ms-dash-client");
             if (expect100)
             {
                 // Expect: 100-Continue trumps everything
                 retval = DashClientCapabilities.FullSupport;
             }
-            else if (agent.Contains("dash"))
+            else if (agent.Contains("dash") || dashHeader)
             {
                 // Modified client
                 retval = DashClientCapabilities.FullSupport;

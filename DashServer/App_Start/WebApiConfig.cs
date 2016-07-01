@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web.Http;
+using System.Web.Http.Cors;
 
 namespace Microsoft.Dash.Server
 {
@@ -16,7 +17,6 @@ namespace Microsoft.Dash.Server
             // Web API routes
             config.MapHttpAttributeRoutes();
 
-            
             config.Routes.MapHttpRoute(
                 name: "BlobsAndContainers",
                 routeTemplate: "{controller}/{container}/{*blob}");
@@ -24,6 +24,7 @@ namespace Microsoft.Dash.Server
                 name: "Account",
                 routeTemplate: "{controller}");
 
+            config.EnableCors(new EnableCorsAttribute("*", "*", "*"));
         }
     }
 }

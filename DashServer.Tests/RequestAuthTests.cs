@@ -44,7 +44,7 @@ namespace Microsoft.Tests
                         new XElement("Id", StoredPolicyNoDates),
                         new XElement("AccessPolicy",
                             new XElement("Permission", "r")))));
-            _ctx.Runner.ExecuteRequest(_ctx.GetContainerUri() + "&comp=acl", "PUT", body, HttpStatusCode.OK);
+            _ctx.Runner.ExecuteRequest(_ctx.GetContainerUri() + "&comp=acl", "PUT", body, null, HttpStatusCode.OK);
         }
 
         [ClassCleanup]

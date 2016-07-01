@@ -17,14 +17,14 @@ namespace Microsoft.Dash.Server.Handlers
 {
     public static class ControllerOperations
     {
-        public static Uri ForwardUriToNamespace(HttpRequestBase request)
+        public static Uri ForwardUriToNamespace(HttpRequestBase request, bool includeQuery = true)
         {
             UriBuilder forwardUri = new UriBuilder()
             {
                 Scheme = request.Url.Scheme,
                 Host = DashConfiguration.NamespaceAccount.BlobEndpoint.Host,
                 Path = request.Path,
-                Query = HttpUtility.ParseQueryString(request.Url.Query).ToString()
+                Query = includeQuery ? HttpUtility.ParseQueryString(request.Url.Query).ToString() : String.Empty,
             };
             return forwardUri.Uri;
         }

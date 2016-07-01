@@ -170,6 +170,7 @@ namespace Microsoft.Tests
                             new XElement("Latest", blockId)
                         )
                     ),
+                    null,
                     HttpStatusCode.Created);
                 AssertReplicationMessageIsEnqueued(MessageTypes.BeginReplicate, _ctx.ContainerName, blobName, dataAccountName);
                 // Set metadata - should trigger replication

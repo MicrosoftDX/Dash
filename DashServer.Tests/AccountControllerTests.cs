@@ -230,5 +230,155 @@ namespace Microsoft.Tests
             Assert.IsNotNull(serviceProps.Element("Cors"));
         }
 
+        [TestMethod]
+        public void SetServicePropertiesControllerTest()
+        {
+            string propsUri = "http://localhost/account?restype=service&comp=properties";
+            string apiVersion = "2014-02-14";
+            // Version 2013-08-15 - full document
+            var body = new XDocument(
+                new XElement("StorageServiceProperties",
+                    new XElement("Logging",
+                        new XElement("Version", "1.0"),
+                        new XElement("Delete", true),
+                        new XElement("Read", true),
+                        new XElement("Write", true),
+                        new XElement("RetentionPolicy",
+                            new XElement("Enabled", true),
+                            new XElement("Days", 10)
+                        )
+                    ),
+                    new XElement("HourMetrics",
+                        new XElement("Version", "1.0"),
+                        new XElement("Enabled", true),
+                        new XElement("IncludeAPIs", true),
+                        new XElement("RetentionPolicy",
+                            new XElement("Enabled", true),
+                            new XElement("Days", 10)
+                        )
+                    ),
+                    new XElement("MinuteMetrics",
+                        new XElement("Version", "1.0"),
+                        new XElement("Enabled", true),
+                        new XElement("IncludeAPIs", true),
+                        new XElement("RetentionPolicy",
+                            new XElement("Enabled", true),
+                            new XElement("Days", 10)
+                        )
+                    ),
+                    new XElement("Cors",
+                        new XElement("CorsRule",
+                            new XElement("AllowedOrigins", "http://origin1.com,https://origin2.com"),
+                            new XElement("AllowedMethods", "GET,PUT,DELETE,OPTIONS"),
+                            new XElement("ExposedHeaders", "*"),
+                            new XElement("AllowedHeaders", "x-ms-header1,x-ms-header2"),
+                            new XElement("MaxAgeInSeconds", 1800)
+                        ),
+                        new XElement("CorsRule",
+                            new XElement("AllowedOrigins", "*"),
+                            new XElement("AllowedMethods", "GET,PUT,DELETE,OPTIONS"),
+                            new XElement("ExposedHeaders", "*"),
+                            new XElement("AllowedHeaders", "*"),
+                            new XElement("MaxAgeInSeconds", 1800)
+                        )
+                    ),
+                    new XElement("DefaultServiceVersion", apiVersion)
+                )
+            );
+            string requestGuid = Guid.NewGuid().ToString("N");
+            var customHeaders = new List<Tuple<string, string>>
+            {
+                new Tuple<string, string>("x-ms-client-request-id", requestGuid),
+                new Tuple<string, string>("x-ms-version", apiVersion),
+            };
+            var results = _ctx.Runner.ExecuteRequest(propsUri, 
+                "PUT", 
+                body, 
+                customHeaders,
+                HttpStatusCode.Accepted);
+            Assert.AreEqual(requestGuid, results.Headers.GetValues("x-ms-request-id").First());
+            Assert.AreEqual(apiVersion, results.Headers.GetValues("x-ms-version").First());
+            // Read the properties back
+            results = _ctx.Runner.ExecuteRequestWithHeaders(propsUri,
+                "GET",
+                null,
+                new[] {
+                    Tuple.Create("x-ms-version", apiVersion)
+                },
+                expectedStatusCode: HttpStatusCode.OK);
+            var doc = XDocument.Load(results.Content.ReadAsStreamAsync().Result);
+            var serviceProps = doc.Root;
+            Assert.AreEqual(2, serviceProps.Element("Cors").Elements().Count());
+            var corsRule = serviceProps.Element("Cors").Element("CorsRule");
+            Assert.AreEqual(2, corsRule.Element("AllowedOrigins").Value.Split(',').Length);
+            Assert.AreEqual(4, corsRule.Element("AllowedMethods").Value.Split(',').Length);
+            Assert.AreEqual(2, corsRule.Element("AllowedHeaders").Value.Split(',').Length);
+            Assert.AreEqual("*", corsRule.Element("ExposedHeaders").Value);
+            Assert.AreEqual(1800, (int)corsRule.Element("MaxAgeInSeconds"));
+            Assert.AreEqual(apiVersion, (string)serviceProps.Element("DefaultServiceVersion"));
+
+            // Version 2013-08-15 - minimal document
+            body = new XDocument(
+                new XElement("StorageServiceProperties",
+                    new XElement("Cors",
+                        new XElement("CorsRule",
+                            new XElement("AllowedOrigins", "*"),
+                            new XElement("AllowedMethods", "GET,PUT,DELETE,OPTIONS"),
+                            new XElement("ExposedHeaders", "*"),
+                            new XElement("AllowedHeaders", "*"),
+                            new XElement("MaxAgeInSeconds", 1800)
+                        )
+                    )
+                )
+            );
+            results = _ctx.Runner.ExecuteRequest(propsUri,
+                "PUT",
+                body,
+                customHeaders,
+                HttpStatusCode.Accepted);
+            Assert.AreEqual(requestGuid, results.Headers.GetValues("x-ms-request-id").First());
+            Assert.AreEqual(apiVersion, results.Headers.GetValues("x-ms-version").First());
+
+            // 2012-02-12
+            apiVersion = "2012-02-12";
+            customHeaders = new List<Tuple<string, string>>
+            {
+                new Tuple<string, string>("x-ms-client-request-id", requestGuid),
+                new Tuple<string, string>("x-ms-version", apiVersion),
+            };
+            body = new XDocument(
+                new XElement("StorageServiceProperties",
+                    new XElement("Logging",
+                        new XElement("Version", "1.0"),
+                        new XElement("Delete", true),
+                        new XElement("Read", true),
+                        new XElement("Write", true),
+                        new XElement("RetentionPolicy",
+                            new XElement("Enabled", true),
+                            new XElement("Days", 10)
+                        )
+                    ),
+                    new XElement("Metrics",
+                        new XElement("Version", "1.0"),
+                        new XElement("Enabled", true),
+                        new XElement("IncludeAPIs", true),
+                        new XElement("RetentionPolicy",
+                            new XElement("Enabled", true),
+                            new XElement("Days", 10)
+                        )
+                    ),
+                    new XElement("DefaultServiceVersion", apiVersion)
+                )
+            );
+            results = _ctx.Runner.ExecuteRequest(propsUri,
+                "PUT",
+                body,
+                customHeaders,
+                HttpStatusCode.Accepted);
+            Assert.AreEqual(requestGuid, results.Headers.GetValues("x-ms-request-id").First());
+            Assert.AreEqual(apiVersion, results.Headers.GetValues("x-ms-version").First());
+
+        }
+
     }
 }

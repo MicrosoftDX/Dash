@@ -1,6 +1,8 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -111,6 +113,55 @@ namespace Microsoft.Dash.Common.Handlers
                 return container.GetBlockBlobReference(blobName, snapshotDateTime);
             }
             return container.GetBlockBlobReference(blobName);
+        }
+
+        public static async Task<SimpleHttpResponse> DoForAccountsAsync(HttpStatusCode successStatus,
+            Func<CloudBlobClient, Task> action,
+            IEnumerable<CloudStorageAccount> accounts,
+            bool ignoreNotFound,
+            IEnumerable<CloudStorageAccount> excludeAccounts = null)
+        {
+            SimpleHttpResponse retval = new SimpleHttpResponse
+            {
+                StatusCode = successStatus,
+            };
+            if (excludeAccounts != null)
+            {
+                accounts = accounts.Except(excludeAccounts);
+            }
+            var actionTasks = accounts
+                .Select(account => action(account.CreateCloudBlobClient()));
+            try
+            {
+                await Task.WhenAll(actionTasks.ToArray());
+            }
+            catch (AggregateException aggEx)
+            {
+                aggEx.Handle(ex => ProcessException(ex, ignoreNotFound, retval));
+            }
+            catch (Exception ex)
+            {
+                if (!ProcessException(ex, ignoreNotFound, retval))
+                {
+                    throw;
+                }
+            }
+            return retval;
+        }
+
+        private static bool ProcessException(Exception ex, bool ignoreNotFound, SimpleHttpResponse response)
+        {
+            if (ex is StorageException)
+            {
+                var storeEx = (StorageException)ex;
+                if (!ignoreNotFound || storeEx.RequestInformation.HttpStatusCode != (int)HttpStatusCode.NotFound)
+                {
+                    response.StatusCode = (HttpStatusCode)storeEx.RequestInformation.HttpStatusCode;
+                    response.ReasonPhrase = storeEx.RequestInformation.HttpStatusMessage;
+                }
+                return true;
+            }
+            return false;
         }
     }
 }

@@ -21,6 +21,11 @@ namespace Microsoft.Dash.Server.Handlers
     {
         public static async Task<bool> IsRequestAuthorizedAsync(IHttpRequestWrapper request, bool ignoreRequestAge = false)
         {
+            // OPTIONS pre-flight is always valid
+            if (request.HttpMethod == HttpMethod.Options.ToString())
+            {
+                return true;
+            }
             var headers = request.Headers;
             var queryParams = request.QueryParameters;
             // See what type of auth scheme is applied to this request

@@ -38,6 +38,12 @@ namespace Microsoft.Dash.Server.Controllers
             return response;
         }
 
+        protected HttpResponseMessage CreateResponse(DelegatedResponse response, RequestHeaders requestHeaders)
+        {
+            return response.CreateResponse()
+                .AddStandardResponseHeaders(requestHeaders ?? this.Request.GetHeaders());
+        }
+
         protected async Task<HttpResponseMessage> DoHandlerAsync(string handlerName, Func<Task<HttpResponseMessage>> handler)
         {
             return await WebOperationRunner.DoActionAsync(handlerName, handler, (ex) =>

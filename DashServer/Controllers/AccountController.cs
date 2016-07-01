@@ -1,12 +1,15 @@
 ﻿//     Copyright (c) Microsoft Corporation.  All rights reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Http;
 using System.Xml;
 using Microsoft.Dash.Common.Diagnostics;
+using Microsoft.Dash.Common.Handlers;
 using Microsoft.Dash.Common.Utils;
 using Microsoft.Dash.Server.Handlers;
 using Microsoft.Dash.Server.Utils;
@@ -23,29 +26,48 @@ namespace Microsoft.Dash.Server.Controllers
             var xmlFormatter = GlobalConfiguration.Configuration.Formatters.XmlFormatter;
             xmlFormatter.WriterSettings.OmitXmlDeclaration = false;
             xmlFormatter.SetSerializer<ContainerListResults>(new ObjectSerializer<ContainerListResults>(AccountController.SerializeContainerListing));
-            xmlFormatter.SetSerializer<RequestServiceProperites>(new ObjectSerializer<RequestServiceProperites>(AccountController.SerializeServiceProperties));
+            xmlFormatter.SetSerializer<RequestServiceProperites>(new ObjectSerializer<RequestServiceProperites>(AccountController.SerializeServiceProperties, AccountController.DeserializeServiceProperties, AccountController.IsServicePropertiesXML));
         }
 
         [HttpGet]
         public async Task<HttpResponseMessage> GetBlobServiceComp(string comp)
         {
             return await DoHandlerAsync(String.Format("AccountController.GetBlobServiceComp: {0}", comp), async () =>
+            {
+                switch (comp.ToLower())
                 {
-                    switch (comp.ToLower())
-                    {
-                        case "list":
-                            return await ListContainersAsync();
+                    case "list":
+                        return await ListContainersAsync();
 
-                        case "properties":
-                            return await GetServicePropertiesAsync();
+                    case "properties":
+                        return await GetServicePropertiesAsync();
 
-                        default:
-                            return ProcessResultResponse(new HandlerResult
-                                {
-                                    StatusCode = HttpStatusCode.BadRequest,
-                                });
-                    }
-                });
+                    default:
+                        return ProcessResultResponse(new HandlerResult
+                            {
+                                StatusCode = HttpStatusCode.BadRequest,
+                            });
+                }
+            });
+        }
+
+        [HttpPut]
+        public async Task<HttpResponseMessage> SetBlobServiceProperties()
+        {
+            var requestWrapper = DashHttpRequestWrapper.Create(this.Request);
+            return await DoHandlerAsync("AccountController.SetBlobServiceProperties", async () =>
+            {
+                var formatter = GlobalConfiguration.Configuration.Formatters.XmlFormatter;
+                var stream = await Request.Content.ReadAsStreamAsync();
+                var properties = (RequestServiceProperites)await formatter.ReadFromStreamAsync(typeof(RequestServiceProperites), stream, null, null);
+
+                var result = await NamespaceHandler.DoForAccountsAsync(HttpStatusCode.Accepted,
+                    (client) => client.SetServicePropertiesAsync(properties.Properties),
+                    DashConfiguration.AllAccounts,
+                    false);
+
+                return CreateResponse(new DelegatedResponse(result), requestWrapper.Headers);
+            });
         }
 
         static readonly string[] _corsOptionsHeaders = new[] { "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers" };
@@ -54,29 +76,29 @@ namespace Microsoft.Dash.Server.Controllers
         public async Task<HttpResponseMessage> OptionsCallAsync()
         {
             return await DoHandlerAsync("AccountController.OptionsCallAsync", async () =>
+            {
+                var request = HttpContextFactory.Current.Request;
+                HttpResponseMessage response;
+                if (request.Headers["Origin"] != null)
                 {
-                    var request = HttpContextFactory.Current.Request;
-                    HttpResponseMessage response;
-                    if (request.Headers["Origin"] != null)
+                    DashTrace.TraceInformation("Forwarding real CORS OPTIONS request");
+                    Uri forwardUri = ControllerOperations.ForwardUriToNamespace(request, false);
+                    var forwardRequest = new HttpRequestMessage(HttpMethod.Options, forwardUri);
+                    foreach (string key in _corsOptionsHeaders)
                     {
-                        DashTrace.TraceInformation("Forwarding real CORS OPTIONS request");
-                        Uri forwardUri = ControllerOperations.ForwardUriToNamespace(request);
-                        var forwardRequest = new HttpRequestMessage(HttpMethod.Options, forwardUri);
-                        foreach (string key in _corsOptionsHeaders)
-                        {
-                            forwardRequest.Headers.TryAddWithoutValidation(key, request.Headers[key]);
-                        }
-                        HttpClient client = new HttpClient();
-                        response = await client.SendAsync(forwardRequest);
-                        DashTrace.TraceInformation("CORS OPTIONS response: {0}, {1}", response.StatusCode, response.ReasonPhrase);
+                        forwardRequest.Headers.TryAddWithoutValidation(key, request.Headers[key]);
                     }
-                    else
-                    {
-                        response = this.Request.CreateResponse(HttpStatusCode.OK);
-                    }
-                    response.Headers.Add("x-ms-dash-client", "true");
-                    return response;
-                });
+                    HttpClient client = new HttpClient();
+                    response = await client.SendAsync(forwardRequest);
+                    DashTrace.TraceInformation("CORS OPTIONS response: {0}, {1}", response.StatusCode, response.ReasonPhrase);
+                }
+                else
+                {
+                    response = this.Request.CreateResponse(HttpStatusCode.OK);
+                }
+                response.Headers.Add("x-ms-dash-client", "true");
+                return response;
+            });
         }
 
         private async Task<HttpResponseMessage> GetServicePropertiesAsync()
@@ -155,6 +177,147 @@ namespace Microsoft.Dash.Server.Controllers
             writer.WriteElementString("Enabled", "false");
             writer.WriteElementString("Days", "0");
             writer.WriteEndElement();   // RetentionPolicy
+        }
+
+        static bool IsServicePropertiesXML(XmlDictionaryReader reader)
+        {
+            return reader.IsStartElement("StorageServiceProperties");
+        }
+
+        static readonly IDictionary<string, CorsHttpMethods> _corsMethodsLookup = new Dictionary<string,CorsHttpMethods>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "DELETE", CorsHttpMethods.Delete },
+            { "GET",    CorsHttpMethods.Get },
+            { "HEAD",   CorsHttpMethods.Head },
+            { "MERGE",  CorsHttpMethods.Merge },
+            { "POST",   CorsHttpMethods.Post },
+            { "OPTIONS", CorsHttpMethods.Options },
+            { "PUT",    CorsHttpMethods.Put },
+        };
+        const char CorsRuleDelimiter     = ',';
+
+        static RequestServiceProperites DeserializeServiceProperties(XmlReader reader)
+        {
+            var retval = new RequestServiceProperites
+            {
+                Properties = new ServiceProperties
+                {
+                    Logging = null,
+                    HourMetrics = null,
+                    MinuteMetrics = null,
+                },
+            };
+            Action<XmlReader, ServiceProperties> metricsHandler = (r, props) => ObjectDeserializer.ReadObject(r,
+                r.Name.ToLowerInvariant() == "minutemetrics" ? props.MinuteMetrics = new MetricsProperties() : props.HourMetrics = new MetricsProperties(), 
+                (metrics, name, value) =>
+                {
+                    switch (name)
+                    {
+                        case "version":
+                            metrics.Version = value;
+                            break;
+
+                        case "enabled":
+                            metrics.MetricsLevel = bool.Parse(value) ? MetricsLevel.Service : metrics.MetricsLevel;
+                            break;
+
+                        case "includeapis":
+                            metrics.MetricsLevel = bool.Parse(value) ? MetricsLevel.ServiceAndApi : metrics.MetricsLevel;
+                            break;
+                    }
+                }, 
+                new Dictionary<string, Action<XmlReader, MetricsProperties>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    { "RetentionPolicy", (r1, metricsProps) => ObjectDeserializer.ReadObject(r1, metricsProps, 
+                        (p, name, value) =>
+                        {
+                            switch (name)
+                            {
+                                case "days":
+                                    p.RetentionDays = int.Parse(value);
+                                    break;
+                            }
+                        }, null)},
+                });
+
+            reader.MoveToContent();
+            ObjectDeserializer.ReadObject(reader, retval.Properties, (props, name, value) =>
+            {
+                switch (name)
+                {
+                    case "defaultserviceversion":
+                        props.DefaultServiceVersion = value;
+                        break;
+                }
+            }, 
+            new Dictionary<string, Action<XmlReader, ServiceProperties>>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Logging", (r, props) => ObjectDeserializer.ReadObject(reader, props.Logging = new LoggingProperties(), 
+                    (loggingProps, name, value) =>
+                    {
+                        switch (name)
+                        {
+                            case "version":
+                                loggingProps.Version = value;
+                                break;
+
+                            case "delete":
+                                loggingProps.LoggingOperations |= LoggingOperations.Delete;
+                                break;
+
+                            case "read":
+                                loggingProps.LoggingOperations |= LoggingOperations.Read;
+                                break;
+
+                            case "write":
+                                loggingProps.LoggingOperations |= LoggingOperations.Write;
+                                break;
+                        }
+                    }, 
+                    new Dictionary<string, Action<XmlReader, LoggingProperties>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "RetentionPolicy", (r1, loggingProps) => ObjectDeserializer.ReadObject(reader, loggingProps, 
+                            (p, name, value) =>
+                            {
+                                switch (name)
+                                {
+                                    case "days":
+                                        p.RetentionDays = int.Parse(value);
+                                        break;
+                                }
+                            }, null)},
+                    }) },
+                { "Metrics", metricsHandler },
+                { "HourMetrics", metricsHandler },
+                { "MinuteMetrics", metricsHandler },
+                { "Cors", (r, props) => ObjectDeserializer.ReadCollection(r, props.Cors.CorsRules, 
+                    (rule, name, value) =>
+                    {
+                        switch (name)
+                        {
+                            case "allowedorigins":
+                                rule.AllowedOrigins = value.Split(CorsRuleDelimiter);
+                                break;
+
+                            case "allowedmethods":
+                                rule.AllowedMethods = ObjectDeserializer.TranslateEnumFlags(value.Split(CorsRuleDelimiter), _corsMethodsLookup, (a, f) => a | f, "CorsRule");
+                                break;
+
+                            case "exposedheaders":
+                                rule.ExposedHeaders = value.Split(CorsRuleDelimiter);
+                                break;
+
+                            case "allowedheaders":
+                                rule.AllowedHeaders = value.Split(CorsRuleDelimiter);
+                                break;
+
+                            case "maxageinseconds":
+                                rule.MaxAgeInSeconds = int.Parse(value);
+                                break;
+                        }
+                    })}
+            });
+            return retval;
         }
 
         private async Task<HttpResponseMessage> ListContainersAsync()
@@ -250,13 +413,6 @@ namespace Microsoft.Dash.Server.Controllers
                 writer.WriteElementStringIfNotNull("NextMarker", results.Containers.ContinuationToken.NextMarker);
             }
             writer.WriteEndElement();           // EnumerationResults 
-        }
-
-        [HttpPut]
-        public async Task<HttpResponseMessage> SetBlobServiceProperties()
-        {
-            await Task.Delay(10);
-            return new HttpResponseMessage();
         }
     }
 }

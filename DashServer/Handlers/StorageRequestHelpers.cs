@@ -15,7 +15,7 @@ namespace Microsoft.Dash.Server.Handlers
     {
         const string MetadataPrefix = "x-ms-meta-";
 
-        public static void AddStandardResponseHeaders(this HttpResponseMessage response, RequestHeaders requestHeaders)
+        public static HttpResponseMessage AddStandardResponseHeaders(this HttpResponseMessage response, RequestHeaders requestHeaders)
         {
             //Right now we are just parroting back the values sent by the client. Might need to generate our
             //own values for these if none are provided.
@@ -26,6 +26,8 @@ namespace Microsoft.Dash.Server.Handlers
             }
             response.Headers.Add("x-ms-version", requestHeaders.RequestVersion.ToVersionString());
             response.Headers.Date = DateTimeOffset.UtcNow;
+
+            return response;
         }
 
         public static bool SetAttributeFromRequest<T>(this RequestResponseItems requestItems, string attributeName, Action<T> setAttribute) where T : IConvertible

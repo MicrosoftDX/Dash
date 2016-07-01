@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using System.Web;
+using System.Web.Cors;
 using System.Web.Http;
 using Microsoft.Dash.Server.Diagnostics;
 using Microsoft.Dash.Server.Handlers;
@@ -75,8 +76,9 @@ namespace Microsoft.Dash.Server
             // Insert handling here for any requests which can potentially contain a body and that we intend to redirect. We must 
             // process the request here because if the client is using the Expect: 100-Continue header, then we should issue our 
             // final (redirect) status BEFORE IIS sends the 100 Continue response. This way the blob content is never sent to us.
+            var requestWrapper = DashHttpRequestWrapper.Create(this.Request);
             var result = await WebOperationRunner.DoHandlerAsync("App.PreRequestHandlerExecuteAsync", 
-                async () => await StorageOperationsHandler.HandlePrePipelineOperationAsync(DashHttpRequestWrapper.Create(this.Request)));
+                async () => await StorageOperationsHandler.HandlePrePipelineOperationAsync(requestWrapper));
             if (result != null)
             {
                 switch (result.StatusCode)
@@ -95,6 +97,11 @@ namespace Microsoft.Dash.Server
                             {
                                 this.Response.AppendHeader(header.Item1, header.Item2);
                             }
+                        }
+                        // Add the CORS headers to the response
+                        if (requestWrapper.Headers.Contains(CorsConstants.Origin))
+                        {
+                            this.Response.AppendHeader(CorsConstants.AccessControlAllowOrigin, requestWrapper.Headers.Value<string>(CorsConstants.Origin));
                         }
                         break;
 

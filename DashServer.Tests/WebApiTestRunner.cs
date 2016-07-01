@@ -120,7 +120,7 @@ namespace Microsoft.Tests
             }
         }
 
-        public HttpResponseMessage ExecuteRequest(string uri, string method, XDocument body = null, HttpStatusCode expectedStatusCode = HttpStatusCode.Unused)
+        public HttpResponseMessage ExecuteRequest(string uri, string method, XDocument body = null, IEnumerable<Tuple<string, string>> headers = null, HttpStatusCode expectedStatusCode = HttpStatusCode.Unused)
         {
             HttpContent bodycontent = null;
             if (body != null)
@@ -128,7 +128,7 @@ namespace Microsoft.Tests
                 bodycontent = new StringContent(body.ToString(SaveOptions.OmitDuplicateNamespaces));
                 bodycontent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/xml");
             }
-            return ExecuteRequest(uri, method, bodycontent, expectedStatusCode);
+            return ExecuteRequestWithHeaders(uri, method, bodycontent, headers, expectedStatusCode);
         }
 
         public XDocument ExecuteRequestResponse(string uri, string method, XDocument body = null, HttpStatusCode expectedStatusCode = HttpStatusCode.Unused)

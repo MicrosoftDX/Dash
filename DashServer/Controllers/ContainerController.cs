@@ -126,9 +126,13 @@ namespace Microsoft.Dash.Server.Controllers
 
         private async Task<HttpResponseMessage> SetContainerAcl(CloudBlobContainer container)
         {
-            var formatter = GlobalConfiguration.Configuration.Formatters.XmlFormatter;
-            var stream = await Request.Content.ReadAsStreamAsync();
-            SharedAccessBlobPolicies policies = (SharedAccessBlobPolicies)await formatter.ReadFromStreamAsync(typeof(SharedAccessBlobPolicies), stream, null, null);
+            SharedAccessBlobPolicies policies = null;
+            if (this.Request.Content.Headers.ContentLength.HasValue && this.Request.Content.Headers.ContentLength.Value > 0)
+            {
+                var formatter = GlobalConfiguration.Configuration.Formatters.XmlFormatter;
+                var stream = await Request.Content.ReadAsStreamAsync();
+                policies = (SharedAccessBlobPolicies)await formatter.ReadFromStreamAsync(typeof(SharedAccessBlobPolicies), stream, null, null);
+            }
             string accessLevel = TryGetHeader(Request.Headers, "x-ms-blob-public-access");
             BlobContainerPublicAccessType access = BlobContainerPublicAccessType.Off;
             if (!String.IsNullOrWhiteSpace(accessLevel))
@@ -146,9 +150,12 @@ namespace Microsoft.Dash.Server.Controllers
             {
                 PublicAccess = access
             };
-            foreach (var policy in policies)
+            if (policies != null)
             {
-                perms.SharedAccessPolicies.Add(policy);
+                foreach (var policy in policies)
+                {
+                    perms.SharedAccessPolicies.Add(policy);
+                }
             }
 
             var status = await ContainerHandler.DoForAllContainersAsync(container.Name, 
@@ -532,116 +539,71 @@ namespace Microsoft.Dash.Server.Controllers
             return reader.IsStartElement("SignedIdentifiers");
         }
 
-        static SharedAccessBlobPolicies DeserializeAccessPolicies(XmlReader reader)
+        class SharedAccessBlobPolicyWithId
         {
-            SharedAccessBlobPolicies ret = new SharedAccessBlobPolicies();
-            string signedIdentifier = "SignedIdentifier";
-            string accessPolicy = "AccessPolicy";
-            string wrapper = "SignedIdentifiers";
-            reader.Read(); //Advance past xml declaration element
-            reader.Read();
-            while (!reader.EOF)
+            public SharedAccessBlobPolicyWithId()
             {
-                if (reader.Name == wrapper && !reader.IsStartElement())
-                {
-                    break; //Reached the end of the file
-                }
-                while (reader.Name != signedIdentifier && !reader.EOF)
-                {
-                    reader.Read(); //Advance to the next policy
-                }
-                if (reader.EOF)
-                {
-                    break;
-                }
-                string id = "";
-                DateTimeOffset? start = null;
-                DateTimeOffset? expiry = null;
-                //Set permissions to None by default
-                SharedAccessBlobPermissions permissionObj = 0;
-                reader.Read(); //Go past start tag.
-                // Keep reading until we reach the end of the identifier
-                while (reader.Name != signedIdentifier)
-                {
-                    if (reader.Name == "Id")
-                    {
-                        reader.Read(); //Get to the value.
-                        id = reader.Value;
-                        reader.Read();
-                    }
-                    else if (reader.Name == accessPolicy)
-                    {
-                        reader.Read();
-                        while (reader.Name != accessPolicy)
-                        {
-                            if (reader.Name == "Start")
-                            {
-                                reader.Read();
-                                if (!string.IsNullOrWhiteSpace(reader.Value))
-                                {
-                                    start = DateTimeOffset.Parse(reader.Value);
-                                }
-                                else
-                                {
-                                    start = null;
-                                }
-                                
-                                reader.Read();
-                            }
-                            else if (reader.Name == "Expiry")
-                            {
-                                reader.Read();
-                                if (!string.IsNullOrWhiteSpace(reader.Value))
-                                {
-                                    expiry = DateTimeOffset.Parse(reader.Value);
-                                }
-                                else
-                                {
-                                    expiry = null;
-                                }
-                                reader.Read();
-                            }
-                            else if (reader.Name == "Permission")
-                            {
-                                reader.Read();
-                                string permissions = reader.Value;
-
-                                if (permissions.Contains('r'))
-                                {
-                                    permissionObj |= SharedAccessBlobPermissions.Read;
-                                }
-                                if (permissions.Contains('w'))
-                                {
-                                    permissionObj |= SharedAccessBlobPermissions.Write;
-                                }
-                                if (permissions.Contains('d'))
-                                {
-                                    permissionObj |= SharedAccessBlobPermissions.Delete;
-                                }
-                                if (permissions.Contains('l'))
-                                {
-                                    permissionObj |= SharedAccessBlobPermissions.List;
-                                }
-
-                                reader.Read();
-                            }
-                            reader.Read();
-                        }
-                    }
-                    reader.Read();
-                }
-                SharedAccessBlobPolicy policy = new SharedAccessBlobPolicy()
-                {
-                    SharedAccessStartTime = start,
-                    SharedAccessExpiryTime = expiry,
-                    Permissions = permissionObj
-                };
-
-                ret.Add(new KeyValuePair<string, SharedAccessBlobPolicy>(id, policy));
-                reader.Read();
+                this.Policy = new SharedAccessBlobPolicy();
             }
 
-            return ret;
+            public string Id { get; set; }
+            public SharedAccessBlobPolicy Policy { get; set; }
+        }
+
+        static readonly Dictionary<char, SharedAccessBlobPermissions> _permissionsMap = new Dictionary<char, SharedAccessBlobPermissions>
+        {
+            { 'r', SharedAccessBlobPermissions.Read },
+            { 'w', SharedAccessBlobPermissions.Write },
+            { 'd', SharedAccessBlobPermissions.Delete },
+            { 'l', SharedAccessBlobPermissions.List },
+        };
+
+        static SharedAccessBlobPolicies DeserializeAccessPolicies(XmlReader reader)
+        {
+            var policies = new List<SharedAccessBlobPolicyWithId>();
+
+            reader.MoveToContent();
+            ObjectDeserializer.ReadCollection(reader, policies, 
+                (policy, name, value) =>
+                {
+                    if (name == "id")
+                    {
+                        policy.Id = value;
+                    }
+                },
+                new Dictionary<string, Action<XmlReader, SharedAccessBlobPolicyWithId>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    { "AccessPolicy", (r, policy) => ObjectDeserializer.ReadObject(r, policy.Policy, (p, name, value) =>
+                        {
+                            switch (name)
+                            {
+                                case "start":
+                                    if (!String.IsNullOrWhiteSpace(value))
+                                    {
+                                        p.SharedAccessStartTime = DateTimeOffset.Parse(value);
+                                    }
+                                    break;
+
+                                case "expiry":
+                                    if (!String.IsNullOrWhiteSpace(value))
+                                    {
+                                        p.SharedAccessExpiryTime = DateTimeOffset.Parse(value);
+                                    }
+                                    break;
+
+                                case "permission":
+                                    p.Permissions = ObjectDeserializer.TranslateEnumFlags(value, _permissionsMap, (a, f) => a | f, "Permission");
+                                    break;
+                            }
+                        })},
+                });
+
+            var retval = new SharedAccessBlobPolicies();
+            foreach (var policy in policies)
+            {
+                retval.Add(policy.Id, policy.Policy);
+            }
+            return retval;
         }
     }
 }

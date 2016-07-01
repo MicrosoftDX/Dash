@@ -18,10 +18,6 @@ namespace Microsoft.Dash.Server.Authorization
             bool retval = false;
             var requestUriParts = request.UriParts;
             var requestOperation = StorageOperations.GetBlobOperation(request.HttpMethod, requestUriParts, request.QueryParameters, request.Headers);
-            if (request.HttpMethod == HttpMethod.Options.ToString())
-            {
-                return true;
-            }
             switch (requestOperation)
             {
                 case StorageOperationTypes.GetContainerProperties:
